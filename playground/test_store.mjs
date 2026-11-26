@@ -443,6 +443,16 @@ test("the examples list matches the examples folder", () => {
     }
 });
 
+test("the Breeze tribute runs from the playground editor", async () => {
+    const { actions, state } = await create();
+    const source = readFileSync(join(root, "examples", "15-breeze-hash.bo"), "utf8");
+    const expected = readFileSync(join(root, "examples", "expected", "15-breeze-hash.out"), "utf8");
+    await actions.run(source);
+    assert.equal(state().status, "done");
+    assert.equal(state().output.map((entry) => entry.text).join(""), expected);
+    assert.ok(state().output.every((entry) => entry.stream === "stdout"));
+});
+
 test("the puzzle list matches the puzzles folder", () => {
     const files = readdirSync(join(root, "examples", "puzzles"))
         .filter((f) => f.endsWith(".bo") && !PUZZLE_SUPPORT_FILES.includes(f));

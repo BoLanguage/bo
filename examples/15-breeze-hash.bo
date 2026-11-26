@@ -1,0 +1,62 @@
+; A tribute to the original Breeze's # operator 
+; (https://breeze-language.sourceforge.net/)
+
+; The basic principle was that the language recognized 
+; only numbers and lists of numbers.
+; The # operator was used to turn numbers into code to be executed.
+
+(word apply) (#) PUSH
+
+; To push values onto the stack requires a prior meta-programming 
+; op (used in disguise below): "word" # (i.e., "word" word apply)
+
+; With this definition, the language can run on numbers, lists 
+; (empty or containing numbers), and the sole special operator #, 
+; as in Breeze!
+
+; Let's try! Below this point only numbers and lists will be used 
+; alongside the # operator.
+
+; include the I/O module for printing
+    (105 110 99 108 117 100 101 47 105 111 46 98 111) 
+    (114 101 113 117 105 114 101) 
+#
+
+; Using the definition of # we execute the word ps as follows.
+; Remember that a string is just a list of numbers.
+; For example, the string "ps" is represented as the list (112 115)
+
+    10                  ; just to see something on the stack
+    (112 115) 
+#                       ; this should show 0: 10
+
+; drop the top of the default stack
+    () (68 82 79 80) 
+#
+
+; Below, we define and use `succ` (adding 1 to the element on top 
+; of the default stack) using this approach:
+
+; define `succ`
+    (
+    1 
+        (43) 
+    #
+    ) 
+    (115 117 99 99) 
+    (119 111 114 100) 
+# 
+    (80 85 83 72) 
+#
+
+; push 11, duplicate, and call `succ`
+    11 
+    0 () 
+    (80 73 67 75) 
+# 
+    (115 117 99 99) 
+#
+
+; print the stack
+    (112 115) 
+#                       ; this should show 1: 11 and 0: 12

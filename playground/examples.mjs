@@ -16,6 +16,7 @@ export const EXAMPLES = [
     { file: "12-errors.bo", title: "Errors and catch" },
     { file: "13-parallel.bo", title: "Parallel execution" },
     { file: "14-bobo.bo", title: "Bobo, the mascot, drawn as text" },
+    { file: "15-breeze-hash.bo", title: "A tribute to Breeze's # operator" },
 ];
 
 /** Support files every example may include. */

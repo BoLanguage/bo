@@ -1,7 +1,8 @@
 # Examples
 
 The programs in `examples/` and helpers in `examples/lib.bo` explicitly load
-`include/std.bo` with `require`. They are tested on both implementations against
+`include/std.bo` with `require`, except for the Breeze tribute, which loads only
+the I/O module. They are tested on both implementations against
 `examples/expected/`. Run an example from the repository root, for example
 `c/bo examples/02-lists.bo`.
 
@@ -37,6 +38,7 @@ The migrated helpers include `range`, `sum`, `say`, dictionary keys with `tagkey
 | `12-errors.bo` | `catch`, `throw`, error lists, recovery, rethrowing |
 | `13-parallel.bo` | ordered isolated workers, multi-value results, named-stack isolation, nesting, worker-error handling |
 | `14-bobo.bo` | the mascot drawn as text from a run-length encoded picture (palette lookup with `nth`, `loop`, `foreach`); defines `bobo` and shows it |
+| `15-breeze-hash.bo` | a tribute to Breeze: running code represented as numbers and lists with a `#` operator |
 
 Two conventions that the examples rely on and that are easy to trip over: the value of a variable is stored as itself (`0 (COUNT) PUSH`) and naming it pushes it, but a *list* stored in a stack is a program, so naming it runs it; read a list value with `(NAME) TOP` or define a word that pushes it with a doubled paren, `((1 2 3)) (DATA) PUSH`. And `ift`/`ifte` take their condition as a list to run (`(cond) (then) ift`); when the truth value is already on the stack use `() (then) (else) ifte`.
 
