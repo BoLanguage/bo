@@ -1,7 +1,5 @@
 # Bo (BoLang)
 
-<img src="images/mascot.png" align="right" height="130" alt="Bobo, the blue-footed booby: the Bo mascot" title="Bobo, the Bo mascot">
-
 Bo is the successor of Breeze [^1] (**Bo** means **B**reeze **o**ptimized), following a theoretical exercise in language minimalism: a **concatenative, purely postfix, homoiconic, stack-based** language with **no distinction between data and code**, and **no distinction between stacks and dictionary**. Runtime values are numbers, nested lists and named stacks (in the following, also referred to as words for convenience).
 
 > [!IMPORTANT]
