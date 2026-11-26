@@ -71,19 +71,23 @@ describes that contract, the known constraints, and the relationship between
 the Python, C and WebAssembly runtimes.
 
 > [!TIP] 
-> Want a quick look without installing anything? Try the [Bo playground](https://maurodinuzzo.github.io/bo-lang/) now in your browser.
+> Want a quick look without installing anything? Try the [Bo playground](https://bolanguage.github.io/bo/) now in your browser.
 
-To run Bo locally, clone the repository, build, and start the REPL with the standard library loaded (the C runtime needs only `cc` and `python3`):
+To run Bo locally, clone the repository, build, and start the REPL. The full
+build requires `cc`, `python3`, Git, Node.js 22.13 or later, npm and uv. Its
+first run installs project dependencies and, if needed, Emscripten into
+`~/emsdk`; these downloads can be large. For the C runtime alone, `make c`
+requires only `cc` and `python3`.
 
 ```sh
-git clone https://github.com/MauroDiNuzzo/bo-lang.git
-cd bo-lang
-make all                  # builds c/bo; parts whose dependencies are missing are skipped
+git clone https://github.com/BoLanguage/bo.git
+cd bo
+make all                  # installs missing dependencies and builds all components
 c/bo                      # REPL with the core words; try: "include/std.bo" require 1 2 + ps
 c/bo examples/01-classics.bo   # run a program
 ```
 
-To build and run locally the Bo Playground+ (PG+) do:
+After `make all`, exit the REPL and run Bo Playground+ (PG+) locally:
 
 ```sh
 make playground-plus      # automatically opens PG+ in the browser
@@ -98,11 +102,11 @@ See below for the other components and options.
 
 ## Building, running and testing
 
-- Everything at once: `make deps` installs the dependencies (a `.venv` with the `jupyter` extra of `pyproject.toml`, via uv, and the npm packages of `playground/vendor-src`, `jupyterlab` and `vscode`; it needs `cc`, `python3`, `node`, `npm` and `uv`, and `make emsdk` additionally installs Emscripten into `~/emsdk`). Then `make all` regenerates the generated files (`include/core.bo`, `doc/*.md`, the editor syntax data) and builds the C runtime, the WebAssembly runtime, the playground editor bundle, the JupyterLab extension and the VS Code extension package `vscode/bolang-<VERSION>.vsix` (install it manually, for example with `code --install-extension`); parts whose dependencies are missing are skipped with a note. `make check` verifies the generated files, `make test` builds and runs every test suite, and `make help` lists the individual targets.
+- Everything at once: `make all` checks and installs the project dependencies (a `.venv` with the `jupyter` extra via uv, and the npm packages for the playground, Playground+, JupyterLab and VS Code), installs Emscripten into `~/emsdk` if it is not already available, and builds the generated files, C and WebAssembly runtimes, playground editor bundle, JupyterLab extension and VS Code extension package `vscode/bolang-<VERSION>.vsix` (install it manually, for example with `code --install-extension`). It requires `cc`, `python3`, Git, Node.js 22.13 or later, npm and uv; missing system tools must be installed separately. The first run may download substantial dependencies. Use `make deps` to check and install project dependencies without building, or `make c` for the lightweight C-only build. `make check` verifies the generated files, `make test` builds and runs every test suite, and `make help` lists the individual targets.
 - Build the C runtime: `make -C c` (produces `c/bo`).
 - WebAssembly (experimental): with [Emscripten](https://emscripten.org) active (`source ~/emsdk/emsdk_env.sh`), `make -C c wasm` builds `wasm/build/bo-core.mjs` and `.wasm`; [wasm/bo.mjs](wasm/bo.mjs) wraps them (`createBo`, `eval`, `include`, stdin/stdout hooks) and `node wasm/test_examples.mjs` runs the examples and `node wasm/test_parallel.mjs` compares `PARALLEL` with the native runtime. Without `fork`, WASM workers run one after another in the same process on saved machine state (stacks created by a worker remain, empty), and `exit` stops only the current evaluation (`exitCode()`). The build also has a step debugger and state inspection for a visualizer (`bo.debug.load/step/run/abort`, `bo.state()`, `bo.stacks(filter)`, `bo.stack(name)`; see the comments in [wasm/bo.mjs](wasm/bo.mjs)): stacks defined after the library baseline (`markBaseline()`, done automatically after the autoload) are "user" stacks, while library, kernel and empty stacks are only counted until requested. Tests: `node web/test_debugger.mjs` (also run by `tests/test_wasm.py`).
 - Playground (experimental): an editor, step debugger and stack visualizer in the browser, built on the WebAssembly runtime; `make playground` serves it and opens it in a browser (`PORT=n`, `OPEN=0`); see [playground/README.md](playground/README.md).
-- Playground+ (experimental): a local application built on the playground; `make playground-plus` serves the playground on `http://127.0.0.1:8777/`, opens it in a browser (`PORT=n`, `OPEN=0`) and prints the MCP configuration for an AI assistant (it needs `make wasm`, `make deps` for its npm packages, and Node 22.13 or later) and `make test-playground-plus` runs its tests. Its data is kept in `playground-plus/data/` (git-ignored). An MCP server (`playground-plus/mcp.mjs`) lets an LLM agent write puzzles for the player; with [Ollama](https://ollama.com) installed and a tool-capable model pulled (for example `ollama pull gemma4:12b`) the "New puzzle" button writes one with a local model, with no chat client needed. `node playground-plus/validate.mjs FILE...` checks puzzle files. See [playground-plus/README.md](playground-plus/README.md), which also shows how to connect an MCP client.
+- Playground+ (experimental): after `make all`, `make playground-plus` serves the playground on `http://127.0.0.1:8777/`, opens it in a browser (`PORT=n`, `OPEN=0`) and prints the MCP configuration for an AI assistant; `make test-playground-plus` runs its tests. Its data is kept in `playground-plus/data/` (git-ignored). An MCP server (`playground-plus/mcp.mjs`) lets an LLM agent write puzzles for the player; with [Ollama](https://ollama.com) installed and a tool-capable model pulled (for example `ollama pull gemma4:12b`) the "New puzzle" button writes one with a local model, with no chat client needed. `node playground-plus/validate.mjs FILE...` checks puzzle files. See [playground-plus/README.md](playground-plus/README.md), which also shows how to connect an MCP client.
 - Run: `c/bo file.bo ...`, `c/bo -e CODE` (run a code string at top level, like `python -c`; repeatable and mixable with files), or `c/bo` alone for a REPL (on a terminal it has line editing: arrows, Home/End, Delete, Ctrl-A/e/K/U/W, and up/down history; an `@` in a program pauses it there, and `c/bo --debug file.bo` stops at the file's first line; see [debugging](doc/debugging.md)). Both runtimes load the default-stack wrappers (`include/core.bo`) before the REPL, files, or C `-e` code; `--bare` starts with the kernel primitives only. The library is found next to the executable (`c/bo`) or the Python package, or in the directory named by `BO_HOME`, so a relative path such as `include/std.bo` works from any directory (it is looked up next to the including file, then in the current directory, then there). Load the standard library with `"include/std.bo" require` (on a `--bare` machine load `include/core.bo` first, with `() INCLUDE`, since `require` is defined there). An unknown `--option` is an error. C `--dump FILE` writes the final data stack to FILE (used by the differential test).
 - Version: `c/bo --version` or `.venv/bin/python -m python.bo --version`. The version is in the `VERSION` file (`NUMBER DATE`), changes are listed in `CHANGELOG.md`, and each release is a git tag `vX.Y.Z`. To release, list the changes under `## Unreleased` in `CHANGELOG.md`, commit them, and run `make release VERSION=X.Y.Z` (optionally `SUMMARY="title"`, `DATE=YYYY-MM-DD`, `SKIP_TESTS=1` to run only `make check`, or `ALLOW_DIRTY=1` to put uncommitted changes in the release commit). It dates the changelog section, updates `VERSION`, runs `make generate` (which copies the version into the VS Code and JupyterLab `package.json` files), `make check` and `make test`, then makes one commit `Release X.Y.Z` and the tag `vX.Y.Z`. If anything fails, `VERSION` and `CHANGELOG.md` are restored. Nothing is pushed: the last line printed is the `git push` command.
 - Python reference: `.venv/bin/python -m python.bo` (REPL with highlighting), or `.venv/bin/python -m python.bo file.bo`.
@@ -132,7 +136,8 @@ See below for the other components and options.
 
 ## Mascot
 
-Bo's mascot is **Bobo**, a blue-footed [^2] booby (top right). Bobo is Spanish for "fool" (as in *pájaro bobo*, "foolish bird") and the origin of the English word "booby". Big goofy blue feet, a wide-eyed stare, and built-in comedy from the name alone.
+Bo's mascot is [Bobo](doc/mascot.md) (top right). 
+
 
 ## AI assistance disclosure
 
@@ -150,6 +155,6 @@ The core design, architecture, and implementation of the language (building on t
 
 [^1]: Original Breeze resources: https://sourceforge.net/projects/breeze-language/ (project on SourceForge), https://breeze-language.sourceforge.net/ (documentation), https://concatenative.org/wiki/view/Breeze (language entry on Concatenative.org).
 
-[^2]: Blue-footed booby (*Sula nebouxii*), https://en.wikipedia.org/wiki/Blue-footed_booby
+
 
 

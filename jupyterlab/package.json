@@ -7,7 +7,7 @@
   "types": "lib/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MauroDiNuzzo/bo-lang.git"
+    "url": "https://github.com/BoLanguage/bo.git"
   },
   "scripts": {
     "build": "npm run build:lib && npm run build:labextension:dev",

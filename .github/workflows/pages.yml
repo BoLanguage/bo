@@ -3,13 +3,13 @@
 # Until it is enabled, nothing is published. To go live:
 #   1. Settings -> Pages -> Source: "GitHub Actions".
 #   2. Run this workflow by hand (Actions -> "Deploy the playground" -> Run workflow).
-#   3. Optional: to redeploy on every push to master, uncomment the `push` trigger below.
+#   3. Optional: to redeploy on every push to main, uncomment the `push` trigger below.
 name: Deploy the playground
 
 on:
   workflow_dispatch:
   # push:
-  #   branches: [master]
+  #   branches: [main]
 
 permissions:
   contents: read

@@ -7,7 +7,7 @@ grammar and JupyterLab token data are current.
 
 Run `make vsix` (or `make all`) from the repository root to package the extension as `vscode/bolang-<VERSION>.vsix`, whose version comes from the `VERSION` file; install it manually, for example with `code --install-extension vscode/bolang-<VERSION>.vsix`.
 
-Syntax highlighting for [Bo](https://github.com/MauroDiNuzzo/bo-lang) (`.bo` files): semicolon comments, strings, numbers, conversion words `WORD` and `TEXT`, parentheses, definition words (`PUSH`, `LOCK`, ...), and control words (`ifte`, `loop`, `catch`, ...). Colors depend on the active theme.
+Syntax highlighting for [Bo](https://github.com/BoLanguage/bo) (`.bo` files): semicolon comments, strings, numbers, conversion words `WORD` and `TEXT`, parentheses, definition words (`PUSH`, `LOCK`, ...), and control words (`ifte`, `loop`, `catch`, ...). Colors depend on the active theme.
 
 A string spanning several lines is highlighted as a comment, since that is what it is in practice. A list comment must fit on one line; it may contain nested parentheses and strings. Parentheses inside comments have the comment scope and are excluded from VS Code's built-in bracket-pair coloring; the `drop` word is highlighted separately as a control word.
 

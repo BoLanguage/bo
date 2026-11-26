@@ -43,14 +43,17 @@ Terms: **PG** (or the playground) is the static page in `playground/`, published
 
 ## Running it
 
-You need Node 22.13 or later and the WebAssembly build. From a clone of the repository:
+The full build needs `cc`, `python3`, Git, Node 22.13 or later, npm and uv.
+From a clone of the repository:
 
 ```
-make deps            # installs the npm packages (Playground+'s MCP SDK among them)
-make emsdk           # once, if you do not have Emscripten
-make wasm            # builds the runtime into wasm/build
+make all             # installs missing dependencies and builds all components
 make playground-plus # serves http://127.0.0.1:8777/ and opens it in a browser
 ```
+
+The first build can involve large downloads, including Emscripten into `~/emsdk`
+if it is not already available. `make all` checks for existing dependencies on
+subsequent runs.
 
 `PORT=9000` picks another port and `OPEN=0` does not open a browser (also `PLAYGROUND_PLUS_PORT` and
 `PLAYGROUND_PLUS_OPEN=0`). The command prints the MCP configuration for this checkout. The plain playground is
@@ -99,8 +102,8 @@ files, exposes the API, runs the harness, and owns the database. Tool and API lo
   which also works for puzzles stored by the MCP server, another process).
 - **A hosted PG does not talk to Playground+.** Browsers can call `localhost` from an `https` page, but
   support is uneven. Playground+ serves its own pages from its own origin.
-- **Distribution is a clone and `make all`.** Playground+ follows the Makefile's pattern for optional parts:
-  `make all` builds it when its dependencies and the WebAssembly build are present, with a note otherwise.
+- **Distribution is a clone and `make all`.** The full build installs missing dependencies and builds the
+  WebAssembly runtime before Playground+ is launched.
   The Pages workflow publishes `playground/`, `wasm/` and `examples/` only, so it cannot be affected.
 - **Build and tests.** `make test-wasm` and `make test-playground` test the runtime and the PG;
   `make test-playground-plus` tests Playground+ (its tests need no Ollama; the WebAssembly build is optional
