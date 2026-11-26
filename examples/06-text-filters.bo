@@ -1,0 +1,55 @@
+"../include/std.bo" require
+
+;Text as data: read all of standard input into a list of character codes, then
+;transform it with map and filter.
+"examples/lib.bo" require
+
+;the input as a list of codes (consr grows the list in place, so this is linear)
+    (
+    null 
+        (stdin read dup -1 \=) 
+        (unit consr) 
+    loop 
+    drop
+    )
+    (readtext)
+PUSH
+
+;c lower? / upper? : keep c and add a truth value
+    (dup 97 >= over 123 < and)
+    (lower?)
+PUSH
+
+    (dup 65 >= over 91 < and)
+    (upper?)
+PUSH
+
+    ((lower?) (32 -) ift)
+    (toupper)
+PUSH
+
+;c base rotbase : rotate within the alphabet that starts at base
+    (2dup - 13 + 26 mod + nip)
+    (rotbase)
+PUSH
+
+    (
+        (lower?) 
+        (97 rotbase) 
+        ((upper?) (65 rotbase) ift) 
+    ifte
+    )
+    (rot13)
+PUSH
+
+readtext (text) set
+
+"upper case:" emits nl
+(text) get (apply toupper unit) map emits
+"rot13:" emits nl
+(text) get (apply rot13 unit) map emits
+"rot13 twice is the identity: " emits
+(text) get (apply rot13 unit) map (apply rot13 unit) map (text) get = say
+"characters: " emits (text) get len say
+"lower case vowels: " emits (text) get ((97 101 105 111 117) in) filter len say
+"lower case letters: " emits (text) get (apply lower? nip) filter len say

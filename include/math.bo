@@ -1,0 +1,133 @@
+"logic.bo" require
+
+;neg ( a -- b ) the opposite of a
+
+    (0 swap -)
+    (neg)
+PUSH
+
+;abs ( a -- b ) the absolute value of a
+
+    ((dup 0 <) (neg) (nop) ifte)
+    (abs)
+PUSH
+
+;sign ( a -- -1|0|1 ) the sign of a
+
+    (
+        (dup 0 <)
+        (drop -1)
+        ((0 >) (1) (0) ifte)
+    ifte
+    )
+    (sign)
+PUSH
+
+;max ( a b -- c ) the larger of a and b
+
+    ((2dup <) (nip) (drop) ifte)
+    (max)
+PUSH
+
+;min ( a b -- c ) the smaller of a and b
+
+    ((2dup >) (nip) (drop) ifte)
+    (min)
+PUSH
+
+;umax ( a b -- c ) the larger of |a| and |b|
+
+    (abs swap abs max)
+    (umax)
+PUSH
+
+;umin ( a b -- c ) the smaller of |a| and |b|
+
+    (abs swap abs min)
+    (umin)
+PUSH
+
+;pi ( -- x ) the constant pi
+
+    (3.141592653589793)
+    (pi)
+PUSH
+
+;e ( -- x ) the constant e
+
+    (2.718281828459045)
+    (e)
+PUSH
+
+;mod ( a b -- r ) a - b * (a // b): the remainder takes the sign of b
+
+    (over over // * -)
+    (mod)
+PUSH
+
+;rem ( a b -- r ) the remainder with the sign of the dividend a
+
+    (
+    over sign -rot abs swap abs swap mod *
+    )
+    (rem)
+PUSH
+
+;gcd ( a b -- g ) the greatest common divisor (Euclid)
+
+    (
+        (dup 0 =)
+        (drop abs)
+        (swap over mod gcd)
+    ifte
+    )
+    (gcd)
+PUSH
+
+;<< ( a n -- b ) a times 2 to the n
+
+    (2 swap ^ *)
+    (<<)
+PUSH
+
+;>> ( a n -- b ) a floor-divided by 2 to the n
+
+    (2 swap ^ //)
+    (>>)
+PUSH
+
+;floor ( x -- n ) the largest integer not above x (exact, through ratio)
+
+    (ratio //)
+    (floor)
+PUSH
+
+;ceil ( x -- n ) the smallest integer not below x
+
+    (neg floor neg)
+    (ceil)
+PUSH
+
+;trunc ( x -- n ) x rounded toward zero
+
+    (
+        (dup 0 <)
+        (ceil)
+        (floor)
+    ifte
+    )
+    (trunc)
+PUSH
+
+;round ( x -- n ) the nearest integer to x, halves away from zero
+
+    (
+        (dup 0 <)
+        (neg round neg)
+        (
+        ratio dup 2 * -rot swap 2 * + swap //
+        )
+    ifte
+    )
+    (round)
+PUSH

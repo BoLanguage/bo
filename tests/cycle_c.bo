@@ -1,0 +1,2 @@
+; Fixture for the require cycle cases: cycle_c.bo and cycle_d.bo require each other.
+"tests/cycle_d.bo" require

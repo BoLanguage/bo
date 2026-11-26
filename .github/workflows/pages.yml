@@ -1,0 +1,62 @@
+# Publishes the playground (playground/, wasm/ and examples/) to GitHub Pages.
+#
+# Until it is enabled, nothing is published. To go live:
+#   1. Settings -> Pages -> Source: "GitHub Actions".
+#   2. Run this workflow by hand (Actions -> "Deploy the playground" -> Run workflow).
+#   3. Optional: to redeploy on every push to master, uncomment the `push` trigger below.
+name: Deploy the playground
+
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [master]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: mymindstorm/setup-emsdk@v16
+        with:
+          version: 7.0.0
+
+      # generates include/core.bo and friends, builds wasm/build (WebAssembly) and the native c/bo
+      # (wasm/test_parallel.mjs compares against it), then runs the WebAssembly and playground tests
+      - name: Build and test
+        run: make c wasm && make test-wasm test-playground
+
+      # the page loads ../wasm/ and ../examples/, so playground/, wasm/ and examples/ stay siblings
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/playground _site/wasm _site/web
+          rsync -a --exclude vendor-src --exclude 'test_*.mjs' playground/ _site/playground/
+          rsync -a --exclude 'test_*.mjs' wasm/ _site/wasm/
+          cp -r examples _site/examples
+          cp -r images _site/images
+          cp .github/pages/index.html _site/index.html
+          cp .github/pages/web-redirect.html _site/web/index.html
+          touch _site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

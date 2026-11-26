@@ -1,0 +1,28 @@
+;@puzzle
+;@title Build a pipeline
+;@goal Define `odd-square-total` so it sums the squares of the odd values in its input list.
+;@hints 1
+;@tags quotation list
+;@difficulty 3
+;@solution ((apply 2 mod 1 =) filter (apply dup * unit) map 0 (apply +) foldl) (odd-square-total) PUSH guess
+;@wrong ((apply 2 mod 1 =) filter 0 (apply +) foldl) (odd-square-total) PUSH guess
+;@description
+; Combine a `filter`, a `map`, and a left fold into one word.
+; `foldl` receives an initial accumulator, then a callback for each unit value.
+; As usual, run `guess` to check the solution.
+;@enddescription
+;@end
+
+; Define odd-square-total at the prompt, then run guess:
+;
+;     ((apply 2 mod 1 =) filter (apply dup * unit) map 0 (apply +) foldl) (odd-square-total) PUSH guess
+
+"include/std.bo" require
+"examples/puzzles/lib.bo" require
+
+((35) apply) (puzzle.solution) PUSH
+(puzzle.solution) LOCK
+
+(odd-square-total) ((1 2 3 4 5) odd-square-total puzzle.solution =) puzzle.require
+("Filter odd values first, map each to a squared unit, then foldl from 0 with (apply +).") (puzzle.hints) PUSH
+"((apply 2 mod 1 =) filter (apply dup * unit) map 0 (apply +) foldl) (odd-square-total) PUSH guess" (puzzle.reveal) PUSH

@@ -1,0 +1,29 @@
+;@puzzle
+;@title Order four values
+;@goal Arrange the default stack from top to bottom as 4, 3, 2, 1.
+;@hints 1
+;@tags shuffle
+;@difficulty 2
+;@solution swap rot guess
+;@wrong rot guess
+;@description
+; The stack panel displays the top value first.
+; Use stack operations to reorder the four starting values; the idea is to rearrange them, not replace them.
+; Run `guess` to validate your solution.
+;@enddescription
+;@end
+
+; Rearrange the default stack at the prompt, then run guess:
+;
+;     swap rot guess
+
+"include/std.bo" require
+"examples/puzzles/lib.bo" require
+
+((1 2 3 4)) (puzzle.solution) PUSH
+(puzzle.solution) LOCK
+
+() (snapshot puzzle.solution =) puzzle.require
+1 4 3 2
+("First swap the top two values, then use rot on the top three.") (puzzle.hints) PUSH
+"swap rot guess" (puzzle.reveal) PUSH

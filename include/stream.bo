@@ -1,0 +1,76 @@
+"list.bo" require
+
+;__ucode: extract a numeric element from a unit without executing a word
+
+    (
+        (dup unittype 0 =)
+        (apply)
+        (unit (Type-Error) throw)
+    ifte
+    )
+    (__ucode)
+PUSH
+
+;standard streams are ordinary stacks holding a number
+
+;stdin ( -- 0 ) the number of the standard input stream (a locked stack that holds it)
+
+    (0)
+    (stdin)
+PUSH
+
+(stdin) LOCK
+
+;stdout ( -- 1 ) the number of the standard output stream
+
+    (1)
+    (stdout)
+PUSH
+
+(stdout) LOCK
+
+;stderr ( -- 2 ) the number of the standard error stream
+
+    (2)
+    (stderr)
+PUSH
+
+(stderr) LOCK
+
+;emitc ( c -- ) write the character with code c to standard output
+
+    (stdout write)
+    (emitc)
+PUSH
+
+;nl ( -- ) write a newline to standard output
+
+    (10 emitc)
+    (nl)
+PUSH
+
+;puts ( L c -- ) write the character codes in the list L to the stream c
+
+    (
+        (over null =)
+        (2drop)
+        (
+        swap unconsl __ucode 2 pick write swap puts
+        )
+    ifte
+    )
+    (puts)
+PUSH
+
+;gets ( n c -- L ) read n character codes from the stream c into a list (-1 marks the end of file)
+
+    (
+        (over 1 <)
+        (2drop null)
+        (
+        dup read rot 1 - rot gets swap unit consl
+        )
+    ifte
+    )
+    (gets)
+PUSH

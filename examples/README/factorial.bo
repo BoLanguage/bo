@@ -1,0 +1,36 @@
+;factorial.bo
+;recursion: a definition that calls itself by name
+
+"include/stack.bo" require
+"include/io.bo" require
+
+;local (private) definition for factorial
+    (
+    ; if n == 0
+        (
+        dup                 ; ( n -- n n )
+        0 =                 ; ( n n -- n 0|1 )
+        ) 
+    ; then 1
+        (drop 1)            ; ( n 0|1 -- 1 )
+    ; else n * fact(n-1)
+        (
+        dup                 ; ( n 0|1 -- n n )
+        1 -                 ; ( n n -- n n-1 )
+        __fact        
+        *                   ; ( n n-1 n-2 ... 1 -- n! )
+        ) 
+    ifte
+    )
+    (__fact)
+PUSH
+
+;public interface for factorial
+    (__fact)
+    (!)
+PUSH
+
+15 (x) PUSH     ; push data in the x stack
+
+x !             ; top 15 from stack x on the default stack and execute code in !
+ps              ; print default stack --> 0: 1307674368000

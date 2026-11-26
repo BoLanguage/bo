@@ -1,0 +1,578 @@
+/* ================================================================
+   Bo Playground styles. Contents:
+     1. Fonts                      (@font-face, files in fonts/)
+     2. Colours and sizes          (light and dark theme variables)
+     3. Base elements              (body, buttons, inputs)
+     4. Layout                     (editor sidebar | page: header + main)
+     5. Header                     (example picker, status, theme button)
+     6. Prompt                     (title, input, "+" menu, echo, output)
+     7. Editor sidebar and machine panels (editor, Next, Running)
+     8. Stacks                     (default stack strip, stack columns, library list)
+     9. Toast
+     10. Optional onboarding
+   Most visual choices (fonts, colours, spacing of the top of the page,
+   the sidebar width) are variables in sections 1 and 2.
+   ================================================================ */
+
+/* ---------------------------------------------------------------- 1. fonts
+   Self-hosted (fonts/, SIL Open Font License), so the page makes no request to a font service.
+   Only the "latin" subset is included; other characters use the fallbacks in --mono / --title. */
+
+/* code font, option A: JetBrains Mono */
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: italic; font-weight: 400; font-display: swap; src: url("fonts/jetbrains-mono-latin-400-italic.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url("fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2"); }
+/* code font, option B: Cousine */
+@font-face { font-family: "Cousine"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/cousine-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Cousine"; font-style: italic; font-weight: 400; font-display: swap; src: url("fonts/cousine-latin-400-italic.woff2") format("woff2"); }
+@font-face { font-family: "Cousine"; font-style: normal; font-weight: 700; font-display: swap; src: url("fonts/cousine-latin-700-normal.woff2") format("woff2"); }
+/* "Bo Playground" title font, options (see --title): Truculenta, Voltaire, Mouse Memoirs */
+@font-face { font-family: "Truculenta"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/truculenta-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Truculenta"; font-style: normal; font-weight: 700; font-display: swap; src: url("fonts/truculenta-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Voltaire"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/voltaire-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Mouse Memoirs"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/mouse-memoirs-latin-400-normal.woff2") format("woff2"); }
+
+/* ---------------------------------------------------------------- 2. colours and sizes
+   Light theme (the default) and, below it, the dark theme. The two lists have the same names. */
+
+:root, :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f6f7f9;                      /* page background; also the header strips of stacks */
+    --panel: #ffffff;                   /* cards, sidebar, inputs */
+    --text: #1d2330;
+    --muted: #6a7385;                   /* secondary text, icons, "Playground" in the title */
+    --border: #d9dde5;
+    --hover: rgba(20, 30, 60, 0.07);    /* background of a hovered icon button */
+    --accent: #3b6fd4;                  /* primary buttons, focus ring, the default stack */
+    --accent-text: #ffffff;             /* text on an accent background */
+    --danger: #b3261e;
+    --ok: #1f9d55;
+    --warn: #d99a00;
+    --user: #1f7a4d;                    /* stacks defined by the program */
+    --shadows: #b45f06;                 /* library stacks the program redefined */
+    --locked: #9c3d74;                  /* mutation-protected stacks */
+    --library: #6a7385;
+    --kernel: #7a4fa3;                  /* kernel primitives; also word items in stacks */
+    --current: #fff3c4;                 /* the word or source line about to run */
+    --fresh: #d5f0dc;                   /* items that are new since the last action */
+    --error-bg: #fde3e1;
+    --active-line: rgba(20, 30, 60, 0.055);
+    --shadow: 0 1px 2px rgba(20, 30, 60, 0.06), 0 4px 18px rgba(20, 30, 60, 0.06);
+    --tok-string: #a8531b;              /* editor syntax colours */
+    --tok-number: #1a6fa8;
+    --tok-keyword: #7a4fa3;
+    --tok-type: #1f7a4d;
+    --tok-private: #8a7a5a;
+
+    --bofeet: #4da8ba;                  /* Bo's feet color */
+
+    /* Font of everything that is Bo code (prompt, editor, stacks, output). To compare, swap the
+       first name: "JetBrains Mono" or "Cousine". */
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+    /* Font of the "Bo Playground" title only. To compare, swap the first name: "Truculenta",
+       "Voltaire" or "Mouse Memoirs" (the last one is small: raise .wordmark's font-size). */
+    --title: "Truculenta", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --title-muted: "Voltaire", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+    --sidebar-w: clamp(380px, 34vw, 600px);   /* editor sidebar width (also set by dragging its edge) */
+    --slide: 0.28s ease;                      /* duration of the sidebar and top-space animations */
+    --hero-top: 200px;                        /* space above the title while no stack is shown */
+    --hero-top-stacks: 20px;                  /* the same once stacks are shown */
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #16191d; /* --bg: #14171d; */
+    --panel: #1c2028;
+    --text: #e3e7ee;
+    --muted: #98a2b5;
+    --border: #313846;
+    --hover: rgba(255, 255, 255, 0.09);
+    --accent: #6c9bf5;
+    --accent-text: #0e1420;
+    --danger: #f2877f;
+    --ok: #4cc97f;
+    --warn: #f0c24b;
+    --user: #6fd39a;
+    --shadows: #f0a95a;
+    --locked: #ee8fc6;
+    --library: #98a2b5;
+    --kernel: #bd9be0;
+    --current: #4a4220;
+    --fresh: #1f4a30;
+    --error-bg: #4a2420;
+    --active-line: rgba(255, 255, 255, 0.06);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 18px rgba(0, 0, 0, 0.25);
+    --tok-string: #e8a56a;
+    --tok-number: #7ec0ee;
+    --tok-keyword: #c9a8ee;
+    --tok-type: #7fd6a4;
+    --tok-private: #b3a688;
+}
+
+/* ---------------------------------------------------------------- 3. base elements */
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+/* the page itself does not scroll (only <main> does); this also sets the UI font and size */
+body {
+    margin: 0;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* text for screen readers only */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* default look of every control */
+button, select, input, textarea {
+    font: inherit;
+    color: inherit;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.3rem 0.7rem;
+}
+/* everything that shows Bo code or values uses the code font (after the reset above, which sets font: inherit) */
+code, pre, textarea, input, .item, .chip, .tokens, .depth { font-family: var(--mono); }
+button { cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: default; }
+button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }   /* Run, send */
+button.danger { border-color: var(--danger); color: var(--danger); }                                     /* Restart machine */
+/* a button that looks like a link (the "Clear" links) */
+button.link { border: 0; background: none; color: var(--accent); font-size: 0.8rem; padding: 0.1rem 0.3rem; }
+button.link:hover:not(:disabled) { border: 0; text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---------------------------------------------------------------- 4. layout: sidebar | page (header + main) */
+
+/* two columns: the editor sidebar (0 wide while closed, it slides open) and the page */
+.layout {
+    height: 100%;
+    display: grid;
+    grid-template-columns: 0px minmax(0, 1fr);
+    transition: grid-template-columns var(--slide);
+}
+.layout.editor-open { grid-template-columns: var(--sidebar-w) minmax(0, 1fr); }
+.layout.resizing { transition: none; user-select: none; }   /* no slide while dragging the edge */
+
+.sidebar { position: relative; z-index: 10; min-width: 0; }
+.sidebar-content { width: 100%; height: 100%; overflow: hidden; overflow: clip; background: var(--panel); }
+/* the sidebar's inside: toolbar, editor, "Clear" link, Next, Running */
+.sidebar-inner {
+    width: var(--sidebar-w);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.9rem 1rem 1rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+/* Step / Run / Stop... buttons */
+.sidebar .toolbar { flex: none; display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.6rem; }
+/* the source editor takes the free height; the "Clear" link sits under its bottom right corner */
+.sidebar .editor { flex: 1 1 260px; min-height: 180px; }
+.editor-foot { flex: none; display: flex; justify-content: flex-end; margin-top: 0.15rem; }
+.sidebar h2:first-of-type { margin-top: 1rem; }
+
+/* the tab on the sidebar's edge: it moves with the sidebar and is there when the sidebar is closed */
+.edge-tab {
+    position: absolute;
+    z-index: 3;
+    top: 50%;
+    left: 100%;
+    transform: translateY(-50%);
+    width: 1.5rem;
+    height: 3.6rem;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 0 12px 12px 0;
+    border: 1px solid var(--border);
+    border-left: 0;
+    background: var(--panel);
+    color: var(--muted);
+    box-shadow: var(--shadow);
+}
+.edge-tab:hover:not(:disabled) { color: var(--accent); border-color: var(--border); }
+.edge-tab svg { transition: transform var(--slide); }
+.edge-tab[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+/* the draggable edge of the sidebar: a thin line that lights up on hover */
+.resizer { position: absolute; z-index: 2; top: 0; bottom: 0; left: calc(100% - 4px); width: 9px; cursor: col-resize; }
+.resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: transparent; transition: background 0.15s; }
+.resizer:hover::after, .resizer:focus-visible::after, .layout.resizing .resizer::after { background: var(--accent); }
+.resizer:focus-visible { outline: none; }
+.resizer[hidden] { display: none; }
+
+/* right-hand column: header on top, scrolling <main> below */
+.page { min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; }
+.top { flex: none; display: flex; align-items: center; gap: 1rem; padding: 0.6rem 1rem 0.6rem 2.2rem; }
+/* pushes the example picker, status and theme button to the right */
+.spacer { flex: 1; }
+/* the scrolling area (the page itself does not scroll) */
+main { flex: 1; min-height: 0; min-width: 0; overflow: auto; }
+/* the left padding keeps 20px clear of the edge tab (1.5rem wide), open or closed */
+.content { max-width: 1400px; margin: 0 auto; padding: 0 1.5rem 2rem calc(1.5rem + 20px); transition: padding var(--slide); }
+.layout.editor-open .content { max-width: none; padding: 0 1rem 2rem calc(1.5rem + 20px); }
+
+/* narrow screens: no side-by-side layout; the editor appears above the page when opened */
+@media (max-width: 900px) {
+    html, body { height: auto; }
+    body { overflow: auto; }
+    .layout, .layout.editor-open { display: block; height: auto; }
+    .page { height: auto; }
+    main { overflow: visible; }
+    .edge-tab, .resizer { display: none; }
+    .sidebar-content { display: none; }
+    .layout.editor-open .sidebar-content { display: block; height: auto; }
+    .sidebar-inner { width: auto; height: auto; }
+    .sidebar .editor { flex: none; height: 320px; }
+    .top { padding-left: 1rem; }
+    .content, .layout.editor-open .content { padding-left: 1rem; padding-right: 1rem; }
+    :root { --hero-top: 40px; }
+}
+
+/* ---------------------------------------------------------------- 5. header */
+
+/* the "Example..." picker */
+.example select { border-radius: 999px; padding: 0.25rem 0.9rem; color: var(--muted); }
+/* the coloured dot and word: ready, running, paused, error (colours set per state below) */
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+.status::before { content: ""; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--dot, var(--muted)); }
+.status.ready, .status.done, .status.idle, .status.exit { --dot: var(--ok); }
+.status.paused { --dot: var(--warn); }
+.status.running, .status.working { --dot: var(--accent); }
+.status.error, .status.failed { --dot: var(--danger); color: var(--danger); }
+.status.running::before { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.25; } }
+
+/* round icon button (the light/dark switch); shows the sun in the dark theme and the moon in the light one */
+.icon { border: 0; background: none; color: var(--muted); padding: 0.4rem; border-radius: 50%; display: grid; place-items: center; }
+.icon:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+.icon .sun { display: none; }
+:root[data-theme="dark"] .icon .sun { display: block; }
+:root[data-theme="dark"] .icon .moon { display: none; }
+
+/* ---------------------------------------------------------------- 6. prompt */
+
+/* the centred block: title, version, prompt, echoed line, output. Its top margin is the space
+   above the title: --hero-top while no stack is shown, --hero-top-stacks once stacks appear
+   (the page adds the .has-stacks class to .content), with a smooth transition. */
+.hero { max-width: 760px; margin: var(--hero-top) auto 1rem; text-align: center; transition: margin-top var(--slide); }
+.has-stacks .hero { margin-top: var(--hero-top-stacks); }
+/* the "Bo Playground" title: font is --title; "Bo" is the text colour, "Playground" the muted one */
+.wordmark { margin: 0; font-family: var(--title); font-size: 3.24rem; font-weight: 900; letter-spacing: -0.01em; }
+.wordmark span { font-family: var(--title-muted); color: var(--muted); font-size: 2.9rem; }
+/* the mascot before "Bo": height is relative to the title's font size (em); width follows */
+.mascot { height: 1.5em; width: auto; vertical-align: -0.4em; margin-right: 0.15em; }
+/* the small "Bo runtime x.y.z" line under the title */
+.runtime { margin: 0 0 2rem 0; font-size: 0.72rem; color: var(--muted); }
+/*
+.puzzle-goal { width: 50%; margin: 0 auto 1rem; border: 1px solid var(--accent); border-radius: 8px; overflow: hidden; background: var(--panel); text-align: left; }
+*/
+.puzzle-goal { display: flex; width: 100%; margin: 0 auto 1rem; border: 0; overflow: hidden; text-align: left; color: var(--text); }
+.puzzle-emblem { display: grid; flex: 0 0 3.5rem; place-items: start center; padding-top: 0.25rem; }
+.puzzle-emblem-image {
+    display: block;
+    width: 2.25rem;
+    height: 2.25rem;
+    background: var(--muted);
+    -webkit-mask: url("puzzle-svgrepo-com-539588.svg") center / contain no-repeat;
+    mask: url("puzzle-svgrepo-com-539588.svg") center / contain no-repeat;
+}
+.puzzle-content { flex: 1; min-width: 0; }
+.puzzle-content header, .puzzle-content footer { padding: 0.1rem 0.8rem; font-size: 0.9rem; font-weight: 700; color: var(--muted); }
+.puzzle-content footer { font-size: 0.72rem; font-weight: 400; text-align: right; }
+.puzzle-title { display: inline-flex; align-items: center; }
+.puzzle-title-goal { display: inline-flex; gap: 0.35rem; align-items: center; color: var(--text); }
+.hint-icon { display: inline-grid; margin-left: 0.35rem; color: var(--muted); vertical-align: middle; }
+.hint-icon.available { color: var(--warn); }
+.hint-icon .icon-svg { display: grid; }
+.puzzle-goal .body { padding: 0.25rem 0.8rem; font-size: 0.8rem; }
+.puzzle-goal p { margin: 0; }
+.puzzle-goal .description { margin-top: 0.35rem; white-space: pre-line; }
+.puzzle-goal code { font-family: var(--mono); color: var(--accent); font-size: 0.95em; font-weight: 600; }
+@media (max-width: 600px) {
+    .puzzle-goal { width: 100%; }
+}
+.puzzle-goal strong { color: var(--accent); }
+
+/* the pill-shaped input; the "+" button and the send arrow are drawn inside it */
+.prompt { position: relative; }
+.prompt input {
+    width: 100%;
+    padding: 0.95rem 3.7rem 0.95rem 3.7rem;
+    border-radius: 999px;
+    font-size: 0.95rem; /*1.05rem */
+    box-shadow: var(--shadow);
+}
+.prompt input:focus { outline: none; border-color: var(--accent); }
+/* a program is paused: the prompt runs at the pause point */
+.prompt.debugging input { background: color-mix(in srgb, var(--warn) 14%, var(--panel)); border-color: var(--warn); }
+.prompt.debugging input:focus { border-color: var(--warn); }
+.prompt.debugging input { font-size: 0.85rem; } /* the placeholder says what comes next and how to go on */
+/* the round buttons inside the prompt */
+.send, .plus {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+}
+.send { right: 0.5rem; background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.plus { left: 0.5rem; border: 0; background: transparent; color: var(--muted); }
+.plus:hover:not(:disabled), .plus[aria-expanded="true"] { background: var(--hover); color: var(--text); }
+
+/* the "+" drop-down menu */
+.menu {
+    position: absolute;
+    z-index: 30;
+    left: 0.5rem;
+    top: calc(100% + 0.5rem);
+    min-width: 300px;
+    padding: 0.35rem;
+    text-align: left;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+}
+.menu[hidden] { display: none; }
+.menu button { display: block; width: 100%; text-align: left; border: 0; background: none; border-radius: 8px; padding: 0.55rem 0.8rem; }
+.menu button:hover, .menu button:focus-visible { background: var(--bg); outline: none; }
+.menu .check { display: inline-block; width: 1.2rem; color: var(--accent); }
+.menu [aria-checked="true"] .check::before { content: "\2713"; }
+
+.onboarding-invite { margin-top: 0.45rem; }
+
+/* the line under the prompt: what was evaluated (or the program line being executed) */
+.echo { margin: 1rem 0 0; padding: 0 1.4rem; text-align: left; font-family: var(--mono); color: var(--muted); white-space: pre-wrap; word-break: break-word; }
+.echo .mark { color: var(--accent); margin-right: 0.5rem; }
+.echo .line-no { display: inline-block; min-width: 1.6rem; margin-right: 0.5rem; text-align: right; color: var(--accent); }
+.echo .note { font-family: system-ui, sans-serif; font-style: italic; }
+
+/* program output under the prompt (errors in red) */
+.output-box { margin-top: 0.3rem; padding: 0.4rem 1.4rem; text-align: left; max-height: 260px; overflow: auto; }
+.output { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+.output .stderr { color: var(--danger); }
+/* the "Clear" link under the output (look: button.link) */
+.clear-row { padding: 0 1.4rem; text-align: right; }
+
+/* collapsible sections ("Standard input", "Library and kernel stacks") */
+
+details > summary { cursor: pointer; color: var(--muted); list-style: none; padding: 0.3rem 0; user-select: none; }
+details > summary::-webkit-details-marker { display: none; }
+/* the editor's cursor layer would otherwise paint a sliver while a section is closed */
+details:not([open]) > :not(summary) { display: none; }
+details > summary::before { content: "\25B8"; display: inline-block; width: 1rem; }
+details[open] > summary::before { content: "\25BE"; }
+details > summary:hover { color: var(--text); }
+
+/* the two sections under the stacks, "Standard input" then "Library and kernel stacks": same left alignment */
+.drawer { margin-top: 3rem; }
+.drawer + .drawer { margin-top: 0; }
+.drawer textarea { width: 100%; margin: 0.4rem 0; resize: vertical; background: var(--panel); }
+
+/* the lightning bolt on Run when fast run is on */
+#run .bolt { display: none; margin-left: 0.35rem; vertical-align: -1px; }
+#run.fast .bolt { display: inline; }
+
+/* ---------------------------------------------------------------- 7. editor sidebar and machine panels */
+
+/* the source editor (CodeMirror): frame, font, gutter, cursor and selection */
+.editor { border: 1px solid var(--border); border-radius: 6px; background: var(--panel); overflow: hidden; }
+.editor .cm-editor { height: 100%; font-family: var(--mono); font-size: 13px; background: var(--panel); color: var(--text); }
+.editor .cm-scroller { font-family: var(--mono); line-height: 1.5; }
+.editor .cm-gutters { background: var(--bg); color: var(--muted); border-right: 1px solid var(--border); }   /* line numbers */
+.editor .cm-content { caret-color: var(--text); }
+.editor .cm-cursor { border-left-color: var(--text); }
+.editor .cm-selectionBackground { background: color-mix(in srgb, var(--accent) 30%, transparent) !important; }
+/* line highlights: the line with the cursor, the line being executed, a failed line, a finished program */
+.editor .cm-editor .cm-activeLine { background: var(--active-line); }
+.editor .cm-editor .cm-line.exec-line { background: var(--current); }
+.editor .cm-editor .cm-line.exec-error { background: var(--error-bg); }
+.editor .cm-editor .cm-line.exec-done, .editor .cm-editor .cm-line.exec-exit { background: var(--active-line); }
+/* syntax colours in the editor (the colours themselves are --tok-* in section 2) */
+.tok-comment { color: var(--muted); font-style: italic; }
+.tok-string { color: var(--tok-string); }
+.tok-number { color: var(--tok-number); }
+.tok-keyword { color: var(--tok-keyword); font-weight: 600; }
+.tok-typeName { color: var(--tok-type); }
+.tok-variableName2 { color: var(--tok-private); }
+.tok-punctuation { color: var(--muted); }
+
+/* small uppercase headings of the sidebar ("Next", "Running") */
+h2 { margin: 1rem 0 0.4rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+.subtle { text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+/* "Next": the word about to run, or why nothing is running */
+.next { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; }
+.next .word { font-size: 1.1rem; font-weight: 700; }
+.next .detail { color: var(--muted); }
+.next .detail code { color: var(--text); }
+.next .error { color: var(--danger); }
+.next.error { border-color: var(--danger); }
+
+/* the small pill naming where a word or stack comes from (user, library, kernel...) and its colours */
+.badge { font-size: 0.7rem; padding: 0 0.4rem; border-radius: 1rem; border: 1px solid currentColor; font-family: system-ui, sans-serif; vertical-align: middle; }
+.origin-user, .badge.origin-user { color: var(--user); }
+.origin-shadows, .badge.origin-shadows { color: var(--shadows); }
+.badge.origin-library { color: var(--library); }
+.badge.origin-kernel { color: var(--kernel); }
+.badge.origin-default { color: var(--accent); }
+.badge.locked { color: var(--locked); }
+
+/* "Running": the nested lists being executed; .token.current is the next word */
+.frames { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); max-height: 30vh; overflow: auto; }
+.frame { display: flex; gap: 0.6rem; padding: 0.3rem 0.7rem; border-bottom: 1px solid var(--border); font-size: 13px; }
+.frame:last-child { border-bottom: 0; }
+.frame .kind { flex: none; width: 4.5rem; color: var(--muted); font-size: 0.75rem; text-transform: uppercase; padding-top: 0.1rem; }
+.frame .tokens { min-width: 0; word-break: break-word; }
+.token.current { background: var(--current); border-radius: 3px; box-shadow: 0 0 0 1px var(--accent); }
+.token.resume { border-bottom: 2px solid var(--muted); }
+
+/* ---------------------------------------------------------------- 8. stacks */
+
+.stacks-section { margin-top: 1.4rem; }
+.stacks-section > h2 { margin-top: 0; }
+.stacks { display: grid; gap: 0.8rem; }   /* the default stack strip, then the columns */
+/* the program's stacks: as many columns as fit, each at least 190px wide */
+.columns { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.7rem; align-items: start; }
+/* one stack card (.wide is the default stack's strip); its border and title take the origin colour */
+.stack { min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); overflow: hidden; }
+.stack.origin-default { border-color: var(--accent); }
+.stack.is-locked { border-color: var(--locked); }
+/* the card's title bar: name, item count, quick operations */
+.stack header { display: flex; gap: 0.6rem; align-items: baseline; padding: 0.3rem 0.6rem; border-bottom: 1px solid var(--border); background: var(--bg); }
+.stack h3 { margin: 0; font-size: 0.85rem; flex: 1; word-break: break-all; }
+.stack.origin-default h3 { color: var(--accent); }
+.stack.origin-user h3 { color: var(--user); }
+.stack.origin-shadows h3 { color: var(--shadows); }
+/* the "top → bottom" hint in the default stack's title bar */
+.orientation { color: var(--muted); font-size: 0.75rem; }
+
+/* quick operations: they cover the right end of the header while the pointer is over the stack */
+.stack header { position: relative; }
+.tools { position: absolute; top: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 0.1rem; padding: 0 0.3rem 0 1.4rem;
+         background: linear-gradient(to right, transparent, var(--bg) 1.2rem); opacity: 0; pointer-events: none; transition: opacity 0.12s; }
+.stack:hover .tools, .stack:focus-within .tools { opacity: 1; pointer-events: auto; }
+.tool { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); }
+.tool:hover:not(:disabled) { background: var(--hover); color: var(--text); border: 0; }
+.tool:disabled { opacity: 0.3; }
+.tool .icon-svg { display: grid; place-items: center; }
+.stack:not(.wide) .tool-swap .icon-svg { transform: rotate(90deg); }
+@media (hover: none) {
+    .tools { position: static; opacity: 1; pointer-events: auto; background: none; padding: 0; margin-left: auto; }
+}
+/* item count in the title bar, with the +n / -n change since the last action */
+.depth { color: var(--muted); font-size: 0.8rem; }
+.depth .up { color: var(--user); }
+.depth .down { color: var(--danger); }
+/* items of a stack column (top item first), one per row */
+.stack ul, ul.definition { list-style: none; margin: 0; padding: 0; }
+.item { display: flex; gap: 0.5rem; justify-content: space-between; padding: 0.15rem 0.6rem; border-bottom: 1px dashed var(--border); font-size: 13px; }
+.item:last-child { border-bottom: 0; }
+.item .text, .chip .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.item .hint, .chip .hint { color: var(--muted); flex: none; }
+.item.kind-w .text, .chip.kind-w .text { color: var(--kernel); }
+/* items that are new since the last action flash and settle on --fresh */
+.item.fresh { background: var(--fresh); animation: fade 1.2s ease-out; }
+@keyframes fade { from { background: var(--accent); } to { background: var(--fresh); } }
+
+/* the default stack: a wrapping row of chips, top item first (leftmost) */
+.strip { list-style: none; margin: 0; padding: 0.7rem 0.7rem; display: flex; flex-wrap: wrap; gap: 0.5rem; min-height: 3.4rem; }
+.chip { display: flex; gap: 0.5rem; max-width: 36ch; padding: 0.25rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); font-size: 14px; }
+.chip.top { border-color: var(--accent); }
+.chip.fresh { background: var(--fresh); animation: fade 1.2s ease-out; }
+.chip.more { border-style: dashed; color: var(--muted); }
+/* "empty" and "n deeper items not shown" notes */
+.empty, .more { margin: 0; padding: 0.3rem 0.6rem; color: var(--muted); font-size: 0.85rem; }
+.wide > .empty { padding: 1rem 0.8rem; }
+/* "Not shown: n library stacks..." line under the stacks */
+.counts { margin: 0.1rem 0 0; color: var(--muted); font-size: 0.8rem; }
+
+/* "Library and kernel stacks": the search box and the list of stacks (spacing comes from .drawer) */
+.library-box input { width: 100%; margin: 0.4rem 0; }
+.library { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); max-height: 360px; overflow: auto; }
+.library .entry { border-bottom: 1px solid var(--border); }
+.library .name { display: flex; gap: 0.5rem; align-items: baseline; width: 100%; text-align: left; border: 0; border-radius: 0; background: none; font-family: var(--mono); font-size: 13px; padding: 0.25rem 0.6rem; }
+.library .name .depth { margin-left: auto; }
+.library .entry.open > .name { background: var(--bg); }
+.library .definition { border-top: 1px dashed var(--border); }
+
+/* ---------------------------------------------------------------- 9. toast */
+
+/* the short message that appears at the bottom of the page */
+.toast {
+    position: fixed;
+    z-index: 50;
+    left: 50%;
+    bottom: 1.4rem;
+    transform: translateX(-50%);
+    max-width: min(90vw, 560px);
+    padding: 0.55rem 1.1rem;
+    border-radius: 999px;
+    background: var(--text);
+    color: var(--bg);
+    box-shadow: var(--shadow);
+}
+.toast[hidden] { display: none; }
+
+/* ---------------------------------------------------------------- 10. optional onboarding */
+
+.onboarding {
+    position: fixed;
+    z-index: 45;
+    left: 50%;
+    bottom: 1.4rem;
+    transform: translateX(-50%);
+    width: min(92vw, 520px);
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--panel);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.24);
+}
+.onboarding[hidden] { display: none; }
+/* the card sits at the bottom, or at the top when its target is low on the page (the page decides) */
+.onboarding.at-top { top: 1.4rem; bottom: auto; }
+/* the small arrow beside the step's target: the page places and turns it to point at the target, and it never
+   alters the target itself. It is drawn pointing left, so the nudge toward the target is a move to the left. */
+.onboarding-arrow { position: fixed; z-index: 44; width: 40px; height: 24px; pointer-events: none; }
+.onboarding-arrow[hidden] { display: none; }
+.onboarding-arrow svg { display: block; width: 100%; height: 100%; overflow: visible; animation: onboarding-nudge 0.9s ease-in-out infinite; }
+.onboarding-arrow path { fill: var(--accent); stroke: var(--panel); stroke-width: 1.5; stroke-linejoin: round; }
+@keyframes onboarding-nudge {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(-7px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .onboarding-arrow svg { animation: none; }
+}
+.onboarding-close { position: absolute; top: 0.35rem; right: 0.4rem; border: 0; background: none; padding: 0.1rem 0.35rem; color: var(--muted); font-size: 1.3rem; }
+.onboarding-progress { margin: 0 1.8rem 0.2rem 0; color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.onboarding h2 { margin: 0 1.8rem 0.45rem 0; color: var(--text); font-size: 1rem; letter-spacing: 0; text-transform: none; }
+.onboarding-body { margin: 0; color: var(--muted); }
+.onboarding-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.9rem; }
+.onboarding-actions .link { margin-left: auto; }
+@media (max-width: 600px) {
+    .onboarding, .onboarding.at-top { top: auto; bottom: 0; width: 100%; border-radius: 14px 14px 0 0; padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+    .onboarding-actions { flex-wrap: wrap; }
+    .onboarding-actions > button { min-height: 2.35rem; }
+}

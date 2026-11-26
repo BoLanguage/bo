@@ -1,0 +1,13 @@
+double each input:((2) (4) (6) (8))
+keep the input and its successor:((10 11) (20 21) (30 31))
+private named stacks:((1 1) (2 1))
+WORK in the parent:()
+nested parallel calls:((1 ((6) (8))) (2 ((6) (8))))
+sequential array broadcast:((2 4 6 8 10 12 14 16) (8))
+parallel array broadcast:((2 4 6 8 10 12 14 16) (8))
+array results are equal:1
+sequential array sum:36
+parallel array sum:36
+array sums are equal:1
+parallel array dot result:70
+caught worker error:Domain-Error from DIV

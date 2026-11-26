@@ -1,0 +1,10 @@
+data:        (10 3 8 1 9 2 7 5 6 4)
+quicksort:   (1 2 3 4 5 6 7 8 9 10)
+merge sort:  (1 2 3 4 5 6 7 8 9 10)
+same result: 1
+duplicates:  (1 1 2 2 3 3)
+empty list:  ()
+search 7 in the sorted data:  7
+search 11 in the sorted data: 0
+search 1 in 1..1000:          1
+search 777 in 1..1000:        777

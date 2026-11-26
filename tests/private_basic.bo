@@ -1,0 +1,4 @@
+(dup *) (__square) PUSH
+((dup 0 =) (drop 1) (dup 1 - __fact *) ifte) (__fact) PUSH
+(__square 1 +) (sq1) PUSH
+(__fact __square) (fsq) PUSH

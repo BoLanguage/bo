@@ -1,0 +1,100 @@
+"../include/std.bo" require
+
+;Three ways to find primes, from the least to the most list-heavy.
+"examples/lib.bo" require
+
+;1. trial division (as in 01-classics)
+    (
+        (dup dup * 2 pick >)
+        (2drop 1)
+        (
+            (over over mod 0 =) 
+            (2drop 0) 
+            (1 + primefrom) 
+        ifte
+        )
+    ifte
+    )
+    (primefrom)
+PUSH
+
+    (
+        (dup 2 <) 
+        (drop 0) 
+        (2 primefrom) 
+    ifte
+    )
+    (prime?)
+PUSH
+
+;2. the sieve by successive filtering: take the head p, keep the elements that
+;are not multiples of p. The predicate is built as data: (apply p mod 0 \\=).
+
+;acc L __sieveacc
+    (
+        (dup null =)
+        (drop)
+        (
+        unconsl 
+        dup 
+            (apply) 
+        swap append 
+            (mod 0 \=) 
+        append 
+        rot swap 
+        filter 
+        rot rot 
+        consr 
+        swap 
+        __sieveacc
+        )
+    ifte
+    )
+    (__sieveacc)
+PUSH
+
+    (null swap __sieveacc)
+    (sieve)
+PUSH
+
+;3. prime factorization: a list of the prime factors of n, with repetition
+
+;acc n d __factoracc
+    (
+        (over 1 =)
+        (2drop)
+        (
+            (dup dup * 2 pick >)
+            (drop unit consr)
+            (
+                (over over mod 0 =)
+                (
+                rot 
+                over 
+                unit consr 
+                -rot 
+                swap over 
+                // 
+                swap 
+                __factoracc
+                )
+                (1 + __factoracc)
+            ifte
+            )
+        ifte
+        )
+    ifte
+    )
+    (__factoracc)
+PUSH
+
+    (null swap 2 __factoracc)
+    (factors)
+PUSH
+
+"sieve below 100:        " emits 2 100 range sieve say
+"trial division below 100:" emits 2 100 range (apply prime?) filter say
+"how many below 2000:    " emits 2 2000 range (apply prime?) filter len say
+"factors of 360:         " emits 360 factors say
+"factors of 9699690:     " emits 9699690 factors say
+"factors of 600851475143:" emits 600851475143 factors say

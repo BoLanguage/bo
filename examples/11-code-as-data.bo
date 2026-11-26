@@ -1,0 +1,78 @@
+"../include/std.bo" require
+
+;Code is data: programs are lists, so they can be generated, inspected and defined at
+;run time. a polynomial is compiled to a program (Horner's rule), differentiated as
+;data, and the two compiled programs drive Newton's method.
+"examples/lib.bo" require
+
+;coefficients, highest power first. Each coefficient c adds  over * c +  to a program that
+;starts with 0 and ends with nip, so (3 2 1) gives (0 over * 3 + over * 2 + over * 1 + nip)
+    (
+        (0)
+        (
+        swap 
+            (over *) 
+        append 
+        swap 
+            (+) 
+        append append
+        )
+    foldl
+    (nip) append
+    )
+    (polyprog)
+PUSH
+
+"program for 3x^2 + 2x + 1: " emits (3 2 1) polyprog say
+
+;the derivative as data: each coefficient times its power, the constant term dropped
+    (
+    dup 
+    len 
+    1 - 
+        (N) 
+    set 
+    unconsr 
+    drop 
+        (apply N * N 1 - (N) set unit) 
+    map
+    )
+    (deriv)
+PUSH
+
+"derivative of (3 2 1): " emits (3 2 1) deriv say
+
+;defining a word is a PUSH on the stack named by the word, so the name can be computed
+
+;body "NAME" define
+    (word PUSH)
+    (define)
+PUSH
+
+(2 *) "DOUBLE" define
+"DOUBLE of 21: " emits 21 DOUBLE say
+
+;ADD1 ... ADD5 defined in a loop: the name is \"ADD\" followed by a digit code
+    (dup unit (+) append swap "ADD" swap 48 + unit consr define)
+    (define-series)
+PUSH
+
+1 6 range (apply define-series) foreach
+"10 ADD3: " emits 10 ADD3 say
+
+;Newton's method on the polynomial x^2 - 2: compile P and its derivative DP
+(1 0 -2) polyprog (P) PUSH
+(1 0 -2) deriv polyprog (DP) PUSH
+"P(3)  = " emits 3 P say
+"DP(3) = " emits 3 DP say
+
+;x -> x - P(x) / DP(x)
+    (dup P over DP / -)
+    (newton)
+PUSH
+
+"root of x^2 - 2 from 1 after 6 steps: " emits 1 6
+
+    (dup 0 >)
+    (1 - swap newton swap)
+loop drop say

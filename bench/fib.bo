@@ -1,0 +1,9 @@
+"../include/std.bo" () INCLUDE
+
+;Recursive Fibonacci: 30M calls, measures the cost of a call.
+
+    ((dup 2 <) () (dup 1 - nfib swap 2 - nfib +) ifte)
+    (nfib)
+PUSH
+
+35 nfib emit nl

@@ -1,0 +1,82 @@
+"../include/std.bo" require
+
+;Errors are lists: (KIND WHERE DATA SOURCE LINE). catch runs a program
+;if it fails, the
+;error list is left on top of the stack (the operands are restored below it) and a
+;handler runs. throw raises an error of your own, given its data list and its kind, a word unit such as `(Bad-Digit)`.
+"examples/lib.bo" require
+
+;e show-error : print KIND WHERE DATA and the line, from an error list
+    (
+    unconsl apply text emits 32 emitc unconsl apply text emits 32 emitc unconsl apply emit
+    unconsl drop unconsl nip apply 32 emitc "line " emits emit nl
+    )
+    (show-error)
+PUSH
+
+"division by zero:" emits nl
+
+    (1 0 /)
+    (show-error)
+catch
+
+"unknown word:" emits nl
+
+    (FOO)
+    (show-error)
+catch
+
+"wrong type:" emits nl
+
+    (() 3 *)
+    (show-error)
+catch
+
+;a handler that recovers: the operands 8 0 are still below the error
+"safe division, 8 / 0 -> " emits
+8 0
+
+    (/)
+    (drop drop drop 0)
+catch say
+
+"safe division, 8 / 2 -> " emits
+8 2
+
+    (/)
+    (drop drop drop 0)
+catch say
+
+;your own errors: validate input and signal a problem with throw
+    (
+    dup 48 >= over 58 < and
+        ()
+        ()
+        (unit (Bad-Digit) throw)
+    ifte
+    )
+    (checkdigit)
+PUSH
+
+    (0 (apply checkdigit 48 - swap 10 * +) foldl)
+    (parsedec)
+PUSH
+
+"parse 2024: " emits "2024" parsedec say
+"parse 20x4:" emits nl
+
+    ("20x4" parsedec say)
+    (show-error)
+catch
+
+;errors propagate to the nearest catch, so a handler can add context and throw again
+
+"nested:" emits nl
+
+    (
+        ("12a" parsedec say)
+        (drop (()) (Parse-Failed) throw)
+    catch
+    )
+    (show-error)
+catch

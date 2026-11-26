@@ -1,0 +1,225 @@
+"math.bo" require
+"stream.bo" require
+
+;__ucode: extract a numeric element from a unit without executing a word
+
+    (
+        (dup unittype 0 =)
+        (apply)
+        (unit (Type-Error) throw)
+    ifte
+    )
+    (__ucode)
+PUSH
+
+;emits ( L -- ) write the characters whose codes are in the list L
+
+    (
+        (dup null =)
+        (drop)
+        (unconsl __ucode emitc emits)
+    ifte
+    )
+    (emits)
+PUSH
+
+;spaces ( n -- ) write n spaces
+
+    (
+        (dup 0 >)
+        (1 - 32 emitc spaces)
+        (drop)
+    ifte
+    )
+    (spaces)
+PUSH
+
+;__emitd: write the non-negative integer n in decimal
+
+    (
+        (dup 10 <)
+        (48 + emitc)
+        (
+        dup 10 // swap over 10 * - swap __emitd 48 + emitc
+        )
+    ifte
+    )
+    (__emitd)
+PUSH
+
+;__emiti: write the integer n in decimal, with a minus sign if negative; above 2^53 an integer is no longer exact, so it raises Domain-Error
+
+    (
+        (dup abs 9007199254740992 >)
+        (unit (Domain-Error) throw)
+        (
+            (dup 0 <)
+            (45 emitc neg __emitd)
+            (__emitd)
+        ifte
+        )
+    ifte
+    )
+    (__emiti)
+PUSH
+
+;__emitdk: write n in exactly k digits, padded with zeros
+
+    (
+        (dup 0 =)
+        (drop drop)
+        (
+        1 - swap dup 10 // swap over 10 * - -rot swap __emitdk 48 + emitc
+        )
+    ifte
+    )
+    (__emitdk)
+PUSH
+
+;__trimz: drop the trailing zeros of the fraction f written on k digits (f k -- f' k')
+
+    (
+        (dup 1 >)
+        (
+            (over 10 mod 0 =)
+            (1 - swap 10 // swap __trimz)
+            ()
+        ifte
+        )
+        ()
+    ifte
+    )
+    (__trimz)
+PUSH
+
+;__emitf: write x with up to 15 decimals, exactly rounded (display only)
+
+    (
+    ratio
+        (over 0 <)
+        (45 emitc swap neg swap)
+        ()
+    ifte
+    dup 2 * -rot swap 2000000000000000 * + swap //
+    dup 1000000000000000 // dup __emitd 1000000000000000 * -
+    46 emitc 15 __trimz __emitdk
+    )
+    (__emitf)
+PUSH
+
+;emit ( x -- ) write any value as the REPL would show it: a number in decimal (an integer beyond 2^53 is not exact and raises Domain-Error), a word by its name and a list in parentheses; use emits for text and emitc for one character
+
+    (
+        (dup type 1 =)
+        (40 emitc 0 __emitli 41 emitc)
+        (
+            (dup ratio nip 1 =)
+            (__emiti)
+            (__emitf)
+        ifte
+        )
+    ifte
+    )
+    (emit)
+PUSH
+
+;? ( n -- ) print yes if n is true, No otherwise, and a newline
+
+    (
+        (0 >)
+        ("yes" emits)
+        ("No" emits)
+    ifte nl
+    )
+    (?)
+PUSH
+
+;__emitu: print an element represented by a unit without executing words
+
+    (
+        (dup unittype 2 =)
+        (text emits)
+        (apply emit)
+    ifte
+    )
+    (__emitu)
+PUSH
+
+;__emitli: print the elements of a list
+
+    (
+        (over () =)
+        (drop drop)
+        (
+            ()
+            (32 emitc)
+            ()
+        ifte unconsl __emitu 1 __emitli
+        )
+    ifte
+    )
+    (__emitli)
+PUSH
+
+;__ndig: calculate the width of the position numbers shown by ps
+
+    (
+        (dup 0 <)
+        (drop 1)
+        (
+            (dup 10 <)
+            (drop 1)
+            (10 // __ndig 1 +)
+        ifte
+        )
+    ifte
+    )
+    (__ndig)
+PUSH
+
+;ps ( -- ) print the stack: indented, one element per line, with its position
+
+    (snapshot dup len dup 1 - __ndig __pslines)
+    (ps)
+PUSH
+
+;__emitline: print one stack element and its position
+
+    (
+    32 emitc 32 emitc __emitpos 58 emitc 32 emitc __emitu nl
+    )
+    (__emitline)
+PUSH
+
+;__emitpos: print a position right-aligned in the requested width
+
+    (over __ndig - spaces __emitd)
+    (__emitpos)
+PUSH
+
+;__psrun: print list L with positions p, p-1, ...
+
+    (
+        (2 pick () =)
+        (drop drop drop)
+        (
+        rot unconsl 3 pick 3 pick __emitline rot 1 - rot __psrun
+        )
+    ifte
+    )
+    (__psrun)
+PUSH
+
+;__pslines: print stack values in numbered lines
+
+    (
+        (over 10 >)
+        (
+        rot 5 split 3 pick 10 - split swap drop swap 3 pick 1 - 3 pick __psrun
+        32 emitc 32 emitc 46 emitc 46 emitc 46 emitc nl swap 4 swap __psrun drop
+        )
+        (swap 1 - swap __psrun)
+    ifte
+    )
+    (__pslines)
+PUSH

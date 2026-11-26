@@ -1,0 +1,149 @@
+"../include/std.bo" require
+
+;Matrices as lists of rows: transpose, product, identity, powers
+;(and Fibonacci numbers from the power of a 2x2 matrix).
+"examples/lib.bo" require
+
+;M matrix-transpose : the first elements of the rows form the first row, and so on
+    (
+        (dup unconsl nip apply null =)
+        (drop null)
+        (
+        dup 
+            (apply unconsl nip) 
+        map swap 
+            (apply unconsl drop unit) 
+        map 
+        matrix-transpose 
+        swap 
+        unit consl
+        )
+    ifte
+    )
+    (matrix-transpose)
+PUSH
+
+;acc a b __dotacc : acc plus the sum of the products of equal positions of a and b
+    (
+        (over null =)
+        (2drop)
+        (
+        swap unconsl 
+        apply 
+        2 roll 
+        unconsl 
+        apply 
+        rot * 
+        3 roll 
+        + 
+        -rot 
+        __dotacc
+        )
+    ifte
+    )
+    (__dotacc)
+PUSH
+
+    (0 -rot __dotacc)
+    (matrix-dot)
+PUSH
+
+;A B MATMUL : the columns of B are kept in the stack BT (a list is data, so it is read
+;with (BT) get). Each row r of a gives the function (r swap matrix-dot) to apply to every column.
+    (
+        (BT) 
+    get 
+    swap unit 
+        (apply) 
+    swap append 
+        (swap matrix-dot unit) 
+    append 
+    map
+    )
+    (__rowtimes)
+PUSH
+
+    (
+    matrix-transpose 
+        (BT) 
+    set 
+        (apply __rowtimes unit) 
+    map
+    )
+    (matrix-matmul)
+PUSH
+
+;n identity : the n x n identity matrix
+;row i is the list of (j = i) for j below n
+    (
+    0 N range 
+    swap unit 
+        (apply) 
+    swap append 
+        (= unit) 
+    append 
+    map
+    )
+    (__idrow)
+PUSH
+
+    (
+        (N) 
+    set 
+    0 N range 
+        (apply __idrow unit) 
+    map
+    )
+    (identity)
+PUSH
+
+;M n mpow : M to the n-th power (n >= 1)
+    (
+        (dup 1 =) 
+        (drop) 
+        (1 - over swap mpow swap matrix-matmul) 
+    ifte
+    )
+    (mpow)
+PUSH
+
+    (((1 2) (3 4)))
+    (a)
+PUSH
+
+    (((0 1) (1 0)))
+    (b)
+PUSH
+
+    (((1 2 3) (4 5 6)))
+    (r)
+PUSH
+
+    (nl (apply say) foreach)
+    (showm)
+PUSH
+
+"A:" emits a showm
+"transpose of (1 2 3) (4 5 6):" emits r matrix-transpose showm
+"A x B (swaps the columns of A):" emits a b matrix-matmul showm
+"A x A:" emits a a matrix-matmul showm
+"identity 3:" emits 3 identity showm
+"A x identity = A: " emits a 2 identity matrix-matmul a = say
+"A^5:" emits a 5 mpow showm
+"(1 2 3) . (4 5 6) = " emits
+
+    (1 2 3)
+    (4 5 6)
+matrix-dot say
+
+;Fibonacci: the matrix ((1 1) (1 0)) to the n-th power holds F(n) off the diagonal
+    (((1 1) (1 0)))
+    (fibm)
+PUSH
+
+    (fibm swap mpow 1 nth apply 2 nth apply)
+    (fib-matrix)
+PUSH
+
+"fib(10) = " emits 10 fib-matrix say
+"fib(50) = " emits 50 fib-matrix say

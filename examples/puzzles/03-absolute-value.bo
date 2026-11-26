@@ -1,0 +1,28 @@
+;@puzzle
+;@title Choose a branch
+;@goal Define `absolute` so it returns the non-negative value of its input.
+;@hints 1
+;@tags quotation
+;@difficulty 2
+;@solution ((dup 0 <) (neg) (nop) ifte) (absolute) PUSH guess
+;@wrong (neg) (absolute) PUSH guess
+;@description
+; `ifte` runs one quotation when its condition is positive and another otherwise.
+; Keep the input below the condition so that each branch can use it.
+; When done, run `guess` to check your solution.
+;@enddescription
+;@end
+
+; Define absolute at the prompt, then run guess:
+;
+;     ((dup 0 <) (neg) (nop) ifte) (absolute) PUSH guess
+
+"include/std.bo" require
+"examples/puzzles/lib.bo" require
+
+((6 7 *) apply) (puzzle.solution) PUSH
+(puzzle.solution) LOCK
+
+(absolute) (-7 absolute 7 = 3 absolute 3 = * 0 absolute 0 = *) puzzle.require
+("Use (dup 0 <) for the condition, (neg) for the true branch, and (nop) for the false branch.") (puzzle.hints) PUSH
+"((dup 0 <) (neg) (nop) ifte) (absolute) PUSH guess" (puzzle.reveal) PUSH

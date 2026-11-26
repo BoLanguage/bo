@@ -1,0 +1,141 @@
+"../include/std.bo" require
+
+;Sorting and searching lists of numbers.
+"examples/lib.bo" require
+
+;L p lt / ge : the elements of L below / not below p
+;the predicate is built as data
+    (unit (apply) swap append (<) append filter)
+    (lt)
+PUSH
+
+    (unit (apply) swap append (>=) append filter)
+    (ge)
+PUSH
+
+;quicksort: sort(L<p) ++ (p ++ sort(L>=p))
+    (
+        (dup null =)
+        ()
+        (
+        unconsl apply 2dup lt qsort -rot tuck ge qsort swap unit consl append
+        )
+    ifte
+    )
+    (qsort)
+PUSH
+
+;merge sort. acc a b __mergeacc moves the smaller head of a and b to acc until one is empty
+    (
+        (over null =)
+        (nip append)
+        (
+            (dup null =)
+            (drop append)
+            (
+                (
+                over unconsl 
+                nip 
+                apply 
+                over unconsl 
+                nip 
+                apply 
+                <=
+                )
+                (
+                swap unconsl 
+                3 roll 
+                swap consr 
+                -rot 
+                swap 
+                __mergeacc
+                )
+                (unconsl 3 roll swap consr -rot __mergeacc)
+            ifte
+            )
+        ifte
+        )
+    ifte
+    )
+    (__mergeacc)
+PUSH
+
+    (null -rot __mergeacc)
+    (merge)
+PUSH
+
+    (
+        (dup len 2 <)
+        ()
+        (
+        dup len 2 // 
+        split 
+        swap msort 
+        swap msort 
+        merge
+        )
+    ifte
+    )
+    (msort)
+PUSH
+
+;binary search in a sorted List. The list and the target live in named stacks used as
+;variables: a number is read by naming it, a list with (NAME) get (naming it would run it).
+
+;lo hi BSEARCH-range : position (from 1) of the target, or 0
+    (
+        (2dup >)
+        (2drop 0)
+        (
+        2dup + 
+        2 // 
+            (bslist) 
+        get 
+        over 
+        nth 
+        apply
+            (dup bstarget =)
+            (drop nip nip)
+            (
+                (bstarget <)
+                (1 + rot drop swap __bsrange)
+                (1 - nip __bsrange)
+            ifte
+            )
+        ifte
+        )
+    ifte
+    )
+    (__bsrange)
+PUSH
+
+;L x bsearch
+    (
+        (bstarget) 
+    set 
+        (bslist) 
+    set 
+    1 
+        (bslist) 
+    get 
+    len 
+    __bsrange
+    )
+    (bsearch)
+PUSH
+
+    ((10 3 8 1 9 2 7 5 6 4))
+    (data)
+PUSH
+
+"data:        " emits data say
+"quicksort:   " emits data qsort say
+"merge sort:  " emits data msort say
+"same result: " emits data qsort data msort = say
+"duplicates:  " emits (3 1 3 2 1 2) msort say
+"empty list:  " emits null qsort say
+
+"search 7 in the sorted data:  " emits data qsort 7 bsearch say
+"search 11 in the sorted data: " emits data qsort 11 bsearch say
+"search 1 in 1..1000:          " emits 1 1001 range 1 bsearch say
+"search 777 in 1..1000:        " emits 1 1001 range 777 bsearch say

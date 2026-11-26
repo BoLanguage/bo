@@ -1,0 +1,1404 @@
+diff --git a/c/bo.h b/c/bo.h
+index 135cddb..a15ddbf 100644
+--- a/c/bo.h
++++ b/c/bo.h
+@@ -20,6 +20,13 @@ typedef uint64_t Val;
+ #define INT_LIMIT 9007199254740992.0 /* 2^53 */
+ 
+ typedef struct Code Code;
++typedef struct Machine Machine;
++#ifdef BO_AOT_TRANSLATED
++typedef struct AotBlock AotBlock;
++#endif
++#ifdef BO_LINKED_EXPERIMENT
++typedef struct LinkedCode LinkedCode;
++#endif
+ typedef struct List {
+     struct List *next; /* all-objects chain for the sweeper */
+     Code *code;        /* compiled form, built lazily on first execution */
+@@ -30,6 +37,13 @@ typedef struct List {
+     uint32_t used;     /* owner only: slots filled; a list ending there may grow in place */
+     uint32_t cap;      /* owner only: slots available */
+     uint8_t mark;
++#ifdef BO_AOT_TRANSLATED
++    Machine *aot_owner;
++    AotBlock *aot_entry;
++#endif
++#ifdef BO_LINKED_EXPERIMENT
++    LinkedCode *linked;
++#endif
+     Val inl[];
+ } List;
+ 
+@@ -74,7 +88,6 @@ int text_to_word(Val text, Val *unit);
+ int word_to_text(Val unit, Val *text);
+ 
+ /* stacks and machine */
+-typedef struct Machine Machine;
+ #define FAST_NATIVE LIST_TAG /* a NULL list: never a real value */
+ typedef struct Native {
+     const char *name;
+@@ -95,10 +108,47 @@ typedef struct Stack {
+     int (*fast)(Machine *); /* intrinsic: returns 1 if it handled the call, 0 to fall back */
+     Val fast_def;           /* the definition the intrinsic stands for (FAST_NATIVE for primitives) */
+     int derived_fast, derived_watch;
++    uint64_t profile_cold, profile_call_exit;
+     uint32_t hash;
+     struct Stack *chain;
+ } Stack;
+ 
++#ifdef BO_LINKED_EXPERIMENT
++typedef struct LinkedOp {
++    int (*execute)(Machine *, struct LinkedOp *, Val);
++    Stack *site;
++    int transferred;
++#ifdef BO_LINKED_FRAGMENTS
++    const struct LinkedFragment *fragment;
++    struct List *fragment_origin;
++    uint32_t fragment_index;
++    int full_fragment;
++#endif
++} LinkedOp;
++#ifdef BO_LINKED_FRAGMENTS
++typedef struct LinkedFragment {
++    const char *shape;
++    uint32_t len;
++    int (*execute)(Machine *, size_t, size_t);
++} LinkedFragment;
++extern const LinkedFragment linked_fragments[];
++extern const size_t linked_fragment_count;
++int linked_fragment_literal(Machine *m, size_t index);
++int linked_fragment_word(Machine *m, size_t index);
++#endif
++struct LinkedCode {
++    Machine *owner;
++    int transferred;
++#ifdef BO_LINKED_FRAGMENTS
++    int spans_ready;
++#endif
++    LinkedOp ops[];
++};
++void linked_copy(List *source, uint32_t from, List *dest, uint32_t to, uint32_t count);
++extern uint64_t linked_copy_count;
++extern int linked_count_enabled;
++#endif
++
+ typedef struct { int line; Val list; } Form;
+ typedef struct { Form *f; size_t n; } Forms;
+ typedef struct { char msg[160]; int line; int incomplete; } LowerErr;
+@@ -150,11 +200,50 @@ struct Code {
+     Op ops[];
+ };
+ 
+-enum { FR_CODE, FR_BRANCH, FR_CATCH, FR_END, FR_LOOP };
++enum { FR_CODE, FR_BRANCH, FR_CATCH, FR_END, FR_LOOP
++#ifdef BO_LINKED_EXPERIMENT
++       , FR_LINKED
++#endif
++#ifdef BO_AOT_EXPERIMENT
++       , FR_AOT_STEP, FR_AOT_PLUS
++#endif
++#ifdef BO_AOT_TRANSLATED
++       , FR_AOT_TRANSLATED
++#endif
++#ifdef BO_AOT_BRIDGE
++       , FR_AOT_BRIDGE
++#endif
++};
+ typedef struct { int kind; size_t idx; Code *code; Val a, b; } Frame;
+ 
+ typedef struct { FILE *f; int binary; } Stream;
+ 
++#ifdef BO_AOT_TRANSLATED
++struct AotBlock {
++    Val definition;
++    Stack **sites;
++    int nested;
++    uint64_t entries;
++    int (*execute)(Machine *, struct AotBlock *, size_t);
++};
++#endif
++
++enum {
++    JIT_EXIT_NONE, JIT_EXIT_GUARD, JIT_EXIT_STACK, JIT_EXIT_TYPE,
++    JIT_EXIT_APPLY, JIT_EXIT_REVISION, JIT_EXIT_TARGET, JIT_EXIT_NOT_NATIVE, JIT_EXIT_EPOCH,
++    JIT_EXIT_GC, JIT_EXIT_CAPACITY, JIT_EXIT_NATIVE_STACK, JIT_EXIT_RESUME,
++    JIT_EXIT_REASON_COUNT
++};
++
++typedef struct {
++    uint64_t frames, stale_frames;
++    uint64_t compile_attempts, compiled, rejected;
++    uint64_t native_entries, native_done, native_yields, native_cold;
++    uint64_t native_call_exit, native_other_exit, native_nested_exit, native_calls;
++    uint64_t reasons[JIT_EXIT_REASON_COUNT];
++    int last_reason;
++} JitStats;
++
+ struct Machine {
+     Stack data;
+     Stack **table;
+@@ -182,6 +271,41 @@ struct Machine {
+     Val loop_cond, loop_body, loop_program; /* bounded cache of one generated loop program */
+     uint64_t epoch; /* bumped when a stack that can hold an intrinsic changes */
+     int jit, native;
++    int jit_stats_enabled;
++    JitStats jit_stats;
++#ifdef BO_LINKED_EXPERIMENT
++    int linked_enabled, linked_stats_enabled, linked_gc_each;
++    uint64_t linked_entries, linked_operations, linked_reused_entries, linked_scheduler_visits;
++    uint64_t linked_trace_operations;
++    Val linked_trace_word;
++#ifdef BO_LINKED_FRAGMENTS
++    int linked_fragments_enabled;
++    uint64_t linked_fragment_entries, linked_fragment_resumes, linked_fragment_yields;
++    uint64_t linked_fragment_operations, linked_fragment_fallbacks, linked_fragment_trace;
++#endif
++#endif
++#ifdef BO_AOT_EXPERIMENT
++    Val aot_step_definition;
++    Val aot_plus_definition;
++    Stack *aot_plus, *aot_add;
++    uint64_t aot_step_entries, aot_plus_entries;
++#endif
++#ifdef BO_AOT_TRANSLATED
++    AotBlock *aot_blocks;
++    size_t aot_count;
++    uint64_t aot_entries;
++    uint64_t aot_direct_calls, aot_depth_yields, aot_fallbacks;
++    uint64_t aot_nested_entries;
++    size_t aot_native_depth, aot_max_depth;
++    int aot_stats_enabled;
++    int aot_gc_each;
++#endif
++#ifdef BO_AOT_BRIDGE
++    Val bridge_definition, bridge_outer_definition, bridge_grand_definition, bridge_plus_definition;
++    Stack *bridge_plus, *bridge_add, *bridge_step, *bridge_outer;
++    uint64_t bridge_entries, bridge_fallbacks, bridge_direct_calls;
++    int bridge_gc_each;
++#endif
+ };
+ 
+ void machine_init(Machine *m, const char *prelude);
+@@ -190,7 +314,38 @@ int execute(Machine *m, const char *text, size_t len, const char *source, int fi
+ void machine_run(Machine *m, Val program);
+ int include_file(Machine *m, const char *path);
+ void dump_stack(Machine *m, FILE *out);
++void dump_jit_stats(Machine *m, FILE *out);
+ void gc_collect(Machine *m);
++#ifdef BO_AOT_EXPERIMENT
++int aot_install_step(Machine *m);
++int aot_step_integrated(Machine *m);
++int aot_plus_integrated(Machine *m);
++void aot_push_one_integrated(Machine *m);
++int aot_call_plus_integrated(Machine *m);
++void aot_push_selector_integrated(Machine *m);
++int aot_call_add_integrated(Machine *m);
++#endif
++#ifdef BO_AOT_TRANSLATED
++int aot_bind_root(Machine *m, size_t index, const char *name, const char *kinds,
++                  int (*execute)(Machine *, AotBlock *, size_t));
++int aot_bind_child(Machine *m, size_t index, size_t parent, size_t element, const char *kinds,
++                   int (*execute)(Machine *, AotBlock *, size_t));
++int aot_generated_push(Machine *m, AotBlock *block, size_t index);
++int aot_generated_call(Machine *m, AotBlock *block, size_t index, size_t resume);
++#endif
++#ifdef BO_AOT_MODEL
++Stack *aot_model_lookup(Machine *m, const char *name);
++int aot_model_primitive(Machine *m, Stack *stack);
++#endif
++#ifdef BO_AOT_BRIDGE
++int aot_bridge_install(Machine *m);
++int aot_bridge_body(Machine *m, size_t pc);
++int aot_bridge_outer_body(Machine *m, size_t pc);
++int aot_bridge_grand_body(Machine *m, size_t pc);
++void aot_bridge_push(Machine *m, double number);
++int aot_bridge_call_plus(Machine *m, size_t resume);
++int aot_bridge_call_nested(Machine *m, size_t target, size_t resume);
++#endif
+ 
+ extern size_t heap_alloc, heap_gc_at;
+ 
+diff --git a/c/heap.c b/c/heap.c
+index ed58b9e..67dcedd 100644
+--- a/c/heap.c
++++ b/c/heap.c
+@@ -29,6 +29,9 @@ static List *pool_take(uint32_t cap) {
+ }
+ 
+ static void list_free(List *l) {
++#ifdef BO_LINKED_EXPERIMENT
++    free(l->linked);
++#endif
+     if (l->cap <= POOL_MAX) { l->next = pool_free[l->cap]; pool_free[l->cap] = l; }
+     else free(l);
+ }
+@@ -43,6 +46,13 @@ static List *list_alloc(uint32_t cap) {
+     l->next = all_lists;
+     all_lists = l;
+     l->code = NULL;
++#ifdef BO_LINKED_EXPERIMENT
++    l->linked = NULL;
++#endif
++#ifdef BO_AOT_TRANSLATED
++    l->aot_owner = NULL;
++    l->aot_entry = NULL;
++#endif
+     l->hash = 0;
+     l->mark = 0;
+     l->base = NULL;
+@@ -62,11 +72,20 @@ List *list_new(uint32_t len) {
+ /* A slice shares its parent's storage (UNCONS is O(1)); short ones are copied so they
+    do not keep a big buffer alive. */
+ Val list_slice(List *l, uint32_t off, uint32_t len) {
+-    if (len <= 4) return list_from(l->items + off, len);
++    if (len <= 4) {
++        Val result = list_from(l->items + off, len);
++#ifdef BO_LINKED_EXPERIMENT
++        linked_copy(l, off, as_list(result), 0, len);
++#endif
++        return result;
++    }
+     List *v = list_alloc(0);
+     v->base = l->base ? l->base : l;
+     v->items = l->items + off;
+     v->len = len;
++#ifdef BO_LINKED_EXPERIMENT
++    linked_copy(l, off, v, 0, len);
++#endif
+     return from_list(v);
+ }
+ 
+@@ -79,15 +98,48 @@ Val list_append(List *l, Val x) {
+         v->base = o;
+         v->items = l->items;
+         v->len = l->len + 1;
++#ifdef BO_LINKED_EXPERIMENT
++        linked_copy(l, 0, v, 0, l->len);
++#endif
+         return from_list(v);
+     }
+     List *r = list_alloc(l->len * 2 + 4);
+     if (l->len) memcpy(r->items, l->items, (size_t)l->len * sizeof(Val));
+     r->items[l->len] = x;
+     r->len = r->used = l->len + 1;
++#ifdef BO_LINKED_EXPERIMENT
++    linked_copy(l, 0, r, 0, l->len);
++#endif
+     return from_list(r);
+ }
+ 
++#ifdef BO_LINKED_EXPERIMENT
++uint64_t linked_copy_count;
++int linked_count_enabled;
++
++void linked_copy(List *source, uint32_t from, List *dest, uint32_t to, uint32_t count) {
++    if (!source->linked || !count) return;
++    if (!dest->linked) {
++        size_t bytes = sizeof(LinkedCode) + (size_t)dest->len * sizeof(LinkedOp);
++        dest->linked = calloc(1, bytes);
++        if (!dest->linked) { fputs("linked experiment: out of memory\n", stderr); exit(2); }
++        dest->linked->owner = source->linked->owner;
++        heap_alloc += bytes;
++    }
++    if (dest->linked->owner != source->linked->owner) return;
++#ifdef BO_LINKED_FRAGMENTS
++    dest->linked->spans_ready = 0;
++#endif
++    memcpy(dest->linked->ops + to, source->linked->ops + from, (size_t)count * sizeof(LinkedOp));
++    for (uint32_t i = 0; i < count; i++) {
++        if (!source->linked->ops[from + i].execute) continue;
++        dest->linked->transferred = 1;
++        dest->linked->ops[to + i].transferred = 1;
++        if (linked_count_enabled) linked_copy_count++;
++    }
++}
++#endif
++
+ Val list_from(const Val *items, uint32_t len) {
+     List *l = list_new(len);
+     if (len) memcpy(l->items, items, (size_t)len * sizeof(Val));
+@@ -194,6 +246,23 @@ void gc_collect(Machine *m) {
+     mark_val(m->loop_cond);
+     mark_val(m->loop_body);
+     mark_val(m->loop_program);
++#ifdef BO_AOT_EXPERIMENT
++    mark_val(m->aot_step_definition);
++    mark_val(m->aot_plus_definition);
++#endif
++#ifdef BO_LINKED_EXPERIMENT
++    mark_val(m->linked_trace_word);
++#endif
++#ifdef BO_AOT_TRANSLATED
++    for (size_t i = 0; i < m->aot_count; i++)
++        mark_val(m->aot_blocks[i].definition);
++#endif
++#ifdef BO_AOT_BRIDGE
++    mark_val(m->bridge_definition);
++    mark_val(m->bridge_outer_definition);
++    mark_val(m->bridge_grand_definition);
++    mark_val(m->bridge_plus_definition);
++#endif
+     for (size_t b = 0; b < m->tcap; b++)
+         for (Stack *s = m->table[b]; s; s = s->chain) mark_stack(s);
+     for (size_t i = 0; i < m->ctl_len; i++) {
+@@ -205,6 +274,12 @@ void gc_collect(Machine *m) {
+     while (work_n) {
+         List *l = work[--work_n];
+         for (uint32_t i = 0; i < l->len; i++) mark_val(l->items[i]);
++#ifdef BO_LINKED_FRAGMENTS
++        if (l->linked)
++            for (uint32_t i = 0; i < l->len; i++)
++                if (l->linked->ops[i].fragment_origin)
++                    mark_val(from_list(l->linked->ops[i].fragment_origin));
++#endif
+     }
+     size_t live = 0;
+     List **link = &all_lists;
+@@ -213,6 +288,9 @@ void gc_collect(Machine *m) {
+         if (l->mark) {
+             l->mark = 0;
+             live += sizeof(List) + (size_t)l->cap * sizeof(Val);
++#ifdef BO_LINKED_EXPERIMENT
++            if (l->linked) live += sizeof(LinkedCode) + (size_t)l->len * sizeof(LinkedOp);
++#endif
+             if (l->code) {
+                 l->code->keep = 0;
+                 for (Code **cp = &l->code->prev; *cp;) { /* drop old versions no frame runs */
+diff --git a/c/machine.c b/c/machine.c
+index 89ab8fc..cb73efc 100644
+--- a/c/machine.c
++++ b/c/machine.c
+@@ -2,6 +2,7 @@
+ #include "bo.h"
+ 
+ #include <errno.h>
++#include <inttypes.h>
+ #include <limits.h>
+ #include <unistd.h>
+ 
+@@ -89,6 +90,22 @@ static Stack *stack_lookup_name(Machine *m, Val name, int create) {
+ /* ------------------------------------------------------------------ compiled code */
+ 
+ static Code *build_code(Machine *m, List *l);
++#ifdef BO_LINKED_EXPERIMENT
++static int linked_prepare(Machine *m, List *l);
++#endif
++
++#ifdef BO_AOT_TRANSLATED
++static AotBlock *aot_find(Machine *m, Val definition) {
++#ifdef BO_AOT_LINEAR
++    for (size_t i = 0; i < m->aot_count; i++)
++        if (m->aot_blocks[i].definition == definition) return &m->aot_blocks[i];
++    return NULL;
++#else
++    List *list = as_list(definition);
++    return list->aot_owner == m ? list->aot_entry : NULL;
++#endif
++}
++#endif
+ 
+ /* ------------------------------------------------------------------ control stack */
+ 
+@@ -110,6 +127,9 @@ static inline void trim(Machine *m) {
+     while (m->ctl_len > m->base) {
+         Frame *f = &m->ctl[m->ctl_len - 1];
+         if (f->kind == FR_CODE && f->idx >= (size_t)f->code->n) m->ctl_len--;
++#ifdef BO_LINKED_EXPERIMENT
++        else if (f->kind == FR_LINKED && f->idx >= as_list(f->a)->len) m->ctl_len--;
++#endif
+         else break;
+     }
+ }
+@@ -117,6 +137,17 @@ static inline void trim(Machine *m) {
+ static void push_code(Machine *m, Val lst) {
+     List *l = as_list(lst);
+     if (!l->len) return;
++#ifdef BO_LINKED_EXPERIMENT
++    if (m->linked_enabled && m->word_values && linked_prepare(m, l)) {
++        Frame *f = frame_push(m, FR_LINKED);
++        f->a = lst;
++        if (m->linked_stats_enabled) {
++            m->linked_entries++;
++            if (l->linked->transferred) m->linked_reused_entries++;
++        }
++        return;
++    }
++#endif
+     if (!l->code || l->code->epoch != m->epoch) {
+         Code *old = l->code;
+         l->code = build_code(m, l);
+@@ -131,6 +162,35 @@ static void push_code(Machine *m, Val lst) {
+ static void enter(Machine *m, Val el) {
+     if (is_list(el)) {
+         trim(m);
++#ifdef BO_AOT_BRIDGE
++        if (el == m->bridge_definition || el == m->bridge_outer_definition ||
++            el == m->bridge_grand_definition) {
++            Frame *f = frame_push(m, FR_AOT_BRIDGE);
++            f->a = el;
++            return;
++        }
++#endif
++#ifdef BO_AOT_TRANSLATED
++        if (!as_list(el)->len) return;
++        AotBlock *entry = aot_find(m, el);
++        if (entry) {
++            if (m->aot_stats_enabled) {
++                entry->entries++;
++                if (entry->nested) m->aot_nested_entries++;
++            }
++            Frame *f = frame_push(m, FR_AOT_TRANSLATED);
++            f->a = el;
++            f->b = (size_t)(entry - m->aot_blocks);
++            return;
++        }
++#endif
++#ifdef BO_AOT_EXPERIMENT
++        if (el == m->aot_step_definition || el == m->aot_plus_definition) {
++            Frame *f = frame_push(m, el == m->aot_step_definition ? FR_AOT_STEP : FR_AOT_PLUS);
++            f->a = el;
++            return;
++        }
++#endif
+         push_code(m, el);
+     } else {
+         data_push(m, el);
+@@ -245,6 +305,48 @@ static void render(Buf *b, Val v) {
+     }
+ }
+ 
++void dump_jit_stats(Machine *m, FILE *out) {
++    JitStats *s = &m->jit_stats;
++    fprintf(out, "BO_JIT_STATS frame_visits=%" PRIu64 " stale_frame_visits=%" PRIu64 "\n",
++            s->frames, s->stale_frames);
++    fprintf(out, "BO_JIT_STATS compile_attempts=%" PRIu64 " compiled=%" PRIu64
++            " not_compiled=%" PRIu64 "\n", s->compile_attempts, s->compiled, s->rejected);
++    fprintf(out, "BO_JIT_STATS native_entries=%" PRIu64 " completed=%" PRIu64
++            " yields=%" PRIu64 " cold=%" PRIu64 " call_exit=%" PRIu64
++            " other_exit=%" PRIu64 " nested_exit=%" PRIu64 " native_calls=%" PRIu64 "\n",
++            s->native_entries, s->native_done, s->native_yields, s->native_cold,
++            s->native_call_exit, s->native_other_exit, s->native_nested_exit, s->native_calls);
++    static const char *const reason_names[JIT_EXIT_REASON_COUNT] = {
++        "cold", "guard", "stack", "type", "apply", "revision", "target",
++        "not_native", "epoch", "gc", "capacity", "native_stack", "resume"
++    };
++    fprintf(out, "BO_JIT_STATS reasons");
++    for (size_t i = 0; i < JIT_EXIT_REASON_COUNT; i++)
++        fprintf(out, " %s=%" PRIu64, reason_names[i], s->reasons[i]);
++    fputc('\n', out);
++    Stack *top[8] = {0};
++    for (size_t b = 0; b < m->tcap; b++) {
++        for (Stack *st = m->table[b]; st; st = st->chain) {
++            uint64_t count = st->profile_cold + st->profile_call_exit;
++            if (!count) continue;
++            for (size_t i = 0; i < sizeof top / sizeof top[0]; i++) {
++                if (!top[i] || count > top[i]->profile_cold + top[i]->profile_call_exit) {
++                    for (size_t j = sizeof top / sizeof top[0] - 1; j > i; j--) top[j] = top[j - 1];
++                    top[i] = st;
++                    break;
++                }
++            }
++        }
++    }
++    for (size_t i = 0; i < sizeof top / sizeof top[0] && top[i]; i++) {
++        Buf key = {0};
++        render(&key, top[i]->key);
++        fprintf(out, "BO_JIT_STATS site=%s cold=%" PRIu64 " call_exit=%" PRIu64 "\n",
++                key.s, top[i]->profile_cold, top[i]->profile_call_exit);
++        free(key.s);
++    }
++}
++
+ /* ------------------------------------------------------------------ errors */
+ 
+ static void default_handler(Machine *m, Val el) {
+@@ -486,14 +588,17 @@ static void compile_list(Machine *m, Cb *b, List *l, int depth) {
+                 fence = b->n;
+                 continue;
+             }
+-            if (can && i >= 3 && n < INLINE_MAX_OPS && st->native && !st->len &&
+-                !strcmp(st->native->name, "IFTE") && n - fence >= 3 &&
+-                pushed_list(b, n - 3) && pushed_list(b, n - 2) && pushed_list(b, n - 1) &&
++            if (can && i >= 4 && n < INLINE_MAX_OPS && st->native && !st->len &&
++                !strcmp(st->native->name, "IFTE") && n - fence >= 4 &&
++                pushed_list(b, n - 4) && pushed_list(b, n - 3) &&
++                pushed_list(b, n - 2) && pushed_list(b, n - 1) &&
++                !as_list(b->ops[n - 1].v)->len &&
++                b->ops[n - 4].v == l->items[i - 4] &&
+                 b->ops[n - 3].v == l->items[i - 3] &&
+                 b->ops[n - 2].v == l->items[i - 2] &&
+                 b->ops[n - 1].v == l->items[i - 1]) {
+-                Val c = b->ops[n - 3].v, t = b->ops[n - 2].v, e = b->ops[n - 1].v;
+-                b->n -= 3;
++                Val c = b->ops[n - 4].v, t = b->ops[n - 3].v, e = b->ops[n - 2].v;
++                b->n -= 4;
+                 int guard = cb_emit(b, (Op){.kind = OP_IFTE_GUARD, .st = st,
+                                             .v = from_list(l), .a = (int)i});
+                 compile_list(m, b, as_list(c), depth + 1);
+@@ -617,6 +722,370 @@ static int site_slow(Machine *m, Op *op) {
+     return bo_err1(m, "Existence-Error", "@", op->v);
+ }
+ 
++#ifdef BO_LINKED_EXPERIMENT
++static int linked_literal(Machine *m, LinkedOp *op, Val value) {
++    (void)op;
++    if (is_list(value) && as_list(value)->len) linked_prepare(m, as_list(value));
++    data_push(m, value);
++    return 0;
++}
++
++static int linked_word(Machine *m, LinkedOp *op, Val value) {
++    Op site = {.st = op->site, .v = value};
++    return site_slow(m, &site);
++}
++
++#ifdef BO_LINKED_FRAGMENTS
++static const LinkedFragment *linked_fragment_for(List *l) {
++    for (size_t j = 0; j < linked_fragment_count; j++) {
++        const LinkedFragment *fragment = &linked_fragments[j];
++        if (fragment->len != l->len) continue;
++        uint32_t i = 0;
++        while (i < l->len &&
++               fragment->shape[i] == (is_word(l->items[i]) ? 'w' : 'v')) i++;
++        if (i == l->len) return fragment;
++    }
++    return NULL;
++}
++
++static int linked_fragment_step(Machine *m, size_t index, int word) {
++    Frame *f = &m->ctl[m->ctl_len - 1];
++    List *list = as_list(f->a);
++    LinkedOp *op = &list->linked->ops[index];
++    f->idx = index + 1;
++    if (m->linked_stats_enabled) {
++        m->linked_operations++;
++        m->linked_fragment_operations++;
++        if (op->transferred && m->linked_trace_word &&
++            val_equal(list->items[index], m->linked_trace_word))
++            m->linked_trace_operations++;
++    }
++    size_t depth = m->ctl_len;
++    int last = index + 1 == list->len;
++    int rc = word ? linked_word(m, op, list->items[index]) :
++                    linked_literal(m, op, list->items[index]);
++    if (rc) return -1;
++    return depth != m->ctl_len || (word && last);
++}
++
++int linked_fragment_literal(Machine *m, size_t index) {
++    return linked_fragment_step(m, index, 0);
++}
++int linked_fragment_word(Machine *m, size_t index) {
++    return linked_fragment_step(m, index, 1);
++}
++
++static const LinkedFragment *linked_full_fragment(List *list, size_t i, size_t *base) {
++    LinkedOp *op = &list->linked->ops[i];
++    const LinkedFragment *fragment = op->fragment;
++    if (!fragment || !op->full_fragment || i < op->fragment_index) return NULL;
++    *base = i - op->fragment_index;
++    return fragment;
++}
++
++static void linked_find_spans(List *list) {
++    for (size_t i = 0; i < list->len; i++) list->linked->ops[i].full_fragment = 0;
++    for (size_t i = 0; i < list->len; i++) {
++        LinkedOp *first = &list->linked->ops[i];
++        const LinkedFragment *fragment = first->fragment;
++        if (!fragment || first->fragment_index || fragment->len > list->len - i) continue;
++        size_t n = 0;
++        while (n < fragment->len) {
++            LinkedOp *part = &list->linked->ops[i + n];
++            if (part->fragment != fragment || part->fragment_origin != first->fragment_origin ||
++                part->fragment_index != n) break;
++            n++;
++        }
++        if (n == fragment->len) {
++            for (size_t k = 0; k < n; k++) list->linked->ops[i + k].full_fragment = 1;
++            i += n - 1;
++        }
++    }
++    list->linked->spans_ready = 1;
++}
++#endif
++
++static int linked_prepare(Machine *m, List *l) {
++    if (l->linked && l->linked->owner != m) return 0;
++    for (uint32_t i = 0; i < l->len; i++)
++        if (!is_word(l->items[i]) && !is_num(l->items[i]) && !is_list(l->items[i]))
++            return 0;
++    if (!l->linked) {
++        size_t bytes = sizeof(LinkedCode) + (size_t)l->len * sizeof(LinkedOp);
++        l->linked = calloc(1, bytes);
++        if (!l->linked) { fputs("linked experiment: out of memory\n", stderr); exit(2); }
++        l->linked->owner = m;
++        heap_alloc += bytes;
++    }
++#ifdef BO_LINKED_FRAGMENTS
++    const LinkedFragment *fragment = m->linked_fragments_enabled ? linked_fragment_for(l) : NULL;
++#endif
++    for (uint32_t i = 0; i < l->len; i++) {
++        LinkedOp *op = &l->linked->ops[i];
++        if (op->execute) continue;
++#ifdef BO_LINKED_FRAGMENTS
++        op->fragment = fragment;
++        op->fragment_origin = fragment ? l : NULL;
++        op->fragment_index = i;
++#endif
++        Val value = l->items[i];
++        if (is_word(value)) {
++            op->site = stack_lookup(m, list_of1(value), 1);
++            op->execute = linked_word;
++        } else {
++            op->execute = linked_literal;
++        }
++    }
++#ifdef BO_LINKED_FRAGMENTS
++    if (m->linked_fragments_enabled && !l->linked->spans_ready) linked_find_spans(l);
++#endif
++    return 1;
++}
++#endif
++
++#ifdef BO_AOT_BRIDGE
++int aot_bridge_install(Machine *m) {
++    Val step = from_word(as_list(str_list("BRIDGE-STEP")));
++    Val outer = from_word(as_list(str_list("BRIDGE-OUTER")));
++    Val grand = from_word(as_list(str_list("BRIDGE-GRAND")));
++    Val plus = from_word(as_list(str_list("+")));
++    Val add = from_word(as_list(str_list("ADD")));
++    Stack *s = stack_lookup(m, list_of1(step), 0);
++    Stack *o = stack_lookup(m, list_of1(outer), 0);
++    Stack *g = stack_lookup(m, list_of1(grand), 0);
++    m->bridge_plus = stack_lookup(m, list_of1(plus), 0);
++    m->bridge_add = stack_lookup(m, list_of1(add), 0);
++    if (!s || !s->len || !is_list(s->items[s->len - 1]) ||
++        !o || !o->len || !is_list(o->items[o->len - 1]) ||
++        !g || !g->len || !is_list(g->items[g->len - 1]) ||
++        !m->bridge_plus || !m->bridge_plus->len || !m->bridge_add) return 0;
++    Val definition = s->items[s->len - 1];
++    Val plus_definition = m->bridge_plus->items[m->bridge_plus->len - 1];
++    if (!is_list(plus_definition)) return 0;
++    List *body = as_list(definition), *wrapper = as_list(plus_definition);
++    List *outer_body = as_list(o->items[o->len - 1]), *grand_body = as_list(g->items[g->len - 1]);
++    if (body->len != 4 || body->items[0] != from_num(1) ||
++        !val_equal(body->items[1], plus) || body->items[2] != from_num(10) ||
++        !val_equal(body->items[3], plus) || wrapper->len != 2 ||
++        !is_list(wrapper->items[0]) || as_list(wrapper->items[0])->len ||
++        !val_equal(wrapper->items[1], add) ||
++        outer_body->len != 3 || !val_equal(outer_body->items[0], step) ||
++        outer_body->items[1] != from_num(100) || !val_equal(outer_body->items[2], plus) ||
++        grand_body->len != 3 || !val_equal(grand_body->items[0], outer) ||
++        grand_body->items[1] != from_num(1000) || !val_equal(grand_body->items[2], plus)) return 0;
++    m->bridge_definition = definition;
++    m->bridge_outer_definition = from_list(outer_body);
++    m->bridge_grand_definition = from_list(grand_body);
++    m->bridge_step = s;
++    m->bridge_outer = o;
++    m->bridge_plus_definition = plus_definition;
++    return 1;
++}
++
++static int aot_bridge_execute(Machine *m, Val definition, size_t pc) {
++    if (definition == m->bridge_definition) return aot_bridge_body(m, pc);
++    if (definition == m->bridge_outer_definition) return aot_bridge_outer_body(m, pc);
++    if (definition == m->bridge_grand_definition) return aot_bridge_grand_body(m, pc);
++    fputs("AOT bridge: invalid native frame\n", stderr);
++    exit(2);
++}
++
++int aot_bridge_call_nested(Machine *m, size_t target, size_t resume) {
++    Stack *stack;
++    Val definition;
++    if (target == 1) { stack = m->bridge_step; definition = m->bridge_definition; }
++    else if (target == 2) { stack = m->bridge_outer; definition = m->bridge_outer_definition; }
++    else { fputs("AOT bridge: invalid target\n", stderr); exit(2); }
++    m->ctl[m->ctl_len - 1].idx = resume;
++    if (stack->len && stack->items[stack->len - 1] == definition) {
++        Frame *child = frame_push(m, FR_AOT_BRIDGE);
++        child->a = definition;
++        m->bridge_direct_calls++;
++        int status = aot_bridge_execute(m, definition, 0);
++        if (!status) m->ctl_len--;
++        return status;
++    }
++    m->bridge_fallbacks++;
++    size_t depth = m->ctl_len;
++    Op op = {.st = stack, .v = as_list(stack->key)->items[0]};
++    if (site_slow(m, &op)) return -1;
++    return m->ctl_len != depth;
++}
++
++void aot_bridge_push(Machine *m, double number) {
++    push_num(m, number);
++}
++
++int aot_bridge_call_plus(Machine *m, size_t resume) {
++    Frame *frame = &m->ctl[m->ctl_len - 1];
++    frame->idx = resume;
++    Stack *plus = m->bridge_plus, *add = m->bridge_add;
++    if (plus->len && plus->items[plus->len - 1] == m->bridge_plus_definition &&
++        !add->len && add->native) {
++        data_push(m, as_list(m->bridge_plus_definition)->items[0]);
++        return call_native(m, add->native) ? -1 : 0;
++    }
++    m->bridge_fallbacks++;
++    size_t depth = m->ctl_len;
++    Op op = {.st = plus, .v = as_list(plus->key)->items[0]};
++    if (site_slow(m, &op)) return -1;
++    return m->ctl_len != depth;
++}
++#endif
++
++#ifdef BO_AOT_MODEL
++Stack *aot_model_lookup(Machine *m, const char *name) {
++    Val word = from_word(as_list(str_list(name)));
++    return stack_lookup(m, list_of1(word), 0);
++}
++
++int aot_model_primitive(Machine *m, Stack *stack) {
++    if (!stack || stack->len || !stack->native) {
++        fputs("AOT model: unsupported primitive definition\n", stderr);
++        exit(2);
++    }
++    return call_native(m, stack->native);
++}
++#endif
++
++#ifdef BO_AOT_TRANSLATED
++static int aot_bind(Machine *m, size_t index, Val definition, const char *kinds,
++                    int (*execute)(Machine *, AotBlock *, size_t)) {
++    if (index >= m->aot_count || !is_list(definition) || !execute) return 0;
++    AotBlock *block = &m->aot_blocks[index];
++    if (block->definition) return 0;
++    List *list = as_list(definition);
++    if (list->aot_entry) return 0;
++    if (strlen(kinds) != list->len) return 0;
++    for (size_t i = 0; i < list->len; i++) {
++        int matches = kinds[i] == 'w' ? is_word(list->items[i]) :
++                      kinds[i] == 'l' ? is_list(list->items[i]) :
++                      kinds[i] == 'n' && is_num(list->items[i]);
++        if (!matches) return 0;
++    }
++    block->sites = calloc(list->len ? list->len : 1, sizeof(Stack *));
++    if (!block->sites) {
++        fputs("AOT experiment: cannot allocate call sites\n", stderr);
++        exit(2);
++    }
++    block->definition = definition;
++    block->execute = execute;
++    for (size_t i = 0; i < list->len; i++) {
++        if (is_word(list->items[i]))
++            block->sites[i] = stack_lookup(m, list_of1(list->items[i]), 1);
++        else if (!is_num(list->items[i]) && !is_list(list->items[i]))
++            return 0;
++    }
++    list->aot_owner = m;
++    list->aot_entry = block;
++    return 1;
++}
++
++int aot_bind_root(Machine *m, size_t index, const char *name, const char *kinds,
++                  int (*execute)(Machine *, AotBlock *, size_t)) {
++    Val word = from_word(as_list(str_list(name)));
++    Stack *s = stack_lookup(m, list_of1(word), 0);
++    return s && s->len && aot_bind(m, index, s->items[s->len - 1], kinds, execute);
++}
++
++int aot_bind_child(Machine *m, size_t index, size_t parent, size_t element, const char *kinds,
++                   int (*execute)(Machine *, AotBlock *, size_t)) {
++    if (parent >= m->aot_count || !m->aot_blocks[parent].definition) return 0;
++    List *list = as_list(m->aot_blocks[parent].definition);
++    if (element >= list->len || !aot_bind(m, index, list->items[element], kinds, execute)) return 0;
++    m->aot_blocks[index].nested = 1;
++    return 1;
++}
++
++int aot_generated_push(Machine *m, AotBlock *block, size_t index) {
++    if (m->aot_stats_enabled) m->aot_entries++;
++    data_push(m, as_list(block->definition)->items[index]);
++    return 0;
++}
++
++static int aot_run_block(Machine *m, AotBlock *block, size_t pc) {
++    m->aot_native_depth++;
++    if (m->aot_stats_enabled && m->aot_native_depth > m->aot_max_depth)
++        m->aot_max_depth = m->aot_native_depth;
++    int status = block->execute(m, block, pc);
++    m->aot_native_depth--;
++    return status;
++}
++
++int aot_generated_call(Machine *m, AotBlock *block, size_t index, size_t resume) {
++    if (m->aot_stats_enabled) m->aot_entries++;
++    m->ctl[m->ctl_len - 1].idx = resume;
++    Stack *site = block->sites[index];
++    if (site->len && is_list(site->items[site->len - 1])) {
++        Val definition = site->items[site->len - 1];
++        AotBlock *callee = aot_find(m, definition);
++        if (callee && as_list(definition)->len) {
++            if (m->aot_stats_enabled) {
++                callee->entries++;
++                if (callee->nested) m->aot_nested_entries++;
++            }
++            Frame *f = frame_push(m, FR_AOT_TRANSLATED);
++            f->a = definition;
++            f->b = (size_t)(callee - m->aot_blocks);
++            if (m->aot_native_depth >= 32) {
++                if (m->aot_stats_enabled) m->aot_depth_yields++;
++                return 1;
++            }
++            if (m->aot_stats_enabled) m->aot_direct_calls++;
++            int status = aot_run_block(m, callee, 0);
++            if (!status) m->ctl_len--;
++            return status;
++        }
++    }
++    if (m->aot_stats_enabled) m->aot_fallbacks++;
++    size_t depth = m->ctl_len;
++    Op op = {.st = block->sites[index], .v = as_list(block->definition)->items[index]};
++    if (site_slow(m, &op)) return -1;
++    return m->ctl_len != depth;
++}
++#endif
++
++#ifdef BO_AOT_EXPERIMENT
++int aot_install_step(Machine *m) {
++    Val step = from_word(as_list(str_list("STEP")));
++    Val plus = from_word(as_list(str_list("+")));
++    Stack *s = stack_lookup(m, list_of1(step), 0);
++    if (!s || !s->len || !is_list(s->items[s->len - 1])) return 0;
++    List *definition = as_list(s->items[s->len - 1]);
++    if (definition->len != 2 || definition->items[0] != from_num(1) ||
++        !val_equal(definition->items[1], plus)) return 0;
++    m->aot_plus = stack_lookup(m, list_of1(plus), 1);
++    if (!m->aot_plus->len || !is_list(m->aot_plus->items[m->aot_plus->len - 1])) return 0;
++    List *plus_definition = as_list(m->aot_plus->items[m->aot_plus->len - 1]);
++    Val add = from_word(as_list(str_list("ADD")));
++    if (plus_definition->len != 2 || !is_list(plus_definition->items[0]) ||
++        as_list(plus_definition->items[0])->len ||
++        !val_equal(plus_definition->items[1], add)) return 0;
++    m->aot_add = stack_lookup(m, list_of1(add), 1);
++    m->aot_plus_definition = from_list(plus_definition);
++    m->aot_step_definition = from_list(definition);
++    return 1;
++}
++
++void aot_push_one_integrated(Machine *m) {
++    push_num(m, 1);
++}
++
++int aot_call_plus_integrated(Machine *m) {
++    Op op = {.st = m->aot_plus, .v = as_list(m->aot_plus->key)->items[0]};
++    return site_slow(m, &op);
++}
++
++void aot_push_selector_integrated(Machine *m) {
++    data_push(m, as_list(m->aot_plus_definition)->items[0]);
++}
++
++int aot_call_add_integrated(Machine *m) {
++    Op op = {.st = m->aot_add, .v = as_list(m->aot_add->key)->items[0]};
++    return site_slow(m, &op);
++}
++#endif
++
+ static int do_branch(Machine *m, Val then, Val otherwise) {
+     if (!m->data.len) return bo_err0(m, "Stack-Error", "IFTE");
+     Val truth = m->data.items[--m->data.len];
+@@ -630,10 +1099,112 @@ static int do_branch(Machine *m, Val then, Val otherwise) {
+ 
+ static void run_loop(Machine *m) {
+     while (m->ctl_len > m->base) {
+-        if (heap_alloc > heap_gc_at) gc_collect(m);
++#ifdef BO_LINKED_EXPERIMENT
++        if (m->linked_stats_enabled) m->linked_scheduler_visits++;
++#endif
++        if (heap_alloc > heap_gc_at
++#ifdef BO_LINKED_EXPERIMENT
++            || m->linked_gc_each
++#endif
++#ifdef BO_AOT_TRANSLATED
++            || m->aot_gc_each
++#endif
++#ifdef BO_AOT_BRIDGE
++            || m->bridge_gc_each
++#endif
++        ) gc_collect(m);
+         Frame *f = &m->ctl[m->ctl_len - 1];
+         int rc = 0;
+         switch (f->kind) {
++#ifdef BO_LINKED_EXPERIMENT
++        case FR_LINKED: {
++            List *list = as_list(f->a);
++            size_t n = list->len;
++            size_t i = f->idx;
++            while (i < n) {
++#ifdef BO_LINKED_FRAGMENTS
++                size_t base;
++                const LinkedFragment *fragment = m->linked_fragments_enabled ?
++                    linked_full_fragment(list, i, &base) : NULL;
++                if (fragment) {
++                    if (m->linked_stats_enabled) {
++                        if (i == base) m->linked_fragment_entries++;
++                        else m->linked_fragment_resumes++;
++                        if (i == base && fragment->len > 1 && m->linked_trace_word) {
++                            for (size_t k = 0; k < fragment->len; k++) {
++                                LinkedOp *part = &list->linked->ops[base + k];
++                                if (part->transferred &&
++                                    val_equal(list->items[base + k], m->linked_trace_word)) {
++                                    m->linked_fragment_trace++;
++                                    break;
++                                }
++                            }
++                        }
++                    }
++                    int status = fragment->execute(m, base, i - base);
++                    if (status < 0) { rc = 1; goto done; }
++                    if (status) {
++                        if (m->linked_stats_enabled) m->linked_fragment_yields++;
++                        goto next;
++                    }
++                    i = base + fragment->len;
++                    if (i == n) goto next;
++                    f = &m->ctl[m->ctl_len - 1];
++                    continue;
++                }
++                if (m->linked_fragments_enabled && m->linked_stats_enabled)
++                    m->linked_fragment_fallbacks++;
++#endif
++                LinkedOp *op = &list->linked->ops[i];
++                f->idx = i + 1;
++                if (m->linked_stats_enabled) {
++                    m->linked_operations++;
++                    if (op->transferred && m->linked_trace_word &&
++                        val_equal(list->items[i], m->linked_trace_word))
++                        m->linked_trace_operations++;
++                }
++                size_t depth = m->ctl_len;
++                rc = op->execute(m, op, list->items[i]);
++                if (rc) goto done;
++                if (i + 1 == n || m->ctl_len != depth) goto next;
++                i++;
++            }
++            m->ctl_len--;
++            goto next;
++        }
++#endif
++#ifdef BO_AOT_BRIDGE
++        case FR_AOT_BRIDGE: {
++            m->bridge_entries++;
++            int status = aot_bridge_execute(m, f->a, f->idx);
++            if (status < 0) { rc = 1; goto done; }
++            if (!status) m->ctl_len--;
++            goto next;
++        }
++#endif
++#ifdef BO_AOT_TRANSLATED
++        case FR_AOT_TRANSLATED: {
++            AotBlock *block = &m->aot_blocks[f->b];
++            int status = aot_run_block(m, block, f->idx);
++            if (status < 0) { rc = 1; goto done; }
++            if (!status) m->ctl_len--;
++            goto next;
++        }
++#endif
++#ifdef BO_AOT_EXPERIMENT
++        case FR_AOT_STEP:
++            m->ctl_len--;
++            m->aot_step_entries++;
++            rc = aot_step_integrated(m);
++            if (rc) goto done;
++            goto next;
++        case FR_AOT_PLUS:
++            m->ctl_len--;
++            m->aot_plus_entries++;
++            rc = aot_plus_integrated(m);
++            if (rc) goto done;
++            goto next;
++#endif
+         case FR_CODE: {
+             Code *c = f->code;
+             Stack *d = &m->data;
+@@ -641,6 +1212,10 @@ static void run_loop(Machine *m) {
+             /* A frame keeps running the version it started with; if a primitive was redefined
+                since, its intrinsic call sites take the ordinary route. */
+             int stale = c->epoch != m->epoch;
++            if (m->jit_stats_enabled) {
++                m->jit_stats.frames++;
++                if (stale) m->jit_stats.stale_frames++;
++            }
+             for (;;) {
+                 Op *op;
+                 /* Hot part: literals, jumps and the common intrinsics run on the data stack held
+@@ -651,13 +1226,45 @@ static void run_loop(Machine *m) {
+                     if (d->cap - d->len < need) stack_reserve(d, need);
+                     if (m->native && !c->native && !c->tried && ++c->runs >= NATIVE_THRESHOLD) {
+                         c->tried = 1;
+-                        native_compile(m, c);
++                        int compiled = native_compile(m, c);
++                        if (m->jit_stats_enabled) {
++                            m->jit_stats.compile_attempts++;
++                            if (compiled) m->jit_stats.compiled++;
++                            else m->jit_stats.rejected++;
++                        }
+                     }
+                     if (c->native) {
+                         bo_npend = 0;
+                         bo_native_floor = (uintptr_t)__builtin_frame_address(0) - NATIVE_STACK;
++                        if (m->jit_stats_enabled) m->jit_stats.last_reason = JIT_EXIT_NONE;
+                         NRet r = ((NativeFn)c->native)(d->items, d->len, i, d->cap, c->entry);
+                         d->len = r.len;
++                        if (m->jit_stats_enabled) {
++                            JitStats *stats = &m->jit_stats;
++                            stats->native_entries++;
++                            if (r.i == NATIVE_DONE) {
++                                stats->native_done++;
++                            } else {
++                                stats->reasons[stats->last_reason]++;
++                                if (bo_npend || bo_exit_code != c) stats->native_nested_exit++;
++                                if (r.i & NATIVE_YIELD) {
++                                    stats->native_yields++;
++                                } else {
++                                    size_t idx = r.i;
++                                    Code *exit_code = bo_exit_code;
++                                    Op *exit_op = &exit_code->ops[idx];
++                                    if (exit_op->hot == H_COLD) {
++                                        stats->native_cold++;
++                                        if (exit_op->st) exit_op->st->profile_cold++;
++                                    } else if (exit_op->hot == H_CALL) {
++                                        stats->native_call_exit++;
++                                        if (exit_op->st) exit_op->st->profile_call_exit++;
++                                    } else {
++                                        stats->native_other_exit++;
++                                    }
++                                }
++                            }
++                        }
+                         if (r.i == NATIVE_DONE) { i = n; goto after_hot; }
+                         if (bo_npend == 0 && bo_exit_code == c) {
+                             i = r.i & ~NATIVE_YIELD;
+@@ -808,6 +1415,7 @@ static void run_loop(Machine *m) {
+                     {
+                         /* A stale frame must call the replacement with the original operands. */
+                         List *source = as_list(op->v);
++                        if (op->kind == OP_IFTE_GUARD) spush(d, source->items[op->a - 4]);
+                         if (op->kind == OP_IFTE_GUARD) spush(d, source->items[op->a - 3]);
+                         spush(d, source->items[op->a - 2]);
+                         spush(d, source->items[op->a - 1]);
+@@ -863,7 +1471,11 @@ static void run_loop(Machine *m) {
+         case FR_LOOP: {
+             if (f->idx == 0) {
+                 f->idx = 1;
++#ifdef BO_AOT_TRANSLATED
++                enter(m, f->a);
++#else
+                 push_code(m, f->a);
++#endif
+                 continue;
+             }
+             if (!m->data.len) { rc = bo_err0(m, "Stack-Error", "IFTE"); break; }
+@@ -875,7 +1487,11 @@ static void run_loop(Machine *m) {
+             }
+             if (as_num(truth) > 0) {
+                 f->idx = 0;
++#ifdef BO_AOT_TRANSLATED
++                enter(m, f->b);
++#else
+                 push_code(m, f->b);
++#endif
+             } else {
+                 m->ctl_len--;
+             }
+@@ -1211,7 +1827,11 @@ static int n_ifte(Machine *m, Val *a) {
+     Frame *f = frame_push(m, FR_BRANCH);
+     f->a = a[1];
+     f->b = a[2];
++#ifdef BO_AOT_TRANSLATED
++    enter(m, a[0]);
++#else
+     push_code(m, a[0]);
++#endif
+     return 0;
+ }
+ 
+@@ -1221,7 +1841,11 @@ static int n_catch(Machine *m, Val *a) {
+     trim(m);
+     Frame *f = frame_push(m, FR_CATCH);
+     f->a = a[1];
++#ifdef BO_AOT_TRANSLATED
++    enter(m, a[0]);
++#else
+     push_code(m, a[0]);
++#endif
+     return 0;
+ }
+ 
+@@ -1567,6 +2191,7 @@ void machine_init(Machine *m, const char *prelude) {
+     }
+     m->jit = !getenv("BO_NO_JIT");
+     m->native = m->jit && !getenv("BO_NO_NATIVE");
++    m->jit_stats_enabled = getenv("BO_JIT_STATS") != NULL;
+     if (!getenv("BO_NO_INTRINSICS")) {
+         install_intrinsics(m);
+         for (size_t i = 0; i < sizeof INTRINSICS / sizeof INTRINSICS[0]; i++) {
+diff --git a/c/main.c b/c/main.c
+index c4aa481..95844e4 100644
+--- a/c/main.c
++++ b/c/main.c
+@@ -76,5 +76,6 @@ int main(int argc, char **argv) {
+             fclose(f);
+         }
+     }
++    if (m->jit_stats_enabled) dump_jit_stats(m, stderr);
+     return ok ? 0 : 1;
+ }
+diff --git a/c/native.c b/c/native.c
+index da3220a..a60f78e 100644
+--- a/c/native.c
++++ b/c/native.c
+@@ -25,7 +25,7 @@
+ #include <string.h>
+ #include <sys/mman.h>
+ 
+-typedef struct { size_t pos; uint64_t ret; } Stub;
++typedef struct { size_t pos; uint64_t ret; int reason; } Stub;
+ typedef struct { size_t pos; int op; } Jump;
+ 
+ typedef struct {
+@@ -79,6 +79,11 @@ static void xorpd(G *g, int d) { sse(g, 0x66, 0x57, d, d); }
+ static void movabs(G *g, int r, uint64_t v) {
+     e8(g, r >= 8 ? 0x49 : 0x48); e8(g, 0xB8 + (unsigned)(r & 7)); e64(g, v);
+ }
++static void record_exit_reason(G *g, int reason) {
++    if (!g->m->jit_stats_enabled) return;
++    movabs(g, R9, (uint64_t)(uintptr_t)&g->m->jit_stats.last_reason);
++    e8(g, 0x41); e8(g, 0xC7); e8(g, 0x01); e32(g, (uint32_t)reason);
++}
+ static void inc(G *g) { e8(g, 0x48); e8(g, 0xFF); e8(g, 0xC6); }
+ static void dec(G *g) { e8(g, 0x48); e8(g, 0xFF); e8(g, 0xCE); }
+ static void add_len(G *g, int k) { e8(g, 0x48); e8(g, 0x83); e8(g, 0xC6); e8(g, (unsigned)k); }
+@@ -104,15 +109,18 @@ enum { RSI = 6, RCX = 1, RSP = 4, RDX_ = 2 };
+ 
+ /* conditional jump to a stub that returns ret to the interpreter */
+ enum { JB = 0x82, JE = 0x84, JNE = 0x85, JBE = 0x86, JA = 0x87, JP = 0x8A };
+-static void jcc_exit(G *g, int cc, uint64_t ret) {
++static void jcc_exit_reason(G *g, int cc, uint64_t ret, int reason) {
+     e8(g, 0x0F); e8(g, (unsigned)cc);
+     if (g->nstubs == g->capstubs) {
+         g->capstubs = g->capstubs ? g->capstubs * 2 : 64;
+         g->stubs = realloc(g->stubs, (size_t)g->capstubs * sizeof(Stub));
+     }
+-    g->stubs[g->nstubs++] = (Stub){g->n, ret};
++    g->stubs[g->nstubs++] = (Stub){g->n, ret, reason};
+     e32(g, 0);
+ }
++static void jcc_exit(G *g, int cc, uint64_t ret) {
++    jcc_exit_reason(g, cc, ret, JIT_EXIT_GUARD);
++}
+ static void jump_op(G *g, int cc, int op) { /* cc < 0: unconditional */
+     if (cc < 0) e8(g, 0xE9); else { e8(g, 0x0F); e8(g, (unsigned)cc); }
+     if (g->njumps == g->capjumps) {
+@@ -141,14 +149,14 @@ static size_t jfwd(G *g, int cc) {
+ static void need_len(G *g, int k, uint64_t ret) { /* cmp rsi,k ; jb exit */
+     if (k < 128) { e8(g, 0x48); e8(g, 0x83); e8(g, 0xFE); e8(g, (unsigned)k); }
+     else { e8(g, 0x48); e8(g, 0x81); e8(g, 0xFE); e32(g, (uint32_t)k); }
+-    jcc_exit(g, JB, ret);
++    jcc_exit_reason(g, JB, ret, JIT_EXIT_STACK);
+ }
+ /* load slot k into xmm and leave if it is not a number (NaN: a list or #) */
+ static void num_ld(G *g, int x, int k, uint64_t ret) {
+     sd_ld(g, x, k);
+     if (!(g->mask >> (k - 1) & 1)) {
+         ucomisd(g, x, x);
+-        jcc_exit(g, JP, ret);
++        jcc_exit_reason(g, JP, ret, JIT_EXIT_TYPE);
+         g->mask |= 1u << (k - 1);
+     }
+ }
+@@ -243,7 +251,7 @@ static void gc_check(G *g, uint64_t ret) {
+     rm(g, MOV_LD, RAX, RAX, 0);
+     movabs(g, R10, (uint64_t)(uintptr_t)&heap_gc_at);
+     rm(g, CMP_RM, RAX, R10, 0);
+-    jcc_exit(g, JA, ret);
++    jcc_exit_reason(g, JA, ret, JIT_EXIT_GC);
+ }
+ 
+ static int is_apply(const Op *op) {
+@@ -251,8 +259,8 @@ static int is_apply(const Op *op) {
+     return op->kind == OP_SITE && !s->len && s->native && !strcmp(s->native->name, "APPLY");
+ }
+ 
+-/* The common part of a call: r9 holds the callee's List->code. With pop the callee is the list
+-   on top of the data stack (APPLY), which leaves it before the call. */
++/* The common part of a call: r9 holds the callee's List->code. pop is the
++   number of APPLY operands to remove from the data stack before the call. */
+ static void gen_invoke(G *g, Code *c, int i, int pop);
+ 
+ static void gen_call(G *g, Code *c, int i) {
+@@ -260,18 +268,26 @@ static void gen_call(G *g, Code *c, int i) {
+     Stack *S = op->st;
+     uint64_t R = (uint64_t)i;
+     if (is_apply(op)) {
+-        /* APPLY is still the primitive and the top of the stack is a list with compiled code */
++        /* APPLY is still the primitive and selects the default stack. */
+         movabs(g, R9, (uint64_t)(uintptr_t)S);
+         rm(g, MOV_LD, RAX, R9, (int32_t)offsetof(Stack, len));
+         rr(g, TEST, RAX, RAX);
+-        jcc_exit(g, JNE, R);
+-        rr(g, TEST, RSI, RSI);
+-        jcc_exit(g, JE, R);
++        jcc_exit_reason(g, JNE, R, JIT_EXIT_APPLY);
++        need_len(g, 2, R);
+         ld(g, RAX, 1);
+         rr(g, MOV_LD, R10, RAX);
+         e8(g, 0x49); e8(g, 0xC1); e8(g, 0xEA); e8(g, 48); /* shr r10,48 */
+         e8(g, 0x49); e8(g, 0x81); e8(g, 0xFA); e32(g, (uint32_t)(LIST_TAG >> 48)); /* cmp r10,tag */
+-        jcc_exit(g, JNE, R);
++        jcc_exit_reason(g, JNE, R, JIT_EXIT_APPLY);
++        e8(g, 0x48); e8(g, 0xC1); e8(g, 0xE0); e8(g, 16); /* shl rax,16 */
++        e8(g, 0x48); e8(g, 0xC1); e8(g, 0xE8); e8(g, 16); /* shr rax,16 */
++        e8(g, 0x83); e8(g, 0xB8); e32(g, (uint32_t)offsetof(List, len)); e8(g, 0);
++        jcc_exit_reason(g, JNE, R, JIT_EXIT_APPLY);
++        ld(g, RAX, 2);
++        rr(g, MOV_LD, R10, RAX);
++        e8(g, 0x49); e8(g, 0xC1); e8(g, 0xEA); e8(g, 48); /* shr r10,48 */
++        e8(g, 0x49); e8(g, 0x81); e8(g, 0xFA); e32(g, (uint32_t)(LIST_TAG >> 48));
++        jcc_exit_reason(g, JNE, R, JIT_EXIT_APPLY);
+         e8(g, 0x48); e8(g, 0xC1); e8(g, 0xE0); e8(g, 16); /* shl rax,16 */
+         e8(g, 0x48); e8(g, 0xC1); e8(g, 0xE8); e8(g, 16); /* shr rax,16 */
+         /* Executing a one-element numeric or list quotation replaces it with its element. */
+@@ -286,15 +302,16 @@ static void gen_call(G *g, Code *c, int i) {
+         e8(g, 0x49); e8(g, 0xC1); e8(g, 0xEA); e8(g, 48); /* shr r10,48 */
+         e8(g, 0x49); e8(g, 0x81); e8(g, 0xFA); e32(g, (uint32_t)(WORD_TAG >> 48));
+         size_t word = jfwd(g, JE);
+-        st(g, 1, R9);
++        st(g, 2, R9);
++        dec(g);
+         size_t unit_done = jfwd(g, -1);
+         patch(g, not_unit, g->n);
+         patch(g, hash, g->n);
+         patch(g, word, g->n);
+         rm(g, MOV_LD, R9, RAX, (int32_t)offsetof(List, code));
+         rr(g, TEST, R9, R9);
+-        jcc_exit(g, JE, R);
+-        gen_invoke(g, c, i, 1);
++        jcc_exit_reason(g, JE, R, JIT_EXIT_TARGET);
++        gen_invoke(g, c, i, 2);
+         patch(g, unit_done, g->n);
+         return;
+     }
+@@ -309,7 +326,7 @@ static void gen_call(G *g, Code *c, int i) {
+             rm(g, MOV_LD, R9, R9, (int32_t)offsetof(Stack, revision));
+             movabs(g, R10, S->revision);
+             cmp_rr(g, R9, R10);
+-            jcc_exit(g, JNE, R);
++            jcc_exit_reason(g, JNE, R, JIT_EXIT_REVISION);
+             for (int k = 0; k < callee->n; k++) {
+                 movabs(g, RAX, callee->ops[k].v);
+                 st(g, 0, RAX);
+@@ -321,10 +338,10 @@ static void gen_call(G *g, Code *c, int i) {
+     movabs(g, R9, (uint64_t)(uintptr_t)S);
+     rm(g, MOV_LD, R9, R9, (int32_t)offsetof(Stack, call_list));
+     rr(g, TEST, R9, R9);
+-    jcc_exit(g, JE, R);
++    jcc_exit_reason(g, JE, R, JIT_EXIT_TARGET);
+     rm(g, MOV_LD, R9, R9, (int32_t)offsetof(List, code));
+     rr(g, TEST, R9, R9);
+-    jcc_exit(g, JE, R);
++    jcc_exit_reason(g, JE, R, JIT_EXIT_TARGET);
+     gen_invoke(g, c, i, 0);
+ }
+ 
+@@ -334,19 +351,23 @@ static void gen_invoke(G *g, Code *c, int i, int pop) {
+     movabs(g, RAX, (uint64_t)(uintptr_t)&g->m->epoch);
+     rm(g, MOV_LD, RAX, RAX, 0);
+     rm(g, CMP_MR, RAX, R9, (int32_t)offsetof(Code, epoch));
+-    jcc_exit(g, JNE, R);
++    jcc_exit_reason(g, JNE, R, JIT_EXIT_EPOCH);
+     gc_check(g, R);
+     rm(g, MOV_LD, RAX, R9, (int32_t)offsetof(Code, native));
+     rr(g, TEST, RAX, RAX);
+-    jcc_exit(g, JE, R);
++    jcc_exit_reason(g, JE, R, JIT_EXIT_NOT_NATIVE);
+     rm(g, MOV_LD, R10, R9, (int32_t)offsetof(Code, need));
+     rr(g, ADD_RM, R10, RSI);
+     cmp_rr(g, R10, RCX);
+-    jcc_exit(g, JA, R);
++    jcc_exit_reason(g, JA, R, JIT_EXIT_CAPACITY);
+     movabs(g, R10, (uint64_t)(uintptr_t)&bo_native_floor);
+     rm(g, CMP_RM, RSP, R10, 0);                      /* cmp rsp,[r10] */
+-    jcc_exit(g, JBE, R);
+-    if (pop) sub_len(g, 1);
++    jcc_exit_reason(g, JBE, R, JIT_EXIT_NATIVE_STACK);
++    if (g->m->jit_stats_enabled) {
++        movabs(g, R10, (uint64_t)(uintptr_t)&g->m->jit_stats.native_calls);
++        e8(g, 0x49); e8(g, 0xFF); e8(g, 0x02);    /* inc qword [r10] */
++    }
++    if (pop) sub_len(g, pop);
+     if (op->tail) {
+         rm(g, MOV_LD, 8, R9, (int32_t)offsetof(Code, entry));
+         e8(g, 0x31); e8(g, 0xD2);                    /* xor edx,edx */
+@@ -375,7 +396,7 @@ static void gen_invoke(G *g, Code *c, int i, int pop) {
+     rr(g, MOV_LD, RSI, RDX_);                        /* mov rsi,rdx */
+     rm(g, LEA, RAX, RSI, (int32_t)c->need);
+     cmp_rr(g, RAX, RCX);
+-    jcc_exit(g, JA, (R + 1) | NATIVE_YIELD);
++    jcc_exit_reason(g, JA, (R + 1) | NATIVE_YIELD, JIT_EXIT_CAPACITY);
+ }
+ 
+ static void gen_op(G *g, Code *c, int i) {
+@@ -388,7 +409,7 @@ static void gen_op(G *g, Code *c, int i) {
+         if (op->a <= i) {
+             rm(g, LEA, RAX, RSI, (int32_t)g->c->need);
+             cmp_rr(g, RAX, RCX); /* no room left for another round */
+-            jcc_exit(g, JA, (uint64_t)op->a | NATIVE_YIELD);
++            jcc_exit_reason(g, JA, (uint64_t)op->a | NATIVE_YIELD, JIT_EXIT_CAPACITY);
+             gc_check(g, (uint64_t)op->a | NATIVE_YIELD);
+         }
+         jump_op(g, -1, op->a);
+@@ -616,6 +637,7 @@ int native_compile(Machine *m, Code *c) {
+         entry_off[i] = g.off[i];
+         if (stub_at[i]) {
+             entry_off[i] = g.n;
++            record_exit_reason(&g, JIT_EXIT_RESUME);
+             e8(&g, 0xB8); e32(&g, (uint32_t)i);
+             jmp_to(&g, g.exit_off);
+         }
+@@ -624,6 +646,7 @@ int native_compile(Machine *m, Code *c) {
+     for (int j = 0; j < g.njumps; j++) patch(&g, g.jumps[j].pos, g.off[g.jumps[j].op]);
+     for (int s = 0; s < g.nstubs; s++) {
+         patch(&g, g.stubs[s].pos, g.n);
++        record_exit_reason(&g, g.stubs[s].reason);
+         movabs(&g, RAX, g.stubs[s].ret);
+         jmp_to(&g, g.exit_off);
+     }
+diff --git a/c/units.c b/c/units.c
+index 7e2339d..1b24efe 100644
+--- a/c/units.c
++++ b/c/units.c
+@@ -26,8 +26,14 @@ int unit_cons(Val list, Val unit, int right, Val *out) {
+         List *result = list_new(l->len + 1);
+         result->items[0] = element;
+         if (l->len) memcpy(result->items + 1, l->items, (size_t)l->len * sizeof(Val));
++#ifdef BO_LINKED_EXPERIMENT
++        linked_copy(l, 0, result, 1, l->len);
++#endif
+         *out = from_list(result);
+     }
++#ifdef BO_LINKED_EXPERIMENT
++    linked_copy(as_list(unit), 0, as_list(*out), right ? l->len : 0, 1);
++#endif
+     return UNIT_OK;
+ }
+ 
+@@ -37,5 +43,8 @@ int unit_uncons(Val list, int right, Val *rest, Val *unit) {
+     if (!l->len) return UNIT_STACK_ERROR;
+     *rest = list_slice(l, right ? 0 : 1, l->len - 1);
+     *unit = list_of1(l->items[right ? l->len - 1 : 0]);
++#ifdef BO_LINKED_EXPERIMENT
++    linked_copy(l, right ? l->len - 1 : 0, as_list(*unit), 0, 1);
++#endif
+     return UNIT_OK;
+ }

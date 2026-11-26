@@ -1,0 +1,64 @@
+;@puzzle
+;@title Submit a stack program
+;@goal Arrange the default stack from top to bottom as 5, 4, 3, 2, 1.
+;@hints 1
+;@tags shuffle quotation
+;@difficulty 3
+;@solution (nip rot apply 4 roll) (solution) PUSH guess
+;@wrong (nip) (solution) PUSH guess
+;@description
+; Experiment on the visible default stack, then push your best operation quotation onto `solution`.
+; Run `guess` to replay that quotation on the original sequence and report its validity and operation count.
+; Use `restart` whenever you want to restore the starting sequence and keep practicing.
+;@enddescription
+;@end
+
+; A four-operation solution is:
+;
+;     (nip rot apply 4 roll) (solution) PUSH guess
+
+"include/std.bo" require
+"examples/puzzles/lib.bo" require
+
+((1 2 3 4 5)) (puzzle.solution) PUSH
+(puzzle.solution) LOCK
+
+(
+    clear
+    5 (3 4) 1 3 2
+)
+(restart) PUSH
+
+(solution)
+(
+    restart
+    (solution) TOP (unittype 2 =) filter len (puzzle.operation-count) PUSH
+    solution
+    snapshot puzzle.solution =
+)
+puzzle.require
+
+(
+    "Solved in " emits
+    (puzzle.operation-count) TOP emit
+    " operations." emits
+)
+(puzzle.message.solved) PUSH
+
+(
+    "Solved in " emits
+    (puzzle.operation-count) TOP emit
+    " operations after using a hint." emits
+)
+(puzzle.message.solved-hinted) PUSH
+
+(
+    "Solved in " emits
+    (puzzle.operation-count) TOP emit
+    " operations after revealing the solution." emits
+)
+(puzzle.message.solved-revealed) PUSH
+
+restart
+("Use nip to remove the duplicate, rot to expose the list, apply to expand it, then 4 roll.") (puzzle.hints) PUSH
+"(nip rot apply 4 roll) (solution) PUSH guess" (puzzle.reveal) PUSH

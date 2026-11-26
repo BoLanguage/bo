@@ -1,0 +1,32 @@
+;@puzzle
+;@title First stack: store the answer
+;@goal Put a value on a named stack
+;@hints 1
+;@tags named-stack
+;@difficulty 1
+;@solution 42 (ANSWER) PUSH guess
+;@right 6 7 * (ANSWER) PUSH guess
+;@wrong 41 (ANSWER) PUSH guess
+;@description
+; Put 42 on the `ANSWER` stack, then run `guess` to check it.
+;@enddescription
+;@end
+
+; Puzzle: store the answer
+;
+; Bo has named stacks as well as the default stack. At the playground prompt,
+; put an answer on ANSWER, then run guess:
+;
+;     42 (ANSWER) PUSH guess
+;
+; Try another value and run guess again if it is not correct.
+
+"include/std.bo" require
+"examples/puzzles/lib.bo" require
+
+((6 7 *) apply) (puzzle.solution) PUSH
+(puzzle.solution) LOCK
+
+(ANSWER) ((ANSWER) TOP puzzle.solution =) puzzle.require
+("Put a value on ANSWER with VALUE (ANSWER) PUSH.") (puzzle.hints) PUSH
+"42 (ANSWER) PUSH guess" (puzzle.reveal) PUSH

@@ -1,0 +1,13 @@
+# Not a published package: the Python reference implementation runs from the checkout
+# (`python -m python.bo`) with the standard library only. This file just declares the
+# optional dependencies, which `make deps` installs into .venv with uv.
+[project]
+name = "bo-lang"
+description = "Bo, a minimal concatenative language"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dynamic = ["version"]
+
+[project.optional-dependencies]
+# The Jupyter kernel (python/bo/jupyter.py) and the JupyterLab highlighter (jupyterlab/).
+jupyter = ["ipykernel>=6", "jupyterlab>=4"]

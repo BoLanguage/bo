@@ -1,0 +1,106 @@
+"../include/std.bo" require
+
+;Numerical methods: Newton's square root, numerical integration, a series for pi,
+;and a Monte Carlo estimate with a small exact pseudo-random generator.
+;All numbers are IEEE doubles
+;integers are exact up to 2^53.
+"examples/lib.bo" require
+
+;Newton: x g loop refines the guess g until g*g is close to x
+    (
+        (dup dup * 2 pick - abs 0.000000000001 >)
+        (over over / + 2 /)
+    loop nip
+    )
+    (__sqrt-from)
+PUSH
+
+    (dup 2 / __sqrt-from)
+    (sqrt)
+PUSH
+
+;integration by the midpoint rule: a b n f INTEGRATE
+;The parameters live in named stacks. F holds a quotation, and naming a stack whose top
+;is a quotation runs it, so writing F in a program means "call the function".
+    (
+        (F) 
+    set 
+        (N) 
+    set 
+        (b) 
+    set 
+        (a) 
+    set
+    b a - N / 
+        (H) 
+    set
+    0 N range 
+        (apply 0.5 + H * a + F unit) 
+    map 
+    sum H *
+    )
+    (integrate)
+PUSH
+
+;the Leibniz series for pi: term i is 4 * (-1)^i / (2i + 1)
+    (dup 2 mod 2 * 1 - neg 4 * swap 2 * 1 + /)
+    (__leibniz-term)
+PUSH
+
+    (
+    0 swap range 
+        (apply __leibniz-term unit) 
+    map 
+    sum
+    )
+    (leibniz)
+PUSH
+
+;Park-Miller generator: seed * 16807 mod (2^31 - 1). The products stay below 2^53, so
+;the arithmetic is exact. random gives a number in (0, 1).
+1 (SEED) PUSH
+
+    (
+    SEED 
+    16807 * 
+    2147483647 mod 
+    dup 
+        (SEED) 
+    set 
+    2147483647 /
+    )
+    (random)
+PUSH
+
+;the fraction of random points of the unit square that fall inside the quarter circle
+    (
+        (N) 
+    set 
+    0 N range 
+        (
+        drop 
+        random random 
+        dup * 
+        swap 
+        dup * 
+        + 
+        1 < 
+        unit
+        ) 
+    map 
+    sum 
+    4 * N /
+    )
+    (montecarlo-pi)
+PUSH
+
+"sqrt(2)       = " emits 2 sqrt say
+"sqrt(144)     = " emits 144 sqrt say
+"integral of x^2 on [0,1], 1000 steps       = " emits 0 1 1000 (
+                                                               dup *
+                                                               ) integrate say
+"integral of 4/(1+x^2) on [0,1], 1000 steps = " emits 0 1 1000 (
+                                                               dup * 1 + 4 swap /
+                                                               ) integrate say
+"Leibniz pi, 1000 terms   = " emits 1000 leibniz say
+"Monte Carlo pi, 2000 points = " emits 2000 montecarlo-pi say

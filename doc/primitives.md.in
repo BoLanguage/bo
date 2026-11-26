@@ -1,0 +1,225 @@
+# Primitives
+
+
+In stack effects, the top is on the right. `D` is the default stack, `s` is
+the consumed stack selector, and `S` is the stack selected by `s`. Thus
+`D: (s --), S: (A B -- C)` means an ordinary primitive removes the selector
+from the default stack and replaces the operands on the selected stack. Every
+primitive consumes a selector; stack operations show both stack roles
+explicitly. If `s` is `()`, `S` is the default stack and the roles alias.
+The Stack column identifies the stack role used by each primitive: `D` is the
+default stack, `S` is the stack named by `s`, and `D`<->`S` indicates a
+cross-stack operation.
+
+Kernel primitives are plain uppercase words made of letters and digits (`ADD`,
+`DROP`, `IFTE`); the section headings below only group them by topic. Their
+default-stack wrappers are installed by `include/core.bo` as ordinary
+definitions: lowercase for spelled words (`drop`, `parallel`), and a symbol alone
+for primitives that have one (`+` for `ADD`, `=` for `EQUAL`, `.` for
+`BROADCAST`). A symbol has no uppercase form, so it cannot be confused with its
+primitive and no spelled twin such as `add` exists.
+Primitives are locked: they cannot be redefined, and a named stack cannot share
+a primitive's name. The inventory below is generated from
+`include/primitives.json`; wrappers and derived words are listed in the
+[library reference](library.md).
+
+{{GENERATED_PRIMITIVE_TABLES}}
+
+### Stacks
+
+
+Including `include/core.bo` installs ordinary, unlocked default-stack
+wrappers: for example, `drop` is `(() DROP)`, `+` is `(() ADD)`, and
+`parallel` is `(() PARALLEL)`. Wrapper comments and definitions are generated
+from `include/primitives.json` by `tools/generate_adapters.py`, which also
+validates the metadata against the C native registry; `--check` verifies that
+`include/core.bo` is current. Symbols (`+`, `-`, `=`, and so on) are wrappers
+defined directly from the kernel primitives, with no spelled twin. It
+contains wrappers only; higher-level predicates belong to focused library
+modules. `PUSH`, `POP`, `TOP`, and `EXISTS` have no default-stack wrappers
+because they transfer values between stacks or inspect arbitrary stack keys.
+
+Every stack selector must be `()` or a unit containing a word; other values
+raise `Type-Error`. The selector `()` names the default stack. `() POP` leaves its top value
+unchanged, `() TOP` duplicates it, and `() SNAPSHOT` and `() DEPTH` inspect the
+stack after consuming the selector. `TOP`, `SNAPSHOT`, and `DEPTH` can inspect
+locked named stacks without changing them.
+`EXISTS` returns `1` for the default stack and every native or previously
+created named stack, including an empty one; it does not create missing stacks.
+
+### Default stack
+
+
+`PICK` and `ROLL` read the index from the selected stack, not
+necessarily the default stack. For example,
+`1 (WORK) PUSH (WORK) ROLL` moves the second element of `WORK` to
+its top.
+
+### Lists and types
+
+
+`U` must contain exactly one element; otherwise `Type-Error` is raised. An
+empty list for `unconsl`/`unconsr` raises `Stack-Error`. `UNIT` wraps the
+top value on selected stack `S`. The `Value` library builds total predicates
+such as `isunit` and `isword` from these primitives.
+
+### Execution and control
+
+
+`PARALLEL` is the kernel primitive for `parallel`. Each worker starts
+with an otherwise empty data stack, with
+its input item on top, and runs `q` with a copy of the current named stacks and word
+definitions. The result `R` is a list of the workers' final data stacks, so a
+one-result callback produces one-element lists inside `R`. Named-stack changes
+made by a worker are private and discarded. If multiple workers fail, the
+error from the earliest input item is rethrown and recorded once. An empty
+input list returns an empty result list. Workers run in separate OS processes;
+worker startup makes this most useful for coarse-grained work. A worker that
+aborts or exits is reported as `Evaluation-Error` at `PARALLEL`.
+External side effects such as stream writes are not isolated and may occur in
+any order.
+
+`ifte` plus recursion is sufficient for other control flow (loops, switch, ...).
+
+### Arithmetic
+
+The selected-stack effects of `ADD SUB MUL DIV IDIV POW`
+are each `(a b -- c)`, with `a` deeper than `b`; every call also consumes a
+selector from the default stack. Thus
+`7 2 () SUB` leaves `5` and `(WORK) ADD` operates on `WORK`. The ordinary
+wrappers `+ - * / // ^` select the default stack; they remain
+overrideable definitions rather than kernel primitives.
+
+- `/` (`DIV`) is true division: `6 2 /` is `3` and `7 2 /` is `3.5`.
+- `//` (`IDIV`) is floor division. It exists because digit extraction
+  (printing numbers from inside Bo) needs it; `mod` is derived from it.
+- `^` (`POW`) is general real exponentiation: `9 0.5 ^` is `3`, not only
+  integer exponentiation. Its result must be finite; division by zero,
+  `0` to a negative exponent and a negative base with a non-integral exponent
+  raise `Domain-Error`, and overflow raises `Evaluation-Error`.
+
+Everything else is derived. Because truth is "greater than 0", subtraction already is a comparison: `b a -` is true exactly when `a < b`. So `<`, `>`, `neg`, `abs`, `max`, `min`, `mod` and so on belong to the library ([library](library.md)). `EQUAL` is a primitive (in the inventory above) because lists need structural comparison.
+
+### Ranges
+
+The ordinary, overrideable `:` and `::` wrappers construct numeric lists:
+
+
+These follow MATLAB's colon operand order: `1 10 :` gives `(1 2 3 4 5 6 7 8 9 10)`, while `0 2 10 ::` gives `(0 2 4 6 8 10)`. Operands must be finite numbers (otherwise `Domain-Error`). A step pointing away from the endpoint, including a zero step, produces an empty list. Floating-point quotients sufficiently close to an integer are rounded to that integer, and the final value is set to the endpoint; this makes decimal intervals such as `0 0.1 0.3 ::` include `0.3` despite binary floating-point representation. A result with more than `2^32 - 1` elements raises `Resource-Error`, and a non-finite value computed along the way raises `Evaluation-Error`.
+
+`RANGE` has selected-stack effect `(start step end -- L)` and consumes a
+selector from the default stack, so `0 2 10 () RANGE` leaves
+`(0 2 4 6 8 10)`.
+`core.bo` defines the ordinary, unlocked wrappers `::` as `(() RANGE)` and
+`:` as `(1 1 () ROLL () RANGE)`, which inserts the unit step before calling
+`RANGE`. There is deliberately no `range` word in `core.bo`, so programs may
+define their own.
+
+### Arrays
+
+Arrays are rectangular numeric arrays represented by an ordinary
+two-element list `((D) (Q))`: flat row-major numeric data `D` followed by a
+non-negative integer shape list `Q`. Array operations validate this structure
+when invoked; there is no separate runtime array type.
+
+
+For example, `(1 2 3 4 5 6) (2 3) array` constructs
+`((1 2 3 4 5 6) (2 3))`; `(1 2) ->` on it returns `6`. The empty shape `()` represents
+a scalar array and requires exactly one data element. Shapes with a zero
+dimension are valid and require empty data. Invalid data types or non-integer
+dimensions raise `Type-Error`. Negative dimensions, non-finite elements and
+out-of-bounds indices raise `Domain-Error`; inconsistent element counts and
+rank mismatches raise `Shape-Error`; a size over `2^32 - 1` elements raises
+`Resource-Error`.
+
+The selected-stack primitives are `ARRAY`, `SHAPE`, `RANK`, `RESHAPE`,
+`FETCH`, `STORE`, `CHUNK`, `CONCAT`, `DOT`, `MEAN`,
+`MEDIAN`, `TRANSPOSE`, `OUTER`, `MATMUL`, `BROADCAST`, and `REDUCE`.
+Each consumes a selector from the default stack and preserves operands when
+it fails. `core.bo` installs the lowercase default-stack wrappers (`array`,
+`shape`, ...), with the symbols `->` for `FETCH`, `<-` for `STORE`, `.` for
+`BROADCAST` and `..` for `REDUCE`.
+
+`chunk` requires a positive integral `n` and returns exactly `n` chunks,
+whose lengths differ by at most one; earlier chunks receive the remainder.
+It accepts only rank-one arrays, and may return empty rank-one chunks when
+`n` exceeds the array length. `concat` likewise accepts only rank-one arrays. It also accepts the direct
+output of `parallel` when every worker leaves exactly one rank-one array,
+unwrapping those one-value worker stacks. `() concat` returns the empty
+rank-one array `(() (0))`. These operations make explicit work partitioning,
+such as `T n chunk (q) parallel concat`, composable without exposing a
+mutable array representation.
+
+`REDUCE` folds an array with any binary word, so no reduction primitive is
+duplicated for sums, products or extremes. Its selected-stack effect is
+`(T axis-or-() U -- x-or-T')`: `U` is a unit holding the word, and `core.bo`
+defines the wrapper `..` (`.` applies a word to every pair of elements, `..`
+collapses a whole axis), used as `T () (+) ..`. With
+`()` it folds all flat data from left to right and returns a plain number.
+With a zero-based axis it folds each slice along that axis and returns an
+array whose shape removes that axis; for example, a `(2 3)` array reduced
+along axis `0` returns shape `(3)`, and along axis `1` shape `(2)`. A rank-one
+input reduced along axis `0` produces a rank-zero array. Each slice starts at
+its first element, then `REDUCE` pushes the accumulator and the next element
+and runs the word, which must leave exactly one number (otherwise
+`Stack-Error` or `Type-Error`, as for `BROADCAST`). A slice of one element is
+returned without calling the word. There is no seed, so an empty slice (an
+empty array, or an axis of length zero) raises `Domain-Error`; a reduction
+with no output slices, such as a `(0 3)` array reduced along axis `1`, returns an
+empty array without calling the word. Invalid axes raise `Domain-Error` and
+oversized output shapes `Resource-Error`; the word's own errors, such as overflow
+in `+`, are rethrown unchanged with the stack restored. Like `BROADCAST`, the C
+runtime folds natively when the word is an unmodified wrapper of `ADD`, `SUB`,
+`MUL`, `DIV`, `IDIV` or `POW`, and runs the word itself if a step would fail.
+
+The usual reductions are plain calls: `T () (+) ..` (sum), `T () (*) ..`
+(product), `T () (min) ..` and `T () (max) ..` (extremes), each also with an
+axis in place of `()`. The library words `any` and `all` (in
+`include/array.bo`) test whether any or every element is positive, globally or
+along one axis, as `(max) .. 0 (>) .` and `(min) .. 0 (>) .`; like every
+reduction they raise `Domain-Error` on an empty slice.
+
+`DOT` accepts two equally long rank-one arrays and returns the left-to-right
+sum of their elementwise products. The dot product of two empty vectors is
+`0`. A rank mismatch or unequal lengths raise `Shape-Error`, and an overflow
+raises `Evaluation-Error`.
+
+`MEAN` and `MEDIAN` follow the explicit axis-or-`()` convention
+and reject an empty all-axis reduction or empty reduced slice with `Domain-Error`. `MEDIAN` sorts each
+reduced slice; for an even number of values it returns the arithmetic average
+of the two central values. `transpose` and `matmul` accept rank-two arrays
+only; matrix multiplication requires matching inner dimensions. `outer`
+accepts rank-one arrays only. Rank mismatches and incompatible matrix
+dimensions raise `Shape-Error`, an output over `2^32 - 1` elements raises
+`Resource-Error`, and overflow raises `Evaluation-Error`.
+
+### Broadcasting
+
+`BROADCAST` applies any binary operation elementwise to numbers and arrays, so
+no arithmetic primitive is duplicated for arrays. Its selected-stack effect is
+`(A B U -- C)`: `U` is a unit holding the operation word, and `core.bo` defines
+the wrapper `.`, used as `A B (+) .`. Shapes are aligned from the right;
+dimensions must match, or one must be `1`, in which case that operand is
+repeated along the dimension. A number broadcasts over every element. The
+result is an array whenever either operand is an array; two numbers apply the
+word once and return a plain number.
+
+For every pair of elements, `BROADCAST` pushes the pair on the selected stack
+and runs the word, which must leave exactly one number there (so `(+)`, `(max)`,
+`(rem)`, `(drop)` and user-defined words all work); otherwise it raises
+`Stack-Error` (wrong number of results) or `Type-Error` (not a number). The
+word's own errors are rethrown unchanged, with the stack and operands
+restored. The word is looked up when `BROADCAST` runs, so redefining `+`
+changes the result.
+
+When the word is currently an unmodified default-stack wrapper of `ADD`, `SUB`,
+`MUL`, `DIV`, `IDIV` or `POW` (for example `+`, `-`, `*`, `/`, `//`, `^`), the C
+runtime computes the pairs natively instead of running the word. The result is
+identical, because the word is run after all if a pair would raise an error.
+
+For example, `(1 2 3 4 5 6) (2 3) array (10 20 30) (1 3) array (+) .`
+produces `((11 22 33 14 25 36) (2 3))`, and `2 (*) .` multiplies every
+element of an array on the stack by `2`. A zero-sized dimension broadcasts
+with a matching or singleton dimension and produces an empty array. Lists
+are not broadcast operands; `U` must be a unit containing a word. Incompatible
+shapes raise `Shape-Error`; operand type errors raise `Type-Error`.

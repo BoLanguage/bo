@@ -1,0 +1,202 @@
+"io.bo" require
+
+;__tail: the last n elements of the list L, or all of them (L n -- L')
+
+    (over len over - 0 max nip split swap drop)
+    (__tail)
+PUSH
+
+;__watch: write the text L, then the top n items of the stack below L and n (L n -- )
+
+    (
+        (dup 0 =)
+        (drop emits nl)
+        (
+            snapshot unconsr drop unconsr drop
+            swap __tail
+            swap emits 58 emitc 32 emitc emit nl
+        )
+    ifte
+    )
+    (__watch)
+PUSH
+
+;__stderr ( P -- ) run the program P with standard output sent to standard error, whatever happens in it
+
+    (
+        ((stdout) UNLOCK (2) (stdout) PUSH) swap
+        (rethrow)
+        ((stdout) POP drop (stdout) LOCK)
+    call
+    )
+    (__stderr)
+PUSH
+
+;watch ( L n -- ) write the text L and a list of the top n items to standard error, leaving the stack as it was; with n = 0, the text alone
+
+    ((__watch) __stderr)
+    (watch)
+PUSH
+
+;__whereframe: print one frame of a backtrace as its name, the elements that already ran, a bar and those still to run (F -- )
+
+    (
+        unconsl apply swap unconsl apply swap unconsl apply swap drop
+        rot
+        (dup null =) (drop "line" emits) (text emits) ifte
+        58 emitc 32 emitc
+        split swap emit 32 emitc 124 emitc 32 emitc emit nl
+    )
+    (__whereframe)
+PUSH
+
+;where ( -- ) print the programs being run, innermost first: the word that called each, the elements that already ran, a bar and the elements still to run
+
+    (backtrace 2 split nip (apply __whereframe) foreach)
+    (where)
+PUSH
+
+;@if ( c -- ) pause here, as @ does, if c is true (positive)
+
+    (() (@) () ifte)
+    (@if)
+PUSH
+
+;__onerror: the handler of break-on-error: say what failed, pause, then report the error as usual (E -- )
+
+    (
+        "error: " emits
+        dup unconsl apply text emits 32 emitc unconsl apply text emits nl drop
+        @ rethrow
+    )
+    (__onerror)
+PUSH
+
+;__ours: is the handler of break-on-error the one that runs on an error? ( -- c )
+
+    (
+        ((EXCEPTION) DEPTH 0 >)
+        ((EXCEPTION) TOP (__onerror) =)
+        (0)
+    ifte
+    )
+    (__ours)
+PUSH
+
+;break-on-error ( -- ) pause where an error that nothing catches happens, with the error on the stack; continue reports it as usual
+
+    ((__ours) () ((__onerror) (EXCEPTION) PUSH) ifte)
+    (break-on-error)
+PUSH
+
+;break-off-error ( -- ) stop pausing at errors; it only removes the handler that break-on-error installed, and only if it is still the last one
+
+    ((__ours) ((EXCEPTION) POP drop) () ifte)
+    (break-off-error)
+PUSH
+
+;__items: the top n items of the stack below a and n, as a list (a n -- B)
+
+    (snapshot unconsr drop unconsr drop swap __tail nip)
+    (__items)
+PUSH
+
+;__trace: marks the programs that trace makes; it does nothing
+
+    ()
+    (__trace)
+PUSH
+
+;__marked: is O a program made by trace? (O -- c)
+
+    (
+        (dup type 1 =)
+        ((dup null =) (drop 0) (unconsl swap drop (__trace) =) ifte)
+        (drop 0)
+    ifte
+    )
+    (__marked)
+PUSH
+
+;__istraced: is the frame F of a backtrace a program made by trace? (F -- c)
+
+    (unconsl drop unconsl apply swap drop __marked)
+    (__istraced)
+PUSH
+
+;__depth: the number of traced words being run ( -- n)
+
+    (backtrace 0 (apply __istraced +) foldl)
+    (__depth)
+PUSH
+
+;__trbody: write the indent, M, the name W and the top n items of the stack ( W n M -- )
+
+    (
+        __depth 1 - 2 * spaces emits
+        over text emits
+        (dup 0 =)
+        (drop drop nl)
+        (__items 32 emitc emit nl)
+    ifte
+    )
+    (__trbody)
+PUSH
+
+;__trline: __trbody on standard error ( W n M -- )
+
+    ((__trbody) __stderr)
+    (__trline)
+PUSH
+
+;__tin: the first thing a traced word does, given (W n) ( I -- )
+
+    (apply "> " __trline)
+    (__tin)
+PUSH
+
+;__tout: the last thing a traced word does, given (W n) ( I -- )
+
+    (apply "< " __trline)
+    (__tout)
+PUSH
+
+;__info: the list (W n) ( W n -- I)
+
+    (null rot unit consr swap unit consr)
+    (__info)
+PUSH
+
+;__wrap: the program that runs O between __tin and __tout (O I -- L)
+
+    (
+        (__trace) over unit consr (__tin) consr
+        -rot
+        null swap unit consr (__tout) consr (__trace) consr
+        append append
+    )
+    (__wrap)
+PUSH
+
+;__traced: is the word W traced? (W -- c)
+
+    ((dup DEPTH 0 >) (TOP __marked) (drop 0) ifte)
+    (__traced)
+PUSH
+
+;untrace ( W -- ) stop tracing the word named by the unit W; nothing happens if it is not traced
+
+    ((dup __traced) (POP drop) (drop) ifte)
+    (untrace)
+PUSH
+
+;trace ( W n -- ) trace the word named by the unit W: each call writes to standard error, indented by how deeply traced words are nested, a line `> name` with the top n items of the stack on entry and `< name` with the top n items on exit (n = 0: names only); a traced word no longer calls its last word as a tail call
+
+    (
+        over untrace
+        over TOP
+        (dup type 1 =) () (unit) ifte
+        -rot 2dup __info nip rot swap __wrap swap PUSH
+    )
+    (trace)
+PUSH

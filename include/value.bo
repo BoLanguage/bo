@@ -1,0 +1,43 @@
+;isnumber ( X -- 1|0 ) whether X is a number
+
+    (type 0 =)
+    (isnumber)
+PUSH
+
+;islist ( X -- 1|0 ) whether X is a list, including a unit or the empty list
+
+    (type 1 =)
+    (islist)
+PUSH
+
+;isunit ( X -- 1|0 ) whether X is a unit
+
+    (
+        (unittype drop 1)
+        (drop drop 0)
+    catch
+    )
+    (isunit)
+PUSH
+
+;isinteger ( X -- 1|0 ) whether X equals its floor
+
+    (
+        (0 pick type 0 =)
+        (0 pick 1 // =)
+        (drop 0)
+    ifte
+    )
+    (isinteger)
+PUSH
+
+;isword ( X -- 1|0 ) whether X is () or a unit containing a word, and therefore a valid stack key
+
+    (
+        (0 pick () =)
+        (drop 1)
+        ((unittype 2 =) (drop drop 0) catch)
+    ifte
+    )
+    (isword)
+PUSH

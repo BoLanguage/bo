@@ -1,0 +1,15 @@
+;std.bo loads the whole library; 
+;like the other modules it needs core.bo, which the runtimes load at startup
+
+"stack.bo" require
+"logic.bo" require
+"math.bo" require
+"list.bo" require
+"value.bo" require
+"dict.bo" require
+"stream.bo" require
+"io.bo" require
+"array.bo" require
+"debug.bo" require
+
+; The focused modules above define plain lowercase words directly.

@@ -1,0 +1,29 @@
+;@puzzle
+;@title Define a word
+;@goal Define `twicer` so that it doubles its input.
+;@hints 1
+;@tags quotation
+;@difficulty 1
+;@solution (2 *) (twicer) PUSH guess
+;@right (dup +) (twicer) PUSH guess
+;@wrong (3 *) (twicer) PUSH guess
+;@description
+; A word definition is a quotation pushed onto its named stack.
+; Create a quotation that multiplies its input by two, then push it onto `twicer`.
+; Run `guess` to check it.
+;@enddescription
+;@end
+
+; Define twicer at the prompt, then run guess:
+;
+;     (2 *) (twicer) PUSH guess
+
+"include/std.bo" require
+"examples/puzzles/lib.bo" require
+
+((6 7 *) apply) (puzzle.solution) PUSH
+(puzzle.solution) LOCK
+
+(twicer) (21 twicer puzzle.solution =) puzzle.require
+("Define twicer with (2 *) (twicer) PUSH.") (puzzle.hints) PUSH
+"(2 *) (twicer) PUSH guess" (puzzle.reveal) PUSH

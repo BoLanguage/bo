@@ -1,0 +1,6 @@
+sqrt(2)       = 1.414213562373095
+sqrt(144)     = 12
+integral of x^2 on [0,1], 1000 steps       = 0.33333325
+integral of 4/(1+x^2) on [0,1], 1000 steps = 3.141592736923123
+Leibniz pi, 1000 terms   = 3.140592653839794
+Monte Carlo pi, 2000 points = 3.162

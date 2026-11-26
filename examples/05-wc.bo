@@ -1,0 +1,42 @@
+"../include/std.bo" require
+
+;wc: count lines, words and characters read from standard input.
+
+;Named stacks serve as variables: (NAME) incr adds one, (NAME) set assigns,
+;and naming a stack that holds a number pushes it.
+"examples/lib.bo" require
+
+0 (lines) PUSH 0 (words) PUSH 0 (chars) PUSH 0 (inword) PUSH
+
+;count : update the counters for one character code
+    (
+        (dup 10 =)
+        ((lines) incr)
+    ift
+    (chars) incr
+    unit (9 10 13 32) in
+        ()
+        (0 (inword) set)
+        (
+            (inword 0 =) 
+            ((words) incr) 
+        ift 
+        1 (inword) set
+        )
+    ifte
+    )
+    (count)
+PUSH
+
+;read until end of file (read returns -1)
+    (
+        (stdin read dup -1 \=) 
+        (count) 
+    loop 
+    drop
+    )
+    (readall)
+PUSH
+
+readall
+lines emit 32 emitc words emit 32 emitc chars emit nl

@@ -1,0 +1,107 @@
+"../include/std.bo" require
+
+;Functional list processing built only from consl/consr/unconsl/unconsr:
+;map, filter, foldl/foldr, range, reverse, append, split, nth, in.
+"examples/lib.bo" require
+
+    (dup *)
+    (square)
+PUSH
+
+    (2 mod 1 =)
+    (odd?)
+PUSH
+
+"numbers 1..10:      " emits 1 11 range dup say
+"squares:            " emits dup (apply square unit) map say
+"odd ones:           " emits dup (apply odd?) filter say
+"sum of odd squares: " emits (apply odd?) filter (apply square unit) map sum say
+
+"product 1..10:      " emits 1 11 range product say
+"reversed:           " emits 1 6 range reverse say
+"length of 1..1000:  " emits 1 1001 range len say
+"3rd of (10..50):    " emits (10 20 30 40 50) 3 nth apply say
+"split at 2:         " emits (1 2 3 4 5) 2 split swap emit 32 emitc say
+"append:             " emits
+
+    (1 2)
+    (3 4 5)
+append say
+
+"4 in (1 2 3)?       " emits 4 unit (1 2 3) in say
+"2 in (1 2 3)?       " emits 2 unit (1 2 3) in say
+;foldr builds from the right: here it rebuilds a list in the same order
+"foldr (copy):       " emits (1 2 3) null (swap consl) foldr say
+;the maximum of a list is a fold with max
+"max of the list:    " emits (3 9 2 7) dup unconsl nip apply (apply max) foldl say
+
+;mean of a list: a true division of the sum by the length
+    (dup sum swap len /)
+    (mean)
+PUSH
+
+"mean of 1..10:      " emits 1 11 range mean say
+
+;composition of functions: a quotation is a list, so composing is append
+    ((square) (1 +) append)
+    (square+1)
+PUSH
+
+"square then +1 of 7: " emits 7 square+1 apply say
+
+;split2: split using lambda/rec (no helper word) [variant of include/list.bo/split, illustrative example only]
+
+    (
+    () -rot
+        (
+            (dup 0 =)
+            (drop)
+            (
+            1 - 
+            swap 
+            unconsl 
+            3 roll 
+            swap 
+            consr 
+            -rot 
+            swap 
+            rec
+            )
+        ifte
+        )
+    lambda
+    )
+    (split2)
+PUSH
+
+;split3: split using own stack manipulation (no helper word) [variant of include/list.bo/split, illustrative example only]
+
+    (
+        (dup 0 =)
+        (drop)
+        (
+        1 - 
+        swap 
+        unconsl 
+        3 roll 
+        swap 
+        consr 
+        -rot 
+        swap 
+        split3
+        )
+    ifte
+    )
+    (split3)
+PUSH
+
+    (
+    null -rot
+        (1 (split3) PUSH (split3) ROLL)
+        (split3)
+        (rethrow)
+        (1 (split3) PUSH (split3) ROLL)
+    call
+    )
+    (split3)
+PUSH

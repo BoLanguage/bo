@@ -1,0 +1,40 @@
+"../include/std.bo" require
+
+;Small public helpers shared by the examples. Load with:  "examples/lib.bo" require
+;(kept out of the standard library on purpose: it only holds the core library words)
+
+;say ( x -- ) write any value followed by a newline
+    (emit nl)
+    (say)
+PUSH
+
+;says ( L -- ) write a string followed by a newline
+    (emits nl)
+    (says)
+PUSH
+
+;range ( a b -- L ) the list a, a+1, ... b-1
+    (1 - :)
+    (range)
+PUSH
+
+;sum ( L -- n ) the sum of the elements of L
+    (0 (apply +) foldl)
+    (sum)
+PUSH
+
+;product ( L -- n ) the product of the elements of L
+    (1 (apply *) foldl)
+    (product)
+PUSH
+
+;incr ( key -- ) add 1 to the number kept in the stack key (1 when it is empty)
+;the stack key is left untouched when it does not hold a number
+    (
+        (dup size 0 >)
+        (dup get 1 + swap set)
+        (1 swap set)
+    ifte
+    )
+    (incr)
+PUSH

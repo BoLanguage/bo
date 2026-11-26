@@ -1,0 +1,263 @@
+"stack.bo" require
+"logic.bo" require
+
+;null ( -- L ) the empty list
+
+    (())
+    (null)
+PUSH
+
+;append ( a b -- L ) concatenate list a followed by list b
+
+    (
+        (dup null =)
+        (drop)
+        (
+        unconsl rot swap consr swap append
+        )
+    ifte
+    )
+    (append)
+PUSH
+
+;prepend ( a b -- L ) the elements of b followed by those of a
+
+    (swap append)
+    (prepend)
+PUSH
+
+;foldl ( L b q -- r ) fold from the left: q receives the accumulator and a unit containing each element
+
+    (
+        (2 pick null =)
+        (drop nip)
+        (
+        rot unconsl 3 roll swap 3 pick apply rot foldl
+        )
+    ifte
+    )
+    (foldl)
+PUSH
+
+;foldr ( L b q -- r ) fold from the right: q receives a unit containing each element and the accumulator, last element first
+
+    (
+        (2 pick null =)
+        (drop nip)
+        (
+        rot unconsr 3 roll 3 pick apply rot foldr
+        )
+    ifte
+    )
+    (foldr)
+PUSH
+
+;unfoldl ( L b stop step -- L' b' ) until the program stop, run on the seed b, leaves a true value: b becomes step applied to b, and the new b is added to the left of L
+
+    (
+    2swap 2over drop
+        (2nip drop)
+        (
+        2over nip apply tuck unit consl swap 2swap unfoldl
+        )
+    ifte
+    )
+    (unfoldl)
+PUSH
+
+;unfoldr ( L b stop step -- L' b' ) like unfoldl, but the new values are added to the right of L
+
+    (
+    2swap 2over drop
+        (2nip drop)
+        (
+        2over nip apply tuck unit consr swap 2swap unfoldr
+        )
+    ifte
+    )
+    (unfoldr)
+PUSH
+
+;__lenacc: count the elements of L on top of n
+
+    (
+        (dup null =)
+        (drop)
+        (unconsl drop swap 1 + swap __lenacc)
+    ifte
+    )
+    (__lenacc)
+PUSH
+
+;len ( L -- n ) the number of elements of L
+
+    (0 swap __lenacc)
+    (len)
+PUSH
+
+;nth ( L n -- u ) a unit containing the n-th element of L, counting from 1
+
+    (
+        (dup 1 =)
+        (drop unconsl nip)
+        (1 - swap unconsl drop swap nth)
+    ifte
+    )
+    (nth)
+PUSH
+
+;__mapacc: accumulate mapped values on the right, keeping traversal linear
+
+    (
+        (over null =)
+        (drop drop)
+        (
+        swap unconsl 2 pick apply 3 roll swap consr -rot swap __mapacc
+        )
+    ifte
+    )
+    (__mapacc)
+PUSH
+
+;map ( L q -- L' ) apply q to a unit containing each element
+;q returns a unit containing the replacement
+
+    (null -rot __mapacc)
+    (map)
+PUSH
+
+;foreach ( L q -- ) run q for each element of L, with a unit containing the element on top of the stack
+
+    (
+        (over null =)
+        (2drop)
+        (
+        swap unconsl rot tuck apply foreach
+        )
+    ifte
+    )
+    (foreach)
+PUSH
+
+;__splitacc: helper of split that moves n elements onto an accumulator
+
+    (
+        (dup 0 =)
+        (drop)
+        (
+        1 - ; (A L n -- A L n-1)
+        swap ; A n-1 L
+        unconsl ; A n-1 L' a
+        3 roll ; n-1 L' a A
+        swap ; n-1 L' A a
+        consr ; n-1 L' A'
+        -rot ; A' n-1 L'
+        swap ; A' L' n-1
+        __splitacc
+        )
+    ifte
+    )
+    (__splitacc)
+PUSH
+
+;split ( L n -- a b ) a holds the first n elements of L, b the rest
+
+    (null -rot __splitacc)
+    (split)
+PUSH
+
+;sel ( L n -- L' u ) remove the n-th element of L, leaving the rest and a unit containing the element
+
+    (1 - split unconsl -rot append swap)
+    (sel)
+PUSH
+
+;ins ( L u n -- L' ) insert the element of unit u so that it becomes the n-th element
+
+    (
+    rot swap 1 - split rot consl append
+    )
+    (ins)
+PUSH
+
+;in ( u L -- 0|1 ) 1 if the element of unit u is an element of L
+
+    (
+    over unittype drop
+        (dup null =)
+        (drop drop 0)
+        (unconsl 2 pick = () (drop drop 1) (in) ifte)
+    ifte
+    )
+    (in)
+PUSH
+
+;zip ( A B -- C ) pair corresponding elements of A and B, stopping at the shorter list
+
+    (
+        (dup null =)
+        (2drop null)
+        (
+            (over null =)
+            (2drop null)
+            (
+            swap unconsl rot unconsl rot swap
+            null rot consr swap consr
+            -rot zip swap unit consl
+            )
+        ifte
+        )
+    ifte
+    )
+    (zip)
+PUSH
+
+;mask ( L M -- L' ) the elements of L at the positions where the mask M is true (positive), in order; it stops at the shorter list
+
+    (zip null (apply unconsl swap apply () (consr) (drop) ifte) foldl)
+    (mask)
+PUSH
+
+;filter ( L p -- L' ) the elements of L for which p, applied to a unit containing the element, leaves a true value
+
+    ((unit) append over swap map mask)
+    (filter)
+PUSH
+
+;startswith ( L P -- 0|1 ) 1 if L begins with the elements of P (a string is a list of character codes)
+
+    (over len over len < () (2drop 0) (swap over len split drop =) ifte)
+    (startswith)
+PUSH
+
+;endswith ( L P -- 0|1 ) 1 if L ends with the elements of P
+
+    (over len over len < () (2drop 0) (over len over len - rot swap split nip =) ifte)
+    (endswith)
+PUSH
+
+;contains ( L P -- 0|1 ) 1 if the elements of P occur in L next to each other, in that order
+
+    (
+    over len over len <
+    () (2drop 0)
+    (2dup startswith () (2drop 1) (swap unconsl drop swap contains) ifte)
+    ifte
+    )
+    (contains)
+PUSH
+
+;__reverseacc: helper of reverse
+    (
+        (dup null =)
+        (drop)
+        (unconsr rot swap consr swap __reverseacc)
+    ifte
+    )
+    (__reverseacc)
+PUSH
+
+;reverse ( L -- L' ) the elements of L in reverse order
+    (null swap __reverseacc)
+    (reverse)
+PUSH

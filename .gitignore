@@ -1,0 +1,34 @@
+.venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pycache/
+__pycache__/
+
+c/bo
+wasm/build/
+playground/vendor-src/node_modules/
+*.vsix
+
+jupyterlab/node_modules/
+jupyterlab/lib/
+jupyterlab/bo_jupyterlab/_version.py
+jupyterlab/bo_jupyterlab/labextension/
+vscode/node_modules/
+
+.ipynb_checkpoints/
+
+images/tests
+
+playground-plus/data/
+playground-plus/node_modules/
+
+## temporary tests
+temp/
+
+# other
+AGENTS.md
+TODO.txt
+RELEASE-PLAN.md
+

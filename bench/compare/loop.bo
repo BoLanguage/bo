@@ -1,0 +1,8 @@
+"../../include/std.bo" () INCLUDE
+
+;sum of 1..5000000 with a counting loop
+0 0
+
+    (dup 5000000 <)
+    (dup rot + swap 1 +)
+loop drop emit nl

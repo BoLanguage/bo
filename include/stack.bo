@@ -1,0 +1,101 @@
+;nop ( -- ) do nothing
+
+    ()
+    (nop)
+PUSH
+
+;dup ( a -- a a ) duplicate the top element
+
+    (0 pick)
+    (dup)
+PUSH
+
+;over ( a b -- a b a ) copy the second element on top
+
+    (1 pick)
+    (over)
+PUSH
+
+;swap ( a b -- b a ) exchange the top two elements
+
+    (1 roll)
+    (swap)
+PUSH
+
+;rot ( a b c -- b c a ) rotate the third element to the top
+
+    (2 roll)
+    (rot)
+PUSH
+
+;-rot ( a b c -- c a b ) rotate the top element down to third place
+
+    (rot rot)
+    (-rot)
+PUSH
+
+;nip ( a b -- b ) drop the second element
+
+    (swap drop)
+    (nip)
+PUSH
+
+;tuck ( a b -- b a b ) copy the top element below the second
+
+    (swap over)
+    (tuck)
+PUSH
+
+;2dup ( a b -- a b a b ) duplicate the top pair
+
+    (over over)
+    (2dup)
+PUSH
+
+;2drop ( a b -- ) drop the top pair
+
+    (drop drop)
+    (2drop)
+PUSH
+
+;2swap ( a b c d -- c d a b ) exchange the top two pairs
+
+    (3 roll 3 roll)
+    (2swap)
+PUSH
+
+;2over ( a b c d -- a b c d a b ) copy the second pair on top
+
+    (3 pick 3 pick)
+    (2over)
+PUSH
+
+;2nip ( a b c d -- c d ) drop the second pair
+
+    (2swap 2drop)
+    (2nip)
+PUSH
+
+;2tuck ( a b c d -- c d a b c d ) copy the top pair below the second pair
+
+    (2swap 2over)
+    (2tuck)
+PUSH
+
+;2rot ( a b c d e f -- c d e f a b ) rotate the third pair to the top
+
+    (5 roll 5 roll)
+    (2rot)
+PUSH
+
+;-2rot ( a b c d e f -- e f a b c d ) rotate the top pair down to third place
+
+    (2rot 2rot)
+    (-2rot)
+PUSH
+
+;?dup ( n -- n n | n ) duplicate the top element unless it is 0
+
+    ((dup abs) (dup) (nop) ifte)
+    (?dup)
+PUSH

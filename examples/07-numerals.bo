@@ -1,0 +1,149 @@
+"../include/std.bo" require
+
+;Numbers as text: conversion between bases, parsing, and Roman numerals.
+"examples/lib.bo" require
+
+;acc n b __digitsacc : prepend the digits of n in base b to acc, least significant last
+    (
+        (over 0 =)
+        (2drop)
+        (
+        2dup mod 
+        3 roll 
+        swap 
+        unit consl 
+        -rot 
+        swap over 
+        // 
+        swap 
+        __digitsacc
+        )
+    ifte
+    )
+    (__digitsacc)
+PUSH
+
+;n b todigits : the digits (values) of n in base b, most significant first
+    (
+        (over 0 =) 
+        (2drop (0)) 
+        (null -rot __digitsacc) 
+    ifte
+    )
+    (todigits)
+PUSH
+
+;digit value <-> character code (0-9, then A-Z)
+    ((dup 10 <) (48 +) (55 +) ifte)
+    (__digitchar)
+PUSH
+
+    ((dup 58 <) (48 -) (55 -) ifte)
+    (__digitval)
+PUSH
+
+;n b tostring : the text of n in base b
+    (todigits (apply __digitchar unit) map)
+    (tostring)
+PUSH
+
+; "text" b PARSE : the number denoted by text in base b, as a fold (acc*b + digit)
+    (
+    unit 
+        (apply __digitval swap) 
+    swap append 
+        (* +) 
+    append 
+    0 swap 
+    foldl
+    )
+    (parse)
+PUSH
+
+;n b show : print n in base b
+    (tostring emits nl)
+    (show)
+PUSH
+
+"255 in base 2:  " emits 255 2 show
+"255 in base 8:  " emits 255 8 show
+"255 in base 16: " emits 255 16 show
+"2^40 in hex:    " emits 2 40 ^ 16 show
+"1295 in base 36:" emits 1295 36 show
+"0 in base 2:    " emits 0 2 show
+"parse FF (16):  " emits "FF" 16 parse say
+"parse 1010 (2): " emits "1010" 2 parse say
+"parse 12345:    " emits "12345" 10 parse say
+"round trip:     " emits 987654321 7 tostring 7 parse say
+
+;Roman numerals. The remaining value and the output are kept in named stacks used as variables
+;the table is a word that pushes a list of (value text) pairs.
+
+    (
+        (
+            (1000 "M") 
+            (900 "CM") 
+            (500 "D") 
+            (400 "CD") 
+            (100 "C") 
+            (90 "XC")
+            (50 "L") 
+            (40 "XL") 
+            (10 "X") 
+            (9 "IX") 
+            (5 "V") 
+            (4 "IV") 
+            (1 "I")
+        )
+    )
+    (__romantable)
+PUSH
+
+;pair __romanpair : write the pair's text as long as its value still fits
+    (
+    unconsl apply 
+    swap 
+    unconsl 
+    nip 
+    apply 
+        (rstr) 
+    set 
+        (rval) 
+    set
+        (rn rval >=)
+        (
+            (rtext) 
+        get 
+            (rstr) 
+        get 
+        append 
+            (rtext) 
+        set 
+        rn rval - 
+            (rn) 
+        set
+        )
+    loop
+    )
+    (__romanpair)
+PUSH
+
+    (
+        (rn) 
+    set 
+    null 
+        (rtext) 
+    set 
+    __romantable 
+        (apply __romanpair) 
+    foreach 
+        (rtext) 
+    get
+    )
+    (roman)
+PUSH
+
+"1994 = " emits 1994 roman says
+"2024 = " emits 2024 roman says
+"3999 = " emits 3999 roman says
+"4    = " emits 4 roman says

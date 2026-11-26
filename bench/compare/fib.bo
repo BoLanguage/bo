@@ -1,0 +1,8 @@
+"../../include/std.bo" () INCLUDE
+
+;recursive Fibonacci of 32
+    ((dup 2 <) () (dup 1 - fib swap 2 - fib +) ifte)
+    (fib)
+PUSH
+
+32 fib emit nl

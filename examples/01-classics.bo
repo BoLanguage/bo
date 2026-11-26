@@ -1,0 +1,107 @@
+"../include/std.bo" require
+
+;Classic recursion and loops: factorial, Fibonacci, gcd, Collatz and primality.
+"examples/lib.bo" require
+
+;recursion: a definition that calls itself by name
+    (
+    ; if n == 0
+        (
+        dup                 ; ( n -- n n )
+        0 =                 ; ( n n -- n 0|1 )
+        ) 
+    ; then 1
+        (drop 1)            ; ( n 0|1 -- 1 )
+    ; else n * fact(n-1)
+        (
+        dup                 ; ( n 0|1 -- n n )
+        1 -                 ; ( n n -- n n-1 )
+        fact        
+        *                   ; ( n n-1 n-2 ... 1 -- n! )
+        ) 
+    ifte
+    )
+    (fact)
+PUSH
+
+;the same, with anonymous recursion (rec)
+    (
+        (
+            (dup 0 =) 
+            (drop 1) 
+            (dup 1 - rec *) 
+        ifte
+        ) 
+    lambda
+    )
+    (fact2)
+PUSH
+
+;iteration: ( cond ) ( body ) loop, here carrying (a b n) on the stack
+    (
+    0 1 rot 
+        (dup 0 >) 
+        (1 - -rot tuck + rot) 
+    loop 
+    drop drop
+    )
+    (fib)
+PUSH
+
+;steps of the Collatz sequence from n until it reaches 1
+    (
+    0 swap
+        (dup 1 >)
+        (
+        dup 
+        2 mod 
+        0 = 
+            () 
+            (2 //) 
+            (3 * 1 +) 
+        ifte 
+        swap 
+        1 + 
+        swap
+        )
+    loop 
+    drop
+    )
+    (collatz)
+PUSH
+
+;n d primefrom : no divisor of n from d up to sqrt(n)
+    (
+        (dup dup * 2 pick >)
+        (2drop 1)
+        (
+            (over over mod 0 =) 
+            (2drop 0) 
+            (1 + primefrom) 
+        ifte
+        )
+    ifte
+    )
+    (primefrom)
+PUSH
+
+;prime? ( n -- 1|0 ) check if n is prime
+    (
+        (dup 2 <) 
+        (drop 0) 
+        (2 primefrom) 
+    ifte
+    )
+    (prime?)
+PUSH
+
+"10! = " emits 10 fact say
+"15! = " emits 15 fact say
+"10! (rec) = " emits 10 fact2 say
+"fib(30) = " emits 30 fib say
+"gcd(1071, 462) = " emits 1071 462 gcd say
+"collatz(27) = " emits 27 collatz say
+"2^40 = " emits 2 40 ^ say
+"prime(97) = " emits 97 prime? say
+"prime(91) = " emits 91 prime? say
+"primes below 60: " emits 2 60 range (apply prime?) filter say

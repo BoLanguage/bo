@@ -1,0 +1,4 @@
+; Fixture for the reload cases of tests/diff_c.py and tests/test_reload.py: what loading a file
+; again takes out first. Once RELOAD-EDIT exists this is the "edited" version of the file.
+((RELOAD-EDIT) EXISTS) (3) (1) ifte (RELOAD-Y) PUSH
+((RELOAD-EDIT) EXISTS) () (1 (RELOAD-TMP) PUSH (RELOAD-EMPTY) CLEAR) ifte

@@ -1,0 +1,61 @@
+"../include/std.bo" require
+
+;Parallel execution maps one quotation over a list. Every worker starts with
+;its input item on an otherwise empty stack; parallel returns one final stack
+;per item, in the same order as the input list.
+"examples/lib.bo" require
+
+"double each input:" emits
+(1 2 3 4) (2 *) parallel say
+
+;A worker can leave more than one result. Those results remain grouped in its
+;own final stack instead of being flattened into the caller's stack.
+"keep the input and its successor:" emits
+(10 20 30) (dup 1 +) parallel say
+
+;Named stacks are copied into every worker. Mutating one is private to that
+;worker, and no such mutation is merged back into the parent.
+"private named stacks:" emits
+(1 2) (1 (WORK) PUSH (WORK) DEPTH) parallel say
+"WORK in the parent:" emits (WORK) SNAPSHOT say
+
+;Calls may be nested. The outer worker keeps its own input alongside the
+;inner result list.
+"nested parallel calls:" emits
+(1 2) ((3 4) (2 *) parallel) parallel say
+
+;Array broadcasting is sequential when applied to one array. chunk creates
+;balanced rank-one chunks, and concat rebuilds the result after parallel
+;returns one final stack per chunk.
+"sequential array broadcast:" emits
+(1 2 3 4 5 6 7 8) (8) array 2 (*) . say
+"parallel array broadcast:" emits
+(1 2 3 4 5 6 7 8) (8) array 2 chunk (2 (*) .) parallel concat say
+"array results are equal:" emits
+(1 2 3 4 5 6 7 8) (8) array dup 2 (*) . swap
+2 chunk (2 (*) .) parallel concat = say
+
+;A reduction returns one scalar per worker, so parallel result transport stays
+;small. Each worker stack and its scalar result are unwrapped before folding.
+"sequential array sum:" emits
+(1 2 3 4 5 6 7 8) (8) array () (+) .. say
+"parallel array sum:" emits
+(1 2 3 4 5 6 7 8) (8) array
+2 chunk (() (+) ..) parallel (apply apply unit) map 0 (apply +) foldl say
+"array sums are equal:" emits
+(1 2 3 4 5 6 7 8) (8) array dup () (+) .. swap
+2 chunk (() (+) ..) parallel (apply apply unit) map 0 (apply +) foldl = say
+
+;Corresponding chunks can be paired with zip, and each worker can return a
+;scalar dot-product contribution.
+"parallel array dot result:" emits
+(1 2 3 4) (4) array (5 6 7 8) (4) array
+2 chunk swap 2 chunk swap zip
+(unconsl apply swap unconsl apply swap drop dot) parallel
+(apply apply unit) map 0 (apply +) foldl say
+
+;A worker failure is rethrown at the caller and can be handled normally.
+"caught worker error:" emits
+    ((1 0) (1 swap /) parallel)
+    (drop "Domain-Error from DIV")
+catch says

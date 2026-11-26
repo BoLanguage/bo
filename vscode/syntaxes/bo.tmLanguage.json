@@ -1,0 +1,87 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Bo",
+  "scopeName": "source.bo",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#string"
+    },
+    {
+      "include": "#error"
+    },
+    {
+      "include": "#unit"
+    },
+    {
+      "include": "#paren"
+    },
+    {
+      "include": "#number"
+    },
+    {
+      "include": "#private"
+    },
+    {
+      "include": "#primitive"
+    },
+    {
+      "include": "#adapter"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "match": ";.*$",
+      "name": "comment.line.bo"
+    },
+    "string": {
+      "match": "\"(?:[^\"\\\\]|\\\\.)*\"",
+      "name": "string.quoted.double.bo",
+      "captures": {}
+    },
+    "error": {
+      "match": "\\(\\s*(Type-Error|Stack-Error|Existence-Error|Evaluation-Error|Permission-Error|Io-Error|Representation-Error|Syntax-Error|Domain-Error|Shape-Error|Resource-Error|Cycle-Error|Debug-Error)\\s*\\)",
+      "name": "constant.language.bo",
+      "captures": {
+        "1": {
+          "name": "entity.name.type.error.bo"
+        }
+      }
+    },
+    "unit": {
+      "match": "\\(\\s*([^\\s()]+)\\s*\\)",
+      "name": "constant.language.bo",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#private"
+            }
+          ]
+        }
+      }
+    },
+    "paren": {
+      "match": "[()]",
+      "name": "punctuation.section.list.bo"
+    },
+    "number": {
+      "match": "(?<![^\\s()\"])[+-]?(?:[0-9]+\\.[0-9]*|\\.[0-9]+|[0-9]+)(?:[eE][+-]?[0-9]+)?(?![^\\s()\"])",
+      "name": "constant.numeric.bo"
+    },
+    "private": {
+      "match": "(?<![^\\s()\"])__[^\\s()\"]*(?![^\\s()\"])",
+      "name": "support.function.bo"
+    },
+    "primitive": {
+      "match": "(?<=\\.)(?:PUSH|LAMBDA|REC|POP|TOP|SNAPSHOT|DEPTH|EXISTS|LOCKED|CLEAR|LEXICON|DELETE|LOCK|UNLOCK|DROP|PICK|ROLL|UNIT|CONSL|CONSR|UNCONSL|UNCONSR|TYPE|RATIO|APPLY|IFTE|LOOP|PARALLEL|ADD|SUB|MUL|DIV|IDIV|POW|RANGE|BROADCAST|ARRAY|SHAPE|RANK|RESHAPE|FETCH|STORE|CHUNK|CONCAT|REDUCE|DOT|MEAN|MEDIAN|TRANSPOSE|OUTER|MATMUL|EQUAL|OPEN|CLOSE|READ|WRITE|INCLUDE|INCLUDED|PARSE|CATCH|CALL|THROW|RETHROW|EXIT|ABORT|BREAKPOINT|STEP|NEXT|CONTINUE|STOP|BACKTRACE|UNITTYPE|WORD|TEXT)(?![^\\s()\"])|(?<![^\\s()\"])(?:PUSH|LAMBDA|REC|POP|TOP|SNAPSHOT|DEPTH|EXISTS|LOCKED|CLEAR|LEXICON|DELETE|LOCK|UNLOCK|DROP|PICK|ROLL|UNIT|CONSL|CONSR|UNCONSL|UNCONSR|TYPE|RATIO|APPLY|IFTE|LOOP|PARALLEL|ADD|SUB|MUL|DIV|IDIV|POW|RANGE|BROADCAST|ARRAY|SHAPE|RANK|RESHAPE|FETCH|STORE|CHUNK|CONCAT|REDUCE|DOT|MEAN|MEDIAN|TRANSPOSE|OUTER|MATMUL|EQUAL|OPEN|CLOSE|READ|WRITE|INCLUDE|INCLUDED|PARSE|CATCH|CALL|THROW|RETHROW|EXIT|ABORT|BREAKPOINT|STEP|NEXT|CONTINUE|STOP|BACKTRACE|UNITTYPE|WORD|TEXT)(?![^\\s()\"])",
+      "name": "entity.name.function.instructions.bo"
+    },
+    "adapter": {
+      "match": "(?<![^\\s()\"])(?:\\->|\\.|\\.\\.|<\\-|array|chunk|concat|dot|matmul|mean|median|outer|rank|reshape|shape|transpose|abort|apply|call|exit|ifte|lambda|loop|parallel|rec|@|backtrace|continue|next|step|stop|catch|rethrow|throw|consl|consr|unconsl|unconsr|unit|\\*|\\+|\\-|/|//|:|::|\\^|ratio|eval|include|included|parse|require|clear|depth|drop|lexicon|lock|pick|roll|snapshot|unlock|close|open|read|write|=|text|type|unittype|word|any|all|flip|flipud|fliplr|watch|where|@if|break\\-on\\-error|break\\-off\\-error|untrace|trace|tagkey|set|get|size|emits|spaces|emit|\\?|ps|null|append|prepend|foldl|foldr|unfoldl|unfoldr|len|nth|map|foreach|split|sel|ins|in|zip|mask|filter|startswith|endswith|contains|reverse|true|false|bool|not|and|or|ift|<|>|<=|>=|\\\\=|neg|abs|sign|max|min|umax|umin|pi|e|mod|rem|gcd|<<|>>|floor|ceil|trunc|round|nop|dup|over|swap|rot|\\-rot|nip|tuck|2dup|2drop|2swap|2over|2nip|2tuck|2rot|\\-2rot|\\?dup|stdin|stdout|stderr|emitc|nl|puts|gets|isnumber|islist|isunit|isinteger|isword)(?![^\\s()\"])|(?<=\\.)(?:\\->|<\\-|array|chunk|concat|dot|matmul|mean|median|outer|rank|reshape|shape|transpose|abort|apply|call|exit|ifte|lambda|loop|parallel|rec|@|backtrace|continue|next|step|stop|catch|rethrow|throw|consl|consr|unconsl|unconsr|unit|\\*|\\+|\\-|/|//|:|::|\\^|ratio|eval|include|included|parse|require|clear|depth|drop|lexicon|lock|pick|roll|snapshot|unlock|close|open|read|write|=|text|type|unittype|word|any|all|flip|flipud|fliplr|watch|where|@if|break\\-on\\-error|break\\-off\\-error|untrace|trace|tagkey|set|get|size|emits|spaces|emit|\\?|ps|null|append|prepend|foldl|foldr|unfoldl|unfoldr|len|nth|map|foreach|split|sel|ins|in|zip|mask|filter|startswith|endswith|contains|reverse|true|false|bool|not|and|or|ift|<|>|<=|>=|\\\\=|neg|abs|sign|max|min|umax|umin|pi|e|mod|rem|gcd|<<|>>|floor|ceil|trunc|round|nop|dup|over|swap|rot|\\-rot|nip|tuck|2dup|2drop|2swap|2over|2nip|2tuck|2rot|\\-2rot|\\?dup|stdin|stdout|stderr|emitc|nl|puts|gets|isnumber|islist|isunit|isinteger|isword)(?![^\\s()\"])",
+      "name": "keyword.control.bo"
+    }
+  }
+}

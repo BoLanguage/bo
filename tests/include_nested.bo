@@ -1,0 +1,2 @@
+"tests/include_failure.bo" () INCLUDE
+3 (NESTED-AFTER) PUSH

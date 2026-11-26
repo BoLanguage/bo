@@ -1,0 +1,5 @@
+{
+  "packageManager": "python",
+  "packageName": "bo-jupyterlab",
+  "uninstallInstructions": "Use your Python package manager to uninstall bo-jupyterlab."
+}

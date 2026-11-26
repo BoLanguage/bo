@@ -1,0 +1,7 @@
+"../../include/std.bo" () INCLUDE
+
+;Replace and restore a definition called from the same site
+(1 + 0 +) (STEP) PUSH
+(STEP 0 +) (CALL-STEP) PUSH
+(CALL-STEP (2 + 0 +) (STEP) PUSH CALL-STEP (STEP) POP drop) (round) PUSH
+0 (dup 3000000 <) (round) loop emit nl

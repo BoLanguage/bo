@@ -1,0 +1,27 @@
+"../include/std.bo" require
+
+"examples/lib.bo" require
+(a (b C) 3) reverse say
+
+    (a (b C) 3)
+    (unittype 2 =)
+filter say
+
+    (a (b C) 3)
+    (drop 1)
+filter say
+
+    ()
+    (drop 1)
+filter say
+
+(1 2 3) sum say
+(1 2 3) product say
+17 (a b) (TAG) tagkey PUSH
+(a b) (TAG) tagkey get say
+(a b) (TAG) tagkey (a b) (TAG) tagkey = say
+7 "X" word PUSH X say
+
+    ("not a name" word)
+    (unconsl apply text emits nl)
+catch drop

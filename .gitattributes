@@ -1,0 +1,2 @@
+bench/aot/runtime-experiments.patch whitespace=-blank-at-eol
+*.bo linguist-language=Lisp

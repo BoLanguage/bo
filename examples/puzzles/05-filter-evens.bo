@@ -1,0 +1,28 @@
+;@puzzle
+;@title Filter a list
+;@goal Define `evens` so it keeps only the even numbers in its input list.
+;@hints 1
+;@tags quotation list
+;@difficulty 2
+;@solution ((apply 2 mod 0 =) filter) (evens) PUSH guess
+;@wrong ((apply 2 mod 1 =) filter) (evens) PUSH guess
+;@description
+; `filter` gives its predicate each element as a one-item unit.
+; A positive predicate result keeps that element.
+; Once done, run `guess` to check it.
+;@enddescription
+;@end
+
+; Define evens at the prompt, then run guess:
+;
+;     ((apply 2 mod 0 =) filter) (evens) PUSH guess
+
+"include/std.bo" require
+"examples/puzzles/lib.bo" require
+
+((2 4 6 8)) (puzzle.solution) PUSH
+(puzzle.solution) LOCK
+
+(evens) ((1 2 3 4 5 6 7 8) evens puzzle.solution =) puzzle.require
+("Use apply to unwrap each value, then test its remainder after 2 mod.") (puzzle.hints) PUSH
+"((apply 2 mod 0 =) filter) (evens) PUSH guess" (puzzle.reveal) PUSH

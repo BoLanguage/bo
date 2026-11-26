@@ -1,0 +1,66 @@
+"logic.bo" require
+"math.bo" require
+"list.bo" require
+
+;any ( T axis-or-() -- b-or-T' ) test whether any array element is positive, globally or along one axis; an empty slice raises Domain-Error
+
+    (
+    (max) .. 
+    0 (>) .
+    )
+    (any)
+PUSH
+
+;all ( T axis-or-() -- b-or-T' ) test whether every array element is positive, globally or along one axis; an empty slice raises Domain-Error
+
+    (
+    (min) .. 
+    0 (>) .
+    )
+    (all)
+PUSH
+
+;__rev: the array T with its flat data in reverse order and the same shape
+    (dup shape swap unconsl apply nip reverse swap array)
+    (__rev)
+PUSH
+
+;__flipud: rank-two array with its rows in reverse order
+    (
+        (dup shape 1 nth apply 0 =)
+        ()
+        (
+        dup shape swap unconsl apply nip
+        dup len unit array
+        over 1 nth apply chunk
+        reverse concat swap reshape
+        )
+    ifte
+    )
+    (__flipud)
+PUSH
+
+;__flipcheck: raise Shape-Error unless the rank of the array T is n, leaving T unchanged
+    (
+        (over rank =)
+        ()
+        (unit (Shape-Error) throw)
+    ifte
+    )
+    (__flipcheck)
+PUSH
+
+;flip ( V -- V' ) the elements of the rank-one array V in reverse order
+    (1 __flipcheck __rev)
+    (flip)
+PUSH
+
+;flipud ( M -- M' ) the rows of the rank-two array M in reverse order (up to down)
+    (2 __flipcheck __flipud)
+    (flipud)
+PUSH
+
+;fliplr ( M -- M' ) the columns of the rank-two array M in reverse order (left to right)
+    (2 __flipcheck __rev __flipud)
+    (fliplr)
+PUSH

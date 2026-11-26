@@ -1,0 +1,48 @@
+"../include/std.bo" () INCLUDE
+
+;workloads for the C runtime: time with  c/bo bench/native.bo
+
+    ((dup 0 =) (drop 1) (dup 1 - fact *) ifte)
+    (fact)
+PUSH
+
+    ((dup 2 <) () (dup 1 - fib2 swap 2 - fib2 +) ifte)
+    (fib2)
+PUSH
+
+    (0 1 rot (dup 0 >) (1 - -rot tuck + rot) loop drop drop)
+    (fib)
+PUSH
+
+    (
+    0 swap
+        (dup 1 >)
+        (dup 2 mod 0 = () (2 //) (3 * 1 +) ifte swap 1 + swap)
+    loop drop
+    )
+    (collatz)
+PUSH
+
+0
+
+    (dup 5000000 <)
+    (1 +)
+loop drop
+
+"loop done" emits nl
+27 fib2 drop
+"fib2 27 done" emits nl
+200000
+
+    (dup 0 >)
+    (20 fact drop 1 -)
+loop drop
+
+"fact done" emits nl
+1
+
+    (dup 30000 <)
+    (dup collatz drop 1 +)
+loop drop
+
+"collatz done" emits nl

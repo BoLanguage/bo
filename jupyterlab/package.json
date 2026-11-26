@@ -1,0 +1,38 @@
+{
+  "name": "bo-jupyterlab",
+  "version": "0.1.0",
+  "description": "CodeMirror syntax highlighting for Bo in JupyterLab",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MauroDiNuzzo/bo-lang.git"
+  },
+  "scripts": {
+    "build": "npm run build:lib && npm run build:labextension:dev",
+    "build:prod": "npm run build:lib && npm run build:labextension",
+    "build:lib": "tsc -p tsconfig.json",
+    "build:labextension": "jupyter-builder build",
+    "build:labextension:dev": "jupyter-builder build --development",
+    "install:extension": "npm run build"
+  },
+  "dependencies": {
+    "@codemirror/language": "^6.11.3",
+    "@jupyterlab/application": "^4.6.6",
+    "@jupyterlab/codemirror": "^4.6.6"
+  },
+  "devDependencies": {
+    "@jupyter/builder": "^1.3.0",
+    "typescript": "~5.8.3"
+  },
+  "jupyterlab": {
+    "extension": true,
+    "outputDir": "bo_jupyterlab/labextension"
+  },
+  "overrides": {
+    "glob": "^14.0.6",
+    "minimatch": "^11.0.8",
+    "sanitize-html": "^2.18.2"
+  }
+}

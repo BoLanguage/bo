@@ -1,0 +1,28 @@
+;@puzzle
+;@title Map over a list
+;@goal Define `squares` so it returns the square of every number in its input list.
+;@hints 1
+;@tags quotation list
+;@difficulty 2
+;@solution ((apply dup * unit) map) (squares) PUSH guess
+;@wrong ((apply unit) map) (squares) PUSH guess
+;@description
+; `map` gives its callback each list element as a one-item unit.
+; Remember to return another unit containing the replacement value.
+; Run `guess` to check your solution.
+;@enddescription
+;@end
+
+; Define squares at the prompt, then run guess:
+;
+;     ((apply dup * unit) map) (squares) PUSH guess
+
+"include/std.bo" require
+"examples/puzzles/lib.bo" require
+
+((1 4 9 16)) (puzzle.solution) PUSH
+(puzzle.solution) LOCK
+
+(squares) ((1 2 3 4) squares puzzle.solution =) puzzle.require
+("A map callback can unwrap its input with apply and return its result with unit.") (puzzle.hints) PUSH
+"((apply dup * unit) map) (squares) PUSH guess" (puzzle.reveal) PUSH

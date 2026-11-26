@@ -1,0 +1,77 @@
+"stack.bo" require
+
+;truth is "a number greater than 0"
+;comparisons return 0 or 1
+
+;true ( -- 1 ) the canonical true value
+
+    (1)
+    (true)
+PUSH
+
+;false ( -- 0 ) the canonical false value
+
+    (0)
+    (false)
+PUSH
+
+;bool ( n -- 0|1 ) 1 if n is greater than 0, else 0
+
+    (() (1) (0) ifte)
+    (bool)
+PUSH
+
+;not ( n -- 0|1 ) 1 if n is not greater than 0, else 0
+
+    (() (0) (1) ifte)
+    (not)
+PUSH
+
+;and ( a b -- 0|1 ) 1 if both a and b are true
+
+    (bool swap bool *)
+    (and)
+PUSH
+
+;or ( a b -- 0|1 ) 1 if a or b is true
+
+    (bool swap bool + bool)
+    (or)
+PUSH
+
+;ift ( c t -- ) run the program c
+;if it leaves a true value, run the program t
+
+    ((nop) ifte)
+    (ift)
+PUSH
+
+;< ( a b -- 0|1 ) 1 if a is less than b: subtraction doubles as comparison
+
+    ((swap -) (1) (0) ifte)
+    (<)
+PUSH
+
+;> ( a b -- 0|1 ) 1 if a is greater than b
+
+    (swap <)
+    (>)
+PUSH
+
+;<= ( a b -- 0|1 ) 1 if a is less than or = to b
+
+    (> not)
+    (<=)
+PUSH
+
+;>= ( a b -- 0|1 ) 1 if a is greater than or = to b
+
+    (< not)
+    (>=)
+PUSH
+
+;\= ( a b -- 0|1 ) 1 if a and b are not = (any two values)
+
+    (= not)
+    (\=)
+PUSH

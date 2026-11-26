@@ -1,0 +1,150 @@
+; Shared runtime for prompt-driven puzzles. Levels provide a required stack and
+; validator through puzzle.require, optional ordered hints as a list of texts pushed onto
+; puzzle.hints, and an optional puzzle.reveal text that shows a solution. The runtime keeps a
+; record of the play on hidden stacks for whoever observes it: puzzle.last holds every guess's
+; result (0 missing, 1 wrong, 2 solved, 3 error), puzzle.hint-used one item per hint that was not
+; free, puzzle.hint-shown one item per hint shown, and
+; puzzle.revealed exists once reveal was used.
+
+(
+    puzzle.check
+    dup (puzzle.last) PUSH
+    (dup 0 =)
+    (drop puzzle.message.missing)
+    (
+        (dup 1 =)
+        (drop puzzle.message.wrong)
+        (
+            (dup 2 =)
+            (
+                drop
+                ((puzzle.revealed) EXISTS)
+                (puzzle.message.solved-revealed)
+                (
+                    ((puzzle.hint-used) EXISTS)
+                    (puzzle.message.solved-hinted)
+                    (puzzle.message.solved)
+                    ifte
+                )
+                ifte
+            )
+            (drop puzzle.message.error)
+            ifte
+        )
+        ifte
+    )
+    ifte
+)
+(guess) PUSH
+
+; Each call shows the next hint; after the last one, it repeats the last hint. The first
+; puzzle.free hints (a number pushed onto puzzle.free, at most 2) cost nothing: only a hint beyond
+; them is recorded on puzzle.hint-used and makes a later solve "after using a hint".
+(
+    ((puzzle.free) EXISTS)
+    ((puzzle.free) TOP)
+    (0)
+    ifte
+)
+(puzzle.free-count) PUSH
+
+(
+    ((puzzle.hints) EXISTS)
+    (
+        1 (puzzle.hint-shown) PUSH
+        ((puzzle.hint-shown) DEPTH puzzle.free-count >)
+        (1 (puzzle.hint-used) PUSH)
+        (nop)
+        ifte
+        (puzzle.hint-shown) DEPTH
+        (puzzle.hints) TOP len
+        min
+        (puzzle.hints) TOP swap nth apply emits
+    )
+    (
+        1 (puzzle.hint-used) PUSH
+        "No hint is available for this puzzle." emits
+    )
+    ifte
+)
+(hint) PUSH
+
+; Gives up: shows the puzzle's solution, if it has one. A later correct guess reports it.
+(
+    1 (puzzle.revealed) PUSH
+    ((puzzle.reveal) EXISTS)
+    ((puzzle.reveal) TOP emits)
+    ("No solution is available for this puzzle." emits)
+    ifte
+)
+(reveal) PUSH
+
+(
+    (puzzle.validator) PUSH
+    (puzzle.required) PUSH
+)
+(puzzle.require) PUSH
+
+; puzzle.eq ( actual expected -- 1|0 ) is `=`, and also remembers the first pair that differed on
+; puzzle.mismatch (the actual value below the expected one), so that a tool checking a puzzle can show
+; which comparison failed. `guess` empties puzzle.mismatch before each check.
+(
+    (over over =)
+    (drop drop 1)
+    (
+        ((puzzle.mismatch) DEPTH 0 =)
+        (swap (puzzle.mismatch) PUSH (puzzle.mismatch) PUSH 0)
+        (drop drop 0)
+        ifte
+    )
+    ifte
+)
+(puzzle.eq) PUSH
+
+(
+    ((puzzle.required) TOP EXISTS)
+    (
+        (
+            snapshot (puzzle.baseline) PUSH
+            (puzzle.mismatch) CLEAR
+            0 (puzzle.complete) PUSH
+        )
+        (
+            (puzzle.validator) TOP apply
+            1 +
+            (puzzle.result) PUSH
+            (puzzle.complete) CLEAR
+            1 (puzzle.complete) PUSH
+        )
+        (
+            drop
+            3
+        )
+        (
+            ((puzzle.complete) TOP)
+            (
+                (puzzle.complete) POP drop
+                clear
+                (puzzle.baseline) POP apply
+                (puzzle.result) POP
+            )
+            (
+                (puzzle.complete) POP drop
+                clear
+                (puzzle.baseline) POP apply
+            )
+            ifte
+        )
+        call
+    )
+    (0)
+    ifte
+)
+(puzzle.check) PUSH
+
+("The required stack has not been created yet." emits) (puzzle.message.missing) PUSH
+("Not solved yet." emits) (puzzle.message.wrong) PUSH
+("Solved." emits) (puzzle.message.solved) PUSH
+("Solved after using a hint." emits) (puzzle.message.solved-hinted) PUSH
+("Solved after revealing the solution." emits) (puzzle.message.solved-revealed) PUSH
+("That definition raised an error while being checked. Revise it, or use hint." emits) (puzzle.message.error) PUSH

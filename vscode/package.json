@@ -1,0 +1,50 @@
+{
+  "name": "bolang",
+  "displayName": "BoLang",
+  "description": "Syntax highlighting for Bo, a minimal concatenative language",
+  "version": "0.1.0",
+  "license": "MIT",
+  "publisher": "mauro-di-nuzzo",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MauroDiNuzzo/bo-lang.git"
+  },
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "devDependencies": {
+    "@vscode/vsce": "^4.1.1",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.2.0"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "bo",
+        "aliases": [
+          "Bo",
+          "BoLang"
+        ],
+        "extensions": [
+          ".bo"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "bo",
+        "scopeName": "source.bo",
+        "path": "./syntaxes/bo.tmLanguage.json",
+        "balancedBracketScopes": ["*"],
+        "unbalancedBracketScopes": ["comment"]
+      }
+    ]
+  },
+  "overrides": {
+    "minimatch": "^11.0.8"
+  }
+}

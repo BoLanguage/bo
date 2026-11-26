@@ -1,0 +1,2 @@
+; Fixture for the include cycle cases: cycle_a.bo and cycle_b.bo include each other.
+"tests/cycle_b.bo" include

@@ -1,0 +1,134 @@
+"../include/std.bo" require
+
+;Named stacks as dictionaries. Keys can be built at run time from
+;strings, numbers or lists.
+;The library provides x (TAG) tagkey, set, get and size; examples/lib.bo adds incr.
+"examples/lib.bo" require
+
+;---- memoization: Fibonacci with a table of computed values (linear, not exponential)
+    ((FIBMEMO) tagkey)
+    (fibkey)
+PUSH
+
+    (
+        (dup 2 <)
+        ()
+        (
+            (dup fibkey size 0 >)
+            (fibkey get)
+            (
+            dup 
+            1 - 
+            mfib 
+            over 
+            2 - 
+            mfib + 
+            dup 
+            2 pick 
+            fibkey PUSH 
+            nip
+            )
+        ifte
+        )
+    ifte
+    )
+    (mfib)
+PUSH
+
+"fib(70) = " emits 70 mfib say
+"entries in the table: " emits 40 fibkey size say
+
+;---- splitting text into words, with two variables: the current word and the output
+    (null (CUR) set)
+    (newword)
+PUSH
+
+    (
+        (CUR) 
+    get 
+    dup 
+    null =
+        ()
+        (drop)
+        (
+            (OUT) 
+        get 
+        swap 
+        unit consr 
+            (OUT) 
+        set
+        )
+    ifte 
+    newword
+    )
+    (flush)
+PUSH
+
+    (
+    dup 32 =
+        ()
+        (drop flush)
+        (
+            (CUR) 
+        get 
+        swap 
+        unit consr 
+            (CUR) 
+        set
+        )
+    ifte
+    )
+    (charstep)
+PUSH
+
+;text words : the list of the words of text
+    (
+    null 
+        (OUT) 
+    set 
+    newword 
+        (apply charstep) 
+    foreach 
+    flush 
+        (OUT) 
+    get
+    )
+    (words)
+PUSH
+
+"---- word frequencies: one counter per word, found by its key
+w countword : remember the word when first seen, then add 1 to its counter" drop
+
+    (null (SEEN) set)
+    (reset)
+PUSH
+
+    (
+        (dup (W) tagkey size 0 =)
+        (
+            (SEEN) 
+        get 
+        over 
+        unit consr 
+            (SEEN) 
+        set
+        )
+    ift 
+    (W) tagkey 
+    incr
+    )
+    (countword)
+PUSH
+
+    (dup emits 58 emitc 32 emitc (W) tagkey get say)
+    (report)
+PUSH
+
+reset
+"the cat and the hat and the bat and the end" words
+    (apply countword) foreach
+    (SEEN) get (apply report) foreach
+
+;---- an identifier generator: a counter in a named stack
+0 (ID) PUSH
+(ID) incr ID say (ID) incr ID say (ID) incr ID say

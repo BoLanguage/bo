@@ -1,0 +1,5 @@
+; Fixture for the reload cases: a file that pushes to a stack and locks it, and that fails once
+; RELOAD-FAIL exists, before it gets there.
+((RELOAD-FAIL) EXISTS) (RELOAD-MISSING) () ifte
+5 (RELOAD-L) PUSH
+(RELOAD-L) LOCK

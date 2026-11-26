@@ -1,0 +1,596 @@
+{
+  "primitives": [
+    {
+      "name": "PUSH",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (A s --), S: ( -- A)",
+      "stack": "`D`<->`S` (cross-stack)",
+      "description": "Push `A` from `D` onto `S`."
+    },
+    {
+      "name": "POP",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s -- A), S: (A --)",
+      "stack": "`D`<->`S` (cross-stack)",
+      "description": "Remove the top value `A` from `S` and push it onto `D`."
+    },
+    {
+      "name": "TOP",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s -- A), S: (A -- A)",
+      "stack": "`D`<->`S` (cross-stack)",
+      "description": "Copy the top value `A` from `S` onto `D`."
+    },
+    {
+      "name": "SNAPSHOT",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s -- L), S: (... -- ...)",
+      "stack": "`D`<->`S` (cross-stack)",
+      "description": "Copy the contents of `S` as a list onto `D`."
+    },
+    {
+      "name": "DEPTH",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s -- n), S: (... -- ...)",
+      "stack": "`D`<->`S` (cross-stack)",
+      "description": "Count the values on `S` and push the count onto `D`. The count is also 0 for a word that has no stack (`EXISTS` tells it apart from an empty one) and for a primitive, whose stack holds no values."
+    },
+    {
+      "name": "EXISTS",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s -- 1|0), S: ( -- )",
+      "stack": "`D`<->`S` (cross-stack)",
+      "description": "Report whether `S` exists, without creating it."
+    },
+    {
+      "name": "LOCKED",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s -- 1|0), S: ( -- )",
+      "stack": "`D`<->`S` (cross-stack)",
+      "description": "Report whether `S` is locked, as every primitive's stack is and `LOCK` makes any other: it then refuses `PUSH`, `POP`, `DELETE` and the like. The default stack is not locked, and the result is also 0 for a word that has no stack (`EXISTS` reports 0 for it)."
+    },
+    {
+      "name": "LEXICON",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s --), S: ( -- L)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, push the list `L` of the selectors of every word that has a stack, that is, every one for which `EXISTS` reports 1, primitives and emptied stacks included, ordered by name. Each selector is a unit containing the word, so it can be used as it is. Filter the list in Bo and map `CLEAR` or `DELETE` over what is left."
+    },
+    {
+      "name": "CLEAR",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s --), S: (... --)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, remove all values."
+    },
+    {
+      "name": "DELETE",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s --), S: (... --)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, remove the stack itself, so that `EXISTS` reports 0 for it and its values are lost; pushing to it again creates it anew. The default stack and locked stacks, which include every primitive, cannot be deleted (`Permission-Error`); deleting an unlocked primitive's stack only discards its definitions, and the primitive remains. `CLEAR` only empties a stack, which then continues to exist."
+    },
+    {
+      "name": "LOCK",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s --), S: ( -- )",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, protect against mutation: it then refuses `PUSH`, `POP`, `CLEAR`, `DELETE` and the like. Locking a locked stack changes nothing. The default stack cannot be locked (`Permission-Error`)."
+    },
+    {
+      "name": "UNLOCK",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s --), S: ( -- )",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, remove mutation protection. Unlocking a stack that is not locked, such as the default stack, changes nothing. Unlocking a primitive's stack lets a definition shadow the primitive."
+    },
+    {
+      "name": "DROP",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s --), S: (A -- )",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, remove the top value."
+    },
+    {
+      "name": "PICK",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s --), S: (.. An .. A0 n -- .. An .. A0 An)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, copy the zero-based nth value to the top."
+    },
+    {
+      "name": "ROLL",
+      "group": "Stack",
+      "type": "primitive",
+      "effect": "D: (s --), S: (.. An .. A0 n -- .. A0 An)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, move the zero-based nth value to the top."
+    },
+    {
+      "name": "UNIT",
+      "group": "List",
+      "type": "primitive",
+      "effect": "D: (s --), S: (X -- U)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, wrap the top value in a one-element list."
+    },
+    {
+      "name": "CONSL",
+      "group": "List",
+      "type": "primitive",
+      "effect": "D: (s --), S: (L U -- L')",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, prepend the element of unit `U` to list `L`."
+    },
+    {
+      "name": "CONSR",
+      "group": "List",
+      "type": "primitive",
+      "effect": "D: (s --), S: (L U -- L')",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, append the element of unit `U` to list `L`."
+    },
+    {
+      "name": "UNCONSL",
+      "group": "List",
+      "type": "primitive",
+      "effect": "D: (s --), S: (L -- L' U)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, remove the first element of a non-empty list into a unit."
+    },
+    {
+      "name": "UNCONSR",
+      "group": "List",
+      "type": "primitive",
+      "effect": "D: (s --), S: (L -- L' U)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, remove the last element of a non-empty list into a unit."
+    },
+    {
+      "name": "TYPE",
+      "group": "Value",
+      "type": "primitive",
+      "effect": "D: (s --), S: (X -- K)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, return 0 for a number, 1 for a list, or 2 for a word."
+    },
+    {
+      "name": "RATIO",
+      "group": "Math",
+      "type": "primitive",
+      "effect": "D: (s --), S: (X -- N DEN)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, return the exact numerator and denominator of number `X`."
+    },
+    {
+      "name": "APPLY",
+      "group": "Control",
+      "type": "primitive",
+      "effect": "D: (s --), S: (L -- ...)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, execute the elements of list `L` in order."
+    },
+    {
+      "name": "IFTE",
+      "group": "Control",
+      "type": "primitive",
+      "effect": "D: (s --), S: (I T E -- ...)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, execute `I`, then execute `T` if its result is positive or `E` otherwise."
+    },
+    {
+      "name": "LOOP",
+      "group": "Control",
+      "type": "primitive",
+      "effect": "D: (s --), S: (C B -- ...)",
+      "stack": "`S` (named `s`)",
+      "description": "Take `C` and `B` from `S` and repeat: execute `C`, and if its result is positive execute `B` and start again, otherwise stop. The programs run like those of `IFTE`, and the loop leaves no frame that `REC` could find, so a `rec` inside `B` belongs to the enclosing `LAMBDA`. A loop runs in constant control-stack space."
+    },
+    {
+      "name": "LAMBDA",
+      "group": "Control",
+      "type": "primitive",
+      "effect": "D: (P s --), S: ( -- )",
+      "stack": "`D` (default)",
+      "description": "Run the program `P` in a frame labelled by `s`. The selector is a *virtual* stack selector, a unit containing a word or `()`: it works as a label that is only compared, and no stack is ever created or touched. Inside `P`, `REC` with the same selector runs `P` again. The frame is dropped when `P` ends or an error unwinds it."
+    },
+    {
+      "name": "REC",
+      "group": "Control",
+      "type": "primitive",
+      "effect": "D: (s --), S: ( -- )",
+      "stack": "`D` (default)",
+      "description": "Run again the program of the innermost running `LAMBDA` whose label is `s`, as a tail call when nothing follows. The selector is a *virtual* stack selector, like that of `LAMBDA`: a label that creates no stack. Without such a frame `REC` raises `Existence-Error`. Recursive file-local words lower to a labelled `LAMBDA`, so a callback of another recursive word never reaches the wrong frame; `()` is the anonymous label of `lambda` and `rec`."
+    },
+    {
+      "name": "PARALLEL",
+      "group": "Control",
+      "type": "primitive",
+      "effect": "D: (s --), S: (L Q -- R)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, run quotation `Q` for each item of `L` in isolated workers and collect their final stacks in input order."
+    },
+    {
+      "name": "ADD",
+      "group": "Math",
+      "type": "primitive",
+      "effect": "D: (s --), S: (A B -- C)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, add `A` and `B`."
+    },
+    {
+      "name": "SUB",
+      "group": "Math",
+      "type": "primitive",
+      "effect": "D: (s --), S: (A B -- C)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, subtract `B` from `A`."
+    },
+    {
+      "name": "MUL",
+      "group": "Math",
+      "type": "primitive",
+      "effect": "D: (s --), S: (A B -- C)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, multiply `A` and `B`."
+    },
+    {
+      "name": "DIV",
+      "group": "Math",
+      "type": "primitive",
+      "effect": "D: (s --), S: (A B -- C)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, divide `A` by `B` using true division."
+    },
+    {
+      "name": "IDIV",
+      "group": "Math",
+      "type": "primitive",
+      "effect": "D: (s --), S: (A B -- C)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, floor-divide `A` by `B`."
+    },
+    {
+      "name": "POW",
+      "group": "Math",
+      "type": "primitive",
+      "effect": "D: (s --), S: (A B -- C)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, raise `A` to the power `B`."
+    },
+    {
+      "name": "RANGE",
+      "group": "Math",
+      "type": "primitive",
+      "effect": "D: (s --), S: (START STEP END -- L)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, generate an inclusive numeric range from `START` to `END` using `STEP`."
+    },
+    {
+      "name": "BROADCAST",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (A B U -- C)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, apply the binary operation word held by unit `U` to every pair of elements of numbers or arrays `A` and `B`, aligning shapes from the right. The word runs with the pair on top and must leave exactly one number."
+    },
+    {
+      "name": "ARRAY",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (F Q -- T)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, validate flat numeric data `F` and shape `Q` and construct array `T`."
+    },
+    {
+      "name": "SHAPE",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T -- Q)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, return the shape list of array `T`."
+    },
+    {
+      "name": "RANK",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T -- n)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, return the rank of array `T`."
+    },
+    {
+      "name": "RESHAPE",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T Q -- T')",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, return `T` with shape `Q`; the element count must not change."
+    },
+    {
+      "name": "FETCH",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T I -- x)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, return the zero-based element at index list `I` of array `T`."
+    },
+    {
+      "name": "STORE",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T I x -- T')",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, return `T` with `x` at zero-based index `I`; `T` remains unchanged."
+    },
+    {
+      "name": "CHUNK",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T n -- C)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, split rank-one array `T` into `n` ordered rank-one array chunks."
+    },
+    {
+      "name": "CONCAT",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (C -- T)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, concatenate an ordered list of rank-one array chunks."
+    },
+    {
+      "name": "REDUCE",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T axis-or-() U -- x-or-T')",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, fold array `T` over all axes or along one zero-based axis with the binary word held by unit `U`, from left to right starting at each slice's first element. Each step runs `U` with the accumulator and the next element on top; it must leave exactly one number. An empty slice raises `Domain-Error`."
+    },
+    {
+      "name": "DOT",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (A B -- x)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, return the dot product of rank-one arrays `A` and `B`."
+    },
+    {
+      "name": "MEAN",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T axis-or-() -- x-or-T')",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, compute the arithmetic mean globally or along one axis."
+    },
+    {
+      "name": "MEDIAN",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T axis-or-() -- x-or-T')",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, compute the median globally or along one axis."
+    },
+    {
+      "name": "TRANSPOSE",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T -- T')",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, transpose rank-two array `T`."
+    },
+    {
+      "name": "OUTER",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (A B -- T)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, return the rank-two outer product of rank-one arrays `A` and `B`."
+    },
+    {
+      "name": "MATMUL",
+      "group": "Array",
+      "type": "primitive",
+      "effect": "D: (s --), S: (A B -- T)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, multiply rank-two arrays `A` and `B`."
+    },
+    {
+      "name": "EQUAL",
+      "group": "Value",
+      "type": "primitive",
+      "effect": "D: (s --), S: (A B -- 1|0)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, compare values structurally."
+    },
+    {
+      "name": "OPEN",
+      "group": "Stream",
+      "type": "primitive",
+      "effect": "D: (s --), S: (P M -- H)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, open file `P` with mode `M` and return its handle `H`."
+    },
+    {
+      "name": "CLOSE",
+      "group": "Stream",
+      "type": "primitive",
+      "effect": "D: (s --), S: (H -- )",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, close stream `H`."
+    },
+    {
+      "name": "READ",
+      "group": "Stream",
+      "type": "primitive",
+      "effect": "D: (s --), S: (H -- c)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, read the next character code from stream `H`, or return -1 at end of file."
+    },
+    {
+      "name": "WRITE",
+      "group": "Stream",
+      "type": "primitive",
+      "effect": "D: (s --), S: (c H -- )",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, write character code `c` to stream `H`."
+    },
+    {
+      "name": "INCLUDE",
+      "group": "Source",
+      "type": "primitive",
+      "effect": "D: (s --), S: (P -- )",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, lower and execute the source file named by `P`, even if it was already loaded, after taking out what its earlier load left (its private words, the items it pushed, its locks and the stacks it made; see the language guide). The default-stack word `require` skips files that were loaded."
+    },
+    {
+      "name": "INCLUDED",
+      "group": "Source",
+      "type": "primitive",
+      "effect": "D: (s --), S: (P -- 1|0)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, report whether source file `P` has already been loaded; 0 if its load ended in an error."
+    },
+    {
+      "name": "PARSE",
+      "group": "Source",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T -- P)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, read source text `T` and leave the program it denotes as the list `P`, without running it. Invalid source raises `Syntax-Error` with the message and the line within `T`."
+    },
+    {
+      "name": "CATCH",
+      "group": "Error",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T H -- ...)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, run `T` and, on error, run `H` with the error on top; without an error `H` is not run."
+    },
+    {
+      "name": "CALL",
+      "group": "Control",
+      "type": "primitive",
+      "effect": "D: (s --), S: (SETUP BODY CATCHER CLEANUP -- ...)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, run `SETUP` and `BODY`, then `CLEANUP`; after a body error, run `CATCHER` after cleanup."
+    },
+    {
+      "name": "THROW",
+      "group": "Error",
+      "type": "primitive",
+      "effect": "D: (s --), S: (L K -- )",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, raise an error whose kind is the word unit `K` (such as `(Type-Error)`) with data list `L`; any other `K` raises `Type-Error`."
+    },
+    {
+      "name": "RETHROW",
+      "group": "Error",
+      "type": "primitive",
+      "effect": "D: (s --), S: (E -- )",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, propagate existing error `E` without recording it again."
+    },
+    {
+      "name": "EXIT",
+      "group": "Control",
+      "type": "primitive",
+      "effect": "D: (s --), S: (C -- )",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, terminate with integer exit status `C` from 0 through 255."
+    },
+    {
+      "name": "ABORT",
+      "group": "Control",
+      "type": "primitive",
+      "effect": "D: (s --), S: ( -- )",
+      "stack": "`D` (default)",
+      "description": "Abandon the current top-level run."
+    },
+    {
+      "name": "BREAKPOINT",
+      "group": "Debug",
+      "type": "primitive",
+      "effect": "D: (s --), S: ( -- )",
+      "stack": "`D` (default)",
+      "description": "Pause the program here and return to the prompt, which then runs at this point until `STEP`, `NEXT`, `CONTINUE` or `STOP`. It does nothing where the program cannot be paused: in a script or an included file, in a nested run such as `PARALLEL`, and in hosts without a prompt."
+    },
+    {
+      "name": "STEP",
+      "group": "Debug",
+      "type": "primitive",
+      "effect": "D: (s --), S: ( -- )",
+      "stack": "`D` (default)",
+      "description": "Resume the paused program and pause again before the next word it calls, also inside the definitions it calls. Raises `Debug-Error` if no program is paused."
+    },
+    {
+      "name": "NEXT",
+      "group": "Debug",
+      "type": "primitive",
+      "effect": "D: (s --), S: ( -- )",
+      "stack": "`D` (default)",
+      "description": "Resume the paused program and pause again before the next word at the same depth or shallower, running the definitions it calls without pausing. Raises `Debug-Error` if no program is paused."
+    },
+    {
+      "name": "CONTINUE",
+      "group": "Debug",
+      "type": "primitive",
+      "effect": "D: (s --), S: ( -- )",
+      "stack": "`D` (default)",
+      "description": "Resume the paused program until the next `BREAKPOINT` or its end. Raises `Debug-Error` if no program is paused."
+    },
+    {
+      "name": "STOP",
+      "group": "Debug",
+      "type": "primitive",
+      "effect": "D: (s --), S: ( -- )",
+      "stack": "`D` (default)",
+      "description": "Drop the paused program without running the rest of it, keeping the stacks. Raises `Debug-Error` if no program is paused."
+    },
+    {
+      "name": "BACKTRACE",
+      "group": "Debug",
+      "type": "primitive",
+      "effect": "D: (s --), S: ( -- L)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, push the list `L` of the programs being run, innermost first. Each is a list `(NAME PROGRAM INDEX)`: `NAME` is a unit with the word whose call started it (`()` if none did), `PROGRAM` is the list it runs and `INDEX` the number of its elements that have already run."
+    },
+    {
+      "name": "UNITTYPE",
+      "group": "Value",
+      "type": "primitive",
+      "effect": "D: (s --), S: (U -- K)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, inspect the element type of unit `U`: 0 number, 1 list, or 2 word."
+    },
+    {
+      "name": "WORD",
+      "group": "Value",
+      "type": "primitive",
+      "effect": "D: (s --), S: (T -- U)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, convert valid word-name text `T` to a word unit."
+    },
+    {
+      "name": "TEXT",
+      "group": "Value",
+      "type": "primitive",
+      "effect": "D: (s --), S: (U -- T)",
+      "stack": "`S` (named `s`)",
+      "description": "On `S`, convert word unit `U` to its name as text."
+    }
+  ]
+}

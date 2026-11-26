@@ -1,0 +1,22 @@
+"../include/std.bo" () INCLUDE
+
+;list workloads: build, map, filter, fold and reverse lists of 200k numbers, 5 rounds
+"examples/lib.bo" require
+
+    (
+    0 5
+        (dup 0 >)
+        (
+        swap 1 200000 range (apply dup * unit) map (
+                                                   apply 2 mod 0 =
+                                                   ) filter reverse 0 (
+                                                                                                                                                                                              apply +
+                                                                                                                                                                                              ) foldl +
+        swap 1 -
+        )
+    loop drop
+    )
+    (work)
+PUSH
+
+work emit nl

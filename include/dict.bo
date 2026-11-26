@@ -1,0 +1,147 @@
+"logic.bo" require
+"math.bo" require
+"list.bo" require
+
+; Base-128 unsigned integers use a continuation bit, least-significant group first.
+    (
+        (dup 128 <)
+        (unit consr)
+        (
+        dup 128 mod 128 + 2 roll swap unit consr swap 128 // __key-uint
+        )
+    ifte
+    )
+    (__key-uint)
+PUSH
+
+; Normalize a positive binary64 number to 1 <= significand < 2 without rounding.
+    (
+        (over 1 <)
+        (swap 2 * swap 1 - __key-normalize)
+        (
+            (over 2 <)
+            ()
+            (swap 2 / swap 1 + __key-normalize)
+        ifte
+        )
+    ifte
+    )
+    (__key-normalize)
+PUSH
+
+    (
+    swap 78 unit consr swap
+        (dup 0 <)
+        (swap 1 unit consr swap neg)
+        (swap 0 unit consr swap)
+    ifte
+        (dup 0 =)
+        (drop 0 __key-uint 0 __key-uint)
+        (
+        0 __key-normalize 1074 + swap 4503599627370496 * swap
+        rot swap __key-uint swap __key-uint
+        )
+    ifte
+    )
+    (__key-number)
+PUSH
+
+    (
+        (dup () =)
+        (drop 0 __key-uint)
+        (
+        unconsl apply rot swap __key-uint swap __key-word-text
+        )
+    ifte
+    )
+    (__key-word-text)
+PUSH
+
+; A list is a sequence of values: its elements are visited by an anonymous recursion (lambda and rec),
+; and each element by __key-value itself.
+    (
+    dup unittype
+        (dup 0 =)
+        (drop apply __key-number)
+        (
+            (1 =)
+            (
+            apply swap 76 unit consr swap
+                (
+                    (dup () =)
+                    (drop 69 unit consr)
+                    (
+                    unconsl rot swap __key-value swap rec
+                    )
+                ifte
+                )
+            lambda
+            )
+            (
+            text swap 87 unit consr swap __key-word-text
+            )
+        ifte
+        )
+    ifte
+    )
+    (__key-value)
+PUSH
+
+    (
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_" swap 1 + nth apply unit consr
+    )
+    (__key-b64-char)
+PUSH
+
+; Base64url: every three bytes make four characters. The three steps of a round are written out
+; in one word.
+    (
+        (dup () =)
+        (drop)
+        (
+        unconsl apply dup 4 // 3 roll swap __key-b64-char
+        -rot 4 mod
+            (over () =)
+            (swap drop 16 * __key-b64-char)
+            (
+            swap unconsl apply 2 roll 16 * over 16 // +
+            3 roll swap __key-b64-char -rot 16 mod
+                (over () =)
+                (swap drop 4 * __key-b64-char)
+                (
+                swap unconsl apply 2 roll 4 * over 64 // +
+                3 roll swap __key-b64-char -rot 64 mod
+                2 roll swap __key-b64-char swap __key-b64-0
+                )
+            ifte
+            )
+        ifte
+        )
+    ifte
+    )
+    (__key-b64-0)
+PUSH
+
+;tagkey ( x tag -- key ) selector for value x in the table named by a word unit
+    (
+    text swap unit () swap __key-value () swap __key-b64-0
+    swap 46 unit consr swap append word
+    )
+    (tagkey)
+PUSH
+
+;set ( v key -- ) make v the only value of the stack key
+;POP reads it back
+    (dup CLEAR PUSH)
+    (set)
+PUSH
+
+;get ( key -- v ) reads the value of the stack key without removing it
+    (TOP)
+    (get)
+PUSH
+
+;size ( key -- n ) returns the number of values in a named stack
+    (DEPTH)
+    (size)
+PUSH

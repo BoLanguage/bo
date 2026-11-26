@@ -1,0 +1,15 @@
+"../../include/std.bo" () INCLUDE
+
+;Collatz with explicit tail recursion instead of constructing an inner loop
+(
+    (dup 1 >)
+    (dup 2 mod 0 = () (2 //) (3 * 1 +) ifte
+     swap 1 + swap COLLATZACC)
+    (drop)
+    ifte
+) (COLLATZACC) PUSH
+(0 swap COLLATZACC) (collatz) PUSH
+0 2
+(dup 30001 <)
+(dup collatz rot + swap 1 +)
+loop drop emit nl
