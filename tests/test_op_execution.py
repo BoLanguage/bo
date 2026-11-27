@@ -395,6 +395,22 @@ class OpExecution(unittest.TestCase):
         data = run("((1) (apply 1 +) map) () catch", standard_library=True)
         self.assertEqual(data[-1][0], [Op("Type-Error")])
 
+    def test_iterating_ops_show_the_callers_stack_to_their_callbacks(self):
+        self.assertEqual(run("0 (1 2 3) (apply +) foreach "
+                             "10 (1 2 3) (apply over + unit) map nip "
+                             "3 (1 5 2 8) (apply over >) filter nip "
+                             "10 (1 2) 0 (apply + over +) foldl nip "
+                             "0 (0 1 2 0 3) (apply over >) partition nip "
+                             "5 (9 1 6 4) (2 pick - abs swap 2 pick - abs swap <=) sortby nip "
+                             "2 () 1 (dup 10 >) (over *) unfoldr nip", standard_library=True),
+                         [6, [11, 12, 13], [5, 8], 23, [[1, 2], [3]], [6, 4, 9, 1], [2, 4, 8, 16]])
+        self.assertEqual(run("(1 2) ((3 4) (apply over apply * unit) map nip unit) map", standard_library=True),
+                         [[[3, 4], [6, 8]]], "a nested callback sees the outer element below its own")
+        data = run("((1 2) (() (Boom) throw) map) () catch clear "
+                   "((1 2) (() (Boom) throw) sortby) () catch clear "
+                   "0 (1 2 3) (apply +) foreach 10 (1 2) (apply over + unit) map nip", standard_library=True)
+        self.assertEqual(data, [6, [11, 12]], "an error in a callback leaves no state behind")
+
     def test_mask_keeps_the_elements_where_the_mask_is_true(self):
         op = Op("OP")
         self.assertEqual(run("(1 2 3 4 5) (0 0 1 1 0) mask", standard_library=True), [[3, 4]])

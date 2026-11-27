@@ -28,7 +28,7 @@ def uint(value):
 
 def serialize(value):
     if isinstance(value, Op):
-        return b"W" + b"".join(uint(ord(char)) for char in value.name) + b"\0"
+        return b"O" + b"".join(uint(ord(char)) for char in value.name) + b"\0"
     if isinstance(value, list):
         return b"L" + b"".join(serialize(item) for item in value) + b"E"
     if value == 0:

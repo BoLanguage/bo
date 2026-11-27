@@ -4,12 +4,13 @@
 ;Each cell looks at its left neighbour, itself and its right neighbour: the three bits
 ;form a number k from 0 to 7, and the new cell is bit k of the rule number.
 
-;l c r __next : the new cell under the rule kept in __rule
-    (rot 4 * rot 2 * + + (__rule) get swap >> 2 mod)
+;rule l c r __next : the new cell under the rule (the rule stays below it)
+    (rot 4 * rot 2 * + + over swap >> 2 mod)
     (__next)
 PUSH
 
-;R __step : the next row; rotating the row gives the neighbours (it wraps around)
+;rule R __step : the next row; rotating the row gives the neighbours (it wraps around),
+;and the callback of map finds the rule right below each triple
     (
     dup -1 rotate over zip          ; pairs (l c)
     swap 1 rotate zip               ; triples ((l c) r)
@@ -26,10 +27,8 @@ PUSH
 
 ;rule width generations automaton : run from a single living cell in the middle
     (
-    rot (__rule) set
-    swap dup 2 // (__middle) set
-    1 - 0 swap : (apply (__middle) get = unit) map
-    swap (dup __show __step) swap times drop
+    swap dup 2 // swap 1 - 0 swap : (apply over = unit) map nip   ; one living cell in the middle
+    swap (dup __show __step) swap times 2drop
     )
     (automaton)
 PUSH

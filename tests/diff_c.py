@@ -201,6 +201,9 @@ OP_CASES = [
     '(1 2 3 4) sum () product (5 3 9 1 3 7) sort ((1 x) (0 y) (1 z)) (1 nth apply swap 1 nth apply swap <=) sortby '
     '(1 2 3 4) -1 rotate (1 2 1 (3) x (3) x) dedup "  to be\tor\\n" () strsplit (0 1 2 0 3) (apply 0 >) partition '
     '16 sqrt (-1 sqrt) () catch (1 2) (2) array (1 2 3) (3) array (-) table',
+    '0 (1 2 3) (apply +) foreach 10 (1 2 3) (apply over + unit) map 3 (1 5 2 8) (apply over >) filter '
+    '5 (9 1 6 4) (2 pick - abs swap 2 pick - abs swap <=) sortby 2 () 1 (dup 10 >) (over *) unfoldr '
+    '((1 2) (() (Boom) throw) map) () catch',
     '"a,,b," "," strsplit "a--b" "--" strsplit "" "," strsplit ("to" "be") ", " strjoin () "," strjoin',
     '1 (zz-b) PUSH 2 (zz-a) PUSH 3 (zz-c) PUSH (zz-c) CLEAR () LEXICON (apply name "zz-" startswith) filter',
     '1 (zz-B) PUSH 1 (zz-_) PUSH 1 (zz-a) PUSH 1 (zz-aa) PUSH () LEXICON (apply name "zz-" startswith) filter',

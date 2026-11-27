@@ -24,7 +24,7 @@ test("library stacks are hidden and only counted", async () => {
     const state = bo.state();
     assert.equal(state.status, "idle");
     assert.deepEqual(state.stacks.map((s) => s.origin), ["default"]);
-    assert.equal(state.counts.library, 242);
+    assert.equal(state.counts.library, 245);
     assert.ok(state.counts.kernel > 50);
 });
 

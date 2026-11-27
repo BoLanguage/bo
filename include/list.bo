@@ -26,55 +26,45 @@ PUSH
     (prepend)
 PUSH
 
-;foldl ( L b q -- r ) fold from the left: q receives the accumulator and a unit containing each element
+;foldl ( L b q -- r ) fold from the left: q receives the accumulator and a unit containing each element, with the caller's stack below
 
-    (
-        (2 pick null =)
-        (drop nip)
-        (
-        rot unconsl 3 roll swap 3 pick apply rot foldl
-        )
-    ifte
-    )
+    (rot swap foreach)
     (foldl)
 PUSH
 
-;foldr ( L b q -- r ) fold from the right: q receives a unit containing each element and the accumulator, last element first
+;foldr ( L b q -- r ) fold from the right: q receives a unit containing each element and the accumulator, last element first, with the caller's stack below
 
-    (
-        (2 pick null =)
-        (drop nip)
-        (
-        rot unconsr 3 roll 3 pick apply rot foldr
-        )
-    ifte
-    )
+    ((swap) swap append rot reverse swap foreach)
     (foldr)
 PUSH
 
-;unfoldl ( L b stop step -- L' b' ) until the program stop, run on the seed b, leaves a true value: b becomes step applied to b, and the new b is added to the left of L
+;__unfold: run stop and step on the seed, adding each new seed to the list in __itr with the program in __itq (L b stop step q -- L')
 
     (
-    2swap 2over drop
-        (2nip drop)
+    (__itq) PUSH (__itp) PUSH (__its) PUSH swap (__itr) PUSH
+    ()
         (
-        2over nip apply tuck unit consl swap 2swap unfoldl
+            ((__its) TOP apply not)
+            ((__itp) TOP apply dup unit (__itr) POP swap (__itq) TOP apply (__itr) PUSH)
+        loop
+        drop (__itr) TOP
         )
-    ifte
+    (rethrow)
+    ((__itq) POP drop (__itp) POP drop (__its) POP drop (__itr) POP drop)
+    call
     )
+    (__unfold)
+PUSH
+
+;unfoldl ( L b stop step -- L' ) until the program stop, run on the seed b, leaves a true value: b becomes step applied to b, and the new b is added to the left of L; stop and step see the caller's stack below the seed
+
+    ((consl) __unfold)
     (unfoldl)
 PUSH
 
-;unfoldr ( L b stop step -- L' b' ) like unfoldl, but the new values are added to the right of L
+;unfoldr ( L b stop step -- L' ) like unfoldl, but the new values are added to the right of L
 
-    (
-    2swap 2over drop
-        (2nip drop)
-        (
-        2over nip apply tuck unit consr swap 2swap unfoldr
-        )
-    ifte
-    )
+    ((consr) __unfold)
     (unfoldr)
 PUSH
 
@@ -106,35 +96,44 @@ PUSH
     (nth)
 PUSH
 
-;__mapacc: accumulate mapped values on the right, keeping traversal linear
+;__next: move the first element of the list in __itl to the top of the stack ( -- u)
 
-    (
-        (over null =)
-        (drop drop)
-        (
-        swap unconsl 2 pick apply 3 roll swap consr -rot swap __mapacc
-        )
-    ifte
-    )
-    (__mapacc)
+    ((__itl) POP unconsl swap (__itl) PUSH)
+    (__next)
 PUSH
 
-;map ( L q -- L' ) apply q to a unit containing each element
+;map ( L q -- L' ) apply q to a unit containing each element, with the caller's stack below
 ;q returns a unit containing the replacement
 
-    (null -rot __mapacc)
+    (
+    (__itq) PUSH (__itl) PUSH null (__itr) PUSH
+    ()
+        (
+            ((__itl) TOP null \=)
+            (__next (__itq) TOP apply (__itr) TOP swap consr (__itr) POP drop (__itr) PUSH)
+        loop
+        (__itr) TOP
+        )
+    (rethrow)
+    ((__itl) POP drop (__itq) POP drop (__itr) POP drop)
+    call
+    )
     (map)
 PUSH
 
-;foreach ( L q -- ) run q for each element of L, with a unit containing the element on top of the stack
+;foreach ( L q -- ) run q for each element of L, with a unit containing the element on top of the stack and the caller's stack below
 
     (
-        (over null =)
-        (2drop)
+    (__itq) PUSH (__itl) PUSH
+    ()
         (
-        swap unconsl rot tuck apply foreach
+            ((__itl) TOP null \=)
+            (__next (__itq) TOP apply)
+        loop
         )
-    ifte
+    (rethrow)
+    ((__itl) POP drop (__itq) POP drop)
+    call
     )
     (foreach)
 PUSH
@@ -218,9 +217,27 @@ PUSH
     (mask)
 PUSH
 
-;filter ( L p -- L' ) the elements of L for which p, applied to a unit containing the element, leaves a true value
+;__test: run the program in __itq on a copy of the first element of the list in __itl, then take the element out ( -- u b)
 
-    ((unit) append over swap map mask)
+    ((__itl) TOP unconsl nip (__itq) TOP apply __next swap)
+    (__test)
+PUSH
+
+;filter ( L p -- L' ) the elements of L for which p, applied to a unit containing the element with the caller's stack below, leaves a true value
+
+    (
+    (__itq) PUSH (__itl) PUSH null (__itr) PUSH
+    ()
+        (
+            ((__itl) TOP null \=)
+            (__test () ((__itr) POP swap consr (__itr) PUSH) (drop) ifte)
+        loop
+        (__itr) TOP
+        )
+    (rethrow)
+    ((__itl) POP drop (__itq) POP drop (__itr) POP drop)
+    call
+    )
     (filter)
 PUSH
 
@@ -274,43 +291,61 @@ PUSH
     (product)
 PUSH
 
-;__mergeacc: move the head of a or b chosen by the comparison in __sortq to acc until one is empty (acc a b -- L)
+;__take: move the first element of the run in the stack selected by K to the end of the merged run in __mz (K -- )
+
+    (dup POP unconsl swap rot PUSH (__mz) POP swap consr (__mz) PUSH)
+    (__take)
+PUSH
+
+;__merge: merge the runs in __mx and __my into __mz with the comparison in __sortq, then add __mz to the runs in __mr
 
     (
-        (over null =)
-        (nip append)
+        ((__mx) TOP null \= (__my) TOP null \= and)
         (
-            (dup null =)
-            (drop append)
-            (
-                (over unconsl nip apply over unconsl nip apply (__sortq) TOP apply)
-                (swap unconsl 3 roll swap consr -rot swap __mergeacc)
-                (unconsl 3 roll swap consr -rot __mergeacc)
-            ifte
-            )
-        ifte
+        (__mx) TOP unconsl nip apply (__my) TOP unconsl nip apply (__sortq) TOP apply
+        () ((__mx) __take) ((__my) __take) ifte
         )
-    ifte
+    loop
+    (__mz) POP (__mx) POP append (__my) POP append unit
+    (__mr) POP swap consr (__mr) PUSH
+    null (__mx) PUSH null (__my) PUSH null (__mz) PUSH
     )
-    (__mergeacc)
+    (__merge)
 PUSH
 
-;__msort: merge sort with the comparison in __sortq
+;__several: whether the list L has at least two elements, without counting them all (L -- b)
 
-    (
-        (dup len 2 <)
-        ()
-        (dup len 2 // split swap __msort swap __msort null -rot __mergeacc)
-    ifte
-    )
-    (__msort)
+    ((dup null =) (drop 0) (unconsl drop null \=) ifte)
+    (__several)
 PUSH
 
-;sortby ( L q -- L' ) the elements of L sorted by q ( a b -- 0|1 ), true when a may come before b; equal elements keep their order (merge sort)
+;__pass: merge the runs in __mn two by two into __mr, keeping a last odd run as it is
 
     (
-    (__sortq) PUSH
-    () (__msort) (rethrow) ((__sortq) POP drop)
+        ((__mn) TOP __several)
+        (
+        (__mn) POP unconsl apply (__mx) POP drop (__mx) PUSH unconsl apply (__my) POP drop (__my) PUSH (__mn) PUSH
+        __merge
+        )
+    loop
+    (__mn) POP (__mr) POP swap append (__mr) PUSH null (__mn) PUSH
+    )
+    (__pass)
+PUSH
+
+;sortby ( L q -- L' ) the elements of L sorted by q ( a b -- 0|1 ), true when a may come before b, with the caller's stack below; equal elements keep their order (merge sort)
+
+    (
+    (__sortq) PUSH (unit) map (__mn) PUSH null (__mr) PUSH null (__mx) PUSH null (__my) PUSH null (__mz) PUSH
+    ()
+        (
+            ((__mn) TOP __several)
+            (__pass (__mr) POP (__mn) POP drop (__mn) PUSH null (__mr) PUSH)
+        loop
+        (__mn) TOP (dup null =) () (1 nth apply) ifte
+        )
+    (rethrow)
+    ((__sortq) POP drop (__mn) POP drop (__mr) POP drop (__mx) POP drop (__my) POP drop (__mz) POP drop)
     call
     )
     (sortby)
@@ -339,32 +374,33 @@ PUSH
     (dedup)
 PUSH
 
-;__flushgroup: add the group C to G unless it is empty (G C -- G')
-
-    ((dup null =) (drop) (unit consr) ifte)
-    (__flushgroup)
-PUSH
-
-;__partacc: split the (element flag) pairs P into groups (G C P -- G')
+;__flushrun: add the current run in __itc to the runs in __itr unless it is empty, and start a new one
 
     (
+    (__itc) POP
         (dup null =)
-        (drop __flushgroup)
-        (
-        unconsl apply unconsl swap apply
-            ()
-            (rot swap consr swap)
-            (drop -rot __flushgroup null rot)
-        ifte
-        __partacc
-        )
+        (drop)
+        ((__itr) POP swap unit consr (__itr) PUSH)
     ifte
+    null (__itc) PUSH
     )
-    (__partacc)
+    (__flushrun)
 PUSH
 
-;partition ( L p -- G ) the runs of consecutive elements of L for which p, applied to a unit containing the element, leaves a true value; the other elements separate the runs and are dropped
+;partition ( L p -- G ) the runs of consecutive elements of L for which p, applied to a unit containing the element with the caller's stack below, leaves a true value; the other elements separate the runs and are dropped
 
-    ((unit) append over swap map zip null null rot __partacc)
+    (
+    (__itq) PUSH (__itl) PUSH null (__itr) PUSH null (__itc) PUSH
+    ()
+        (
+            ((__itl) TOP null \=)
+            (__test () ((__itc) POP swap consr (__itc) PUSH) (drop __flushrun) ifte)
+        loop
+        __flushrun (__itr) TOP
+        )
+    (rethrow)
+    ((__itl) POP drop (__itq) POP drop (__itr) POP drop (__itc) POP drop)
+    call
+    )
     (partition)
 PUSH

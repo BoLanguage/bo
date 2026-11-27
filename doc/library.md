@@ -38,7 +38,8 @@ Notes on the standard library:
 - List elements are represented by **units**: `(1 2 3) unconsl` gives `(2 3) (1)`; `nth` and `sel` return units, and `ins` accepts one. `apply` evaluates a unit, executing its element if it is an op. `unittype` inspects it without execution.
 - The focused `Value` module provides total predicates for numbers, lists, units, integral values, and stack keys; `std.bo` forwards them as `isnumber`, `islist`, `isunit`, `isinteger`, and `isselector`.
 - Comparison ops return `1`/`0`.
-- `unfoldl`/`unfoldr` take `L B ( stop ) ( step )`: the stop test is run on the seed and leaves a truth value (so it normally starts with `dup`), then each `step(B)` is added to `L`.
+- `unfoldl`/`unfoldr` take `L B ( stop ) ( step )`: the stop test is run on the seed and leaves a truth value (so it normally starts with `dup`), then each `step(B)` is added to `L`; only `L` is left, as the final seed is dropped.
+- The iterating ops (`foreach`, `map`, `filter`, `foldl`, `foldr`, `partition`, `sortby`, `unfoldl` and `unfoldr`, and `times`, `dip`, `keep` and `bi`) keep their own state off the default stack. Their callback finds the caller's stack right below its arguments, as in Joy and Factor: `0 (1 2 3) (apply +) foreach` leaves `6`, and `10 (1 2 3) (apply over + unit) map` leaves `10 (11 12 13)`. `map` and `filter` take the top that the callback leaves as its result; anything else it leaves, or takes, stays changed on the caller's stack.
 - `puts` returns nothing; `open` takes a mode string ([primitives](primitives.md)); `INPUT`, `OUTPUT`, `PEEK`, `FLUSH`, `SEEK` and friends are not provided yet.
 - `//` is floor division.
 - `lambda` and `rec` run a program and re-enter it (anonymous recursion); they wrap the kernel primitives `LAMBDA` and `REC`, see [examples](examples.md).
@@ -66,7 +67,7 @@ bit in each non-final byte:
   Otherwise the exponent is the binary exponent plus 1074, and the significand
   is the exact integer from `2^52` through `2^53-1` such that the absolute
   value is significand times `2^(exponent - 1074 - 52)`.
-- An op is `W`, its Unicode code points as unsigned integers, and a zero
+- An op is `O`, its Unicode code points as unsigned integers, and a zero
   terminator. Valid op names do not contain NUL.
 - A list is `L`, each element encoded recursively, and `E`.
 
@@ -177,32 +178,32 @@ on the value's size, even though named-stack lookup uses a hash table.
 | `contains` | derived | `( L P -- 0\|1 )` | 1 if the elements of P occur in L next to each other, in that order |
 | `dedup` | derived | `( L -- L' )` | the elements of L without repetitions, each where it first occurs |
 | `endswith` | derived | `( L P -- 0\|1 )` | 1 if L ends with the elements of P |
-| `filter` | derived | `( L p -- L' )` | the elements of L for which p, applied to a unit containing the element, leaves a true value |
-| `foldl` | derived | `( L b q -- r )` | fold from the left: q receives the accumulator and a unit containing each element |
-| `foldr` | derived | `( L b q -- r )` | fold from the right: q receives a unit containing each element and the accumulator, last element first |
-| `foreach` | derived | `( L q -- )` | run q for each element of L, with a unit containing the element on top of the stack |
+| `filter` | derived | `( L p -- L' )` | the elements of L for which p, applied to a unit containing the element with the caller's stack below, leaves a true value |
+| `foldl` | derived | `( L b q -- r )` | fold from the left: q receives the accumulator and a unit containing each element, with the caller's stack below |
+| `foldr` | derived | `( L b q -- r )` | fold from the right: q receives a unit containing each element and the accumulator, last element first, with the caller's stack below |
+| `foreach` | derived | `( L q -- )` | run q for each element of L, with a unit containing the element on top of the stack and the caller's stack below |
 | `in` | derived | `( u L -- 0\|1 )` | 1 if the element of unit u is an element of L |
 | `ins` | derived | `( L u n -- L' )` | insert the element of unit u so that it becomes the n-th element |
 | `len` | derived | `( L -- n )` | the number of elements of L |
-| `map` | derived | `( L q -- L' )` | apply q to a unit containing each element |
+| `map` | derived | `( L q -- L' )` | apply q to a unit containing each element, with the caller's stack below |
 | `mask` | derived | `( L M -- L' )` | the elements of L at the positions where the mask M is true (positive), in order; it stops at the shorter list |
 | `nth` | derived | `( L n -- u )` | a unit containing the n-th element of L, counting from 1 |
 | `null` | derived | `( -- L )` | the empty list |
-| `partition` | derived | `( L p -- G )` | the runs of consecutive elements of L for which p, applied to a unit containing the element, leaves a true value; the other elements separate the runs and are dropped |
+| `partition` | derived | `( L p -- G )` | the runs of consecutive elements of L for which p, applied to a unit containing the element with the caller's stack below, leaves a true value; the other elements separate the runs and are dropped |
 | `prepend` | derived | `( a b -- L )` | the elements of b followed by those of a |
 | `product` | derived | `( L -- n )` | the product of the numbers in L (1 for the empty list) |
 | `reverse` | derived | `( L -- L' )` | the elements of L in reverse order |
 | `rotate` | derived | `( L n -- L' )` | L rotated left by n places (right if n is negative) |
 | `sel` | derived | `( L n -- L' u )` | remove the n-th element of L, leaving the rest and a unit containing the element |
 | `sort` | derived | `( L -- L' )` | the numbers of L in increasing order |
-| `sortby` | derived | `( L q -- L' )` | the elements of L sorted by q ( a b -- 0\|1 ), true when a may come before b; equal elements keep their order (merge sort) |
+| `sortby` | derived | `( L q -- L' )` | the elements of L sorted by q ( a b -- 0\|1 ), true when a may come before b, with the caller's stack below; equal elements keep their order (merge sort) |
 | `split` | derived | `( L n -- a b )` | a holds the first n elements of L, b the rest |
 | `startswith` | derived | `( L P -- 0\|1 )` | 1 if L begins with the elements of P (a string is a list of character codes) |
 | `sum` | derived | `( L -- n )` | the sum of the numbers in L (0 for the empty list) |
 | `unconsl` | primitive adapter | `( L -- L' U )` | Remove the first element of a non-empty list into a unit. |
 | `unconsr` | primitive adapter | `( L -- L' U )` | Remove the last element of a non-empty list into a unit. |
-| `unfoldl` | derived | `( L b stop step -- L' b' )` | until the program stop, run on the seed b, leaves a true value: b becomes step applied to b, and the new b is added to the left of L |
-| `unfoldr` | derived | `( L b stop step -- L' b' )` | like unfoldl, but the new values are added to the right of L |
+| `unfoldl` | derived | `( L b stop step -- L' )` | until the program stop, run on the seed b, leaves a true value: b becomes step applied to b, and the new b is added to the left of L; stop and step see the caller's stack below the seed |
+| `unfoldr` | derived | `( L b stop step -- L' )` | like unfoldl, but the new values are added to the right of L |
 | `unit` | primitive adapter | `( X -- U )` | Wrap the top value in a one-element list. |
 | `zip` | derived | `( A B -- C )` | pair corresponding elements of A and B, stopping at the shorter list |
 

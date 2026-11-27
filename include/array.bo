@@ -82,17 +82,17 @@ PUSH
         (dup shape (1) consl reshape)
         (2 __flipcheck)
     ifte
-    dup shape 2 nth apply (__cols) set
+    dup shape 2 nth apply swap
     unconsl apply nip 0
         (
         swap
             (dup 0 =)
             ()
-            ((dup (__cols) get mod 0 =) (nl) (32 emitc) ifte)
+            ((dup 3 pick mod 0 =) (nl) (32 emitc) ifte)
         ifte
         swap apply emit 1 +
         )
-    foldl drop nl
+    foldl 2drop nl
     )
     (showmatrix)
 PUSH

@@ -6,6 +6,26 @@ a patch bump only fixes or optimizes. The current version lives in the
 `VERSION` file (`NUMBER DATE`), which the C build and the Python REPL read 
 for their banner and `--version`.
 
+## Unreleased
+
+- The callbacks of the iterating ops see the caller's stack right below their arguments, as in
+  Joy and Factor: `0 (1 2 3) (apply +) foreach` leaves `6`, and
+  `10 (1 2 3) (apply over + unit) map` leaves `10 (11 12 13)`. This holds for `foreach`, `map`,
+  `filter`, `foldl`, `foldr`, `partition`, `sortby`, `unfoldl` and `unfoldr`, which now keep
+  their own state on private stacks and clean it up after an error. `map` and `filter` take the
+  top the callback leaves as its result; anything else it changes on the caller's stack stays
+  changed. Code that reached values below the element by a fixed depth (such as `4 pick` in a
+  `map` callback) must use the plain depth now (`over`).
+- `filter` no longer builds a mask, which makes it several times faster. `foreach`, `map` and
+  the folds are about 1.6 to 1.75 times slower on the C runtime, and `sort` about 1.3 times
+  slower; the Python runtime is barely affected.
+- The documented stack effect of `unfoldl` and `unfoldr` is `( L b stop step -- L' )`: they
+  have always dropped the final seed.
+- `showmatrix` and the extra examples `rule30.bo` and `primes-table.bo` use the caller's stack
+  instead of named stacks as variables.
+- `tagkey` marks an op in its key encoding with the byte `O` (it was `W`), so the names of
+  generated keys that hold ops change.
+
 ## 0.2.0 (2026-11-27)
 
 ### Language (breaking)

@@ -13,5 +13,5 @@ PUSH
     (products)
 PUSH
 
-products (__table) set
-numbers ((__table) get in not) filter say
+; the callback of filter finds the products right below each number
+products numbers (over in not) filter nip say

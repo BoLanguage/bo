@@ -38,7 +38,8 @@ Notes on the standard library:
 - List elements are represented by **units**: `(1 2 3) unconsl` gives `(2 3) (1)`; `nth` and `sel` return units, and `ins` accepts one. `apply` evaluates a unit, executing its element if it is an op. `unittype` inspects it without execution.
 - The focused `Value` module provides total predicates for numbers, lists, units, integral values, and stack keys; `std.bo` forwards them as `isnumber`, `islist`, `isunit`, `isinteger`, and `isselector`.
 - Comparison ops return `1`/`0`.
-- `unfoldl`/`unfoldr` take `L B ( stop ) ( step )`: the stop test is run on the seed and leaves a truth value (so it normally starts with `dup`), then each `step(B)` is added to `L`.
+- `unfoldl`/`unfoldr` take `L B ( stop ) ( step )`: the stop test is run on the seed and leaves a truth value (so it normally starts with `dup`), then each `step(B)` is added to `L`; only `L` is left, as the final seed is dropped.
+- The iterating ops (`foreach`, `map`, `filter`, `foldl`, `foldr`, `partition`, `sortby`, `unfoldl` and `unfoldr`, and `times`, `dip`, `keep` and `bi`) keep their own state off the default stack. Their callback finds the caller's stack right below its arguments, as in Joy and Factor: `0 (1 2 3) (apply +) foreach` leaves `6`, and `10 (1 2 3) (apply over + unit) map` leaves `10 (11 12 13)`. `map` and `filter` take the top that the callback leaves as its result; anything else it leaves, or takes, stays changed on the caller's stack.
 - `puts` returns nothing; `open` takes a mode string ([primitives](primitives.md)); `INPUT`, `OUTPUT`, `PEEK`, `FLUSH`, `SEEK` and friends are not provided yet.
 - `//` is floor division.
 - `lambda` and `rec` run a program and re-enter it (anonymous recursion); they wrap the kernel primitives `LAMBDA` and `REC`, see [examples](examples.md).
@@ -66,7 +67,7 @@ bit in each non-final byte:
   Otherwise the exponent is the binary exponent plus 1074, and the significand
   is the exact integer from `2^52` through `2^53-1` such that the absolute
   value is significand times `2^(exponent - 1074 - 52)`.
-- An op is `W`, its Unicode code points as unsigned integers, and a zero
+- An op is `O`, its Unicode code points as unsigned integers, and a zero
   terminator. Valid op names do not contain NUL.
 - A list is `L`, each element encoded recursively, and `E`.
 

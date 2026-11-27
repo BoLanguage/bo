@@ -83,7 +83,8 @@ executing it.
 for an op. `apply` on a unit pushes its number or list, but executes its op.
 `unit` wraps an existing stack value. The `Value` library also provides
 `isnumber`, `islist`, `isunit`, `isinteger` and `isselector` (lowercase aliases in `std.bo`). List callbacks use units: `map` takes a callback
-`( unit -- unit )`, and folds and `foreach` pass element units.
+`( unit -- unit )`, and folds and `foreach` pass element units. A callback sees the
+caller's stack right below its arguments: `10 (1 2 3) (apply over + unit) map` leaves `10 (11 12 13)`.
 
 ### Conversion between selectors and strings
 
