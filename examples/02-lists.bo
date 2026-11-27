@@ -1,8 +1,7 @@
 "../include/std.bo" require
 
 ;Functional list processing built only from consl/consr/unconsl/unconsr:
-;map, filter, foldl/foldr, range, reverse, append, split, nth, in.
-"examples/lib.bo" require
+;map, filter, foldl/foldr, : (ranges), reverse, append, split, nth, in.
 
     (dup *)
     (square)
@@ -12,14 +11,14 @@ PUSH
     (odd?)
 PUSH
 
-"numbers 1..10:      " emits 1 11 range dup say
+"numbers 1..10:      " emits 1 10 : dup say
 "squares:            " emits dup (apply square unit) map say
 "odd ones:           " emits dup (apply odd?) filter say
 "sum of odd squares: " emits (apply odd?) filter (apply square unit) map sum say
 
-"product 1..10:      " emits 1 11 range product say
-"reversed:           " emits 1 6 range reverse say
-"length of 1..1000:  " emits 1 1001 range len say
+"product 1..10:      " emits 1 10 : product say
+"reversed:           " emits 1 5 : reverse say
+"length of 1..1000:  " emits 1 1000 : len say
 "3rd of (10..50):    " emits (10 20 30 40 50) 3 nth apply say
 "split at 2:         " emits (1 2 3 4 5) 2 split swap emit 32 emitc say
 "append:             " emits
@@ -40,7 +39,7 @@ append say
     (mean)
 PUSH
 
-"mean of 1..10:      " emits 1 11 range mean say
+"mean of 1..10:      " emits 1 10 : mean say
 
 ;composition of functions: a quotation is a list, so composing is append
     ((square) (1 +) append)

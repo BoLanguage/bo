@@ -31,7 +31,7 @@ OP_CASES = [
     '(RELOAD-L) CLEAR "tests/reload_lock.bo" include 1 (RELOAD-FAIL) PUSH ("tests/reload_lock.bo" include) () catch drop (RELOAD-L) DEPTH (RELOAD-L) LOCKED (RELOAD-L) EXISTS',
     '"tests/reload_lock.bo" include 1 (RELOAD-FAIL) PUSH ("tests/reload_lock.bo" include) () catch drop (RELOAD-L) EXISTS (RELOAD-L) LOCKED',
     '("include/stream.bo" () INCLUDE) () catch',
-    '"include/stream.bo" included "examples/lib.bo" included "examples/lib.bo" require "examples/lib.bo" included "examples/lib.bo" include "examples/lib.bo" included',
+    '"include/stream.bo" included "tests/private_basic.bo" included "tests/private_basic.bo" require "tests/private_basic.bo" included "tests/private_basic.bo" include "tests/private_basic.bo" included',
     '(1 2 OP) unconsr consr',
     '"OP" selector name (OP) name selector () name "" selector (()) name () catch',
     '(42) unittype ((1 2)) unittype (OP) unittype',
@@ -199,8 +199,9 @@ OP_CASES = [
     '1 2 (10 +) dip 5 (dup *) keep 6 (2 *) (3 +) bi 10 1 (2 (3 +) dip) dip 0 ((1 +) 3 times) 4 times '
     '(5 (() (Boom) throw) dip) () catch 0 ((0 0 /) 3 times) () catch',
     '(1 2 3 4) sum () product (5 3 9 1 3 7) sort ((1 x) (0 y) (1 z)) (1 nth apply swap 1 nth apply swap <=) sortby '
-    '(1 2 3 4) -1 rotate (1 2 1 (3) x (3) x) dedup "  to be\tor\\n" () strsplit (0 1 2 0 3) (apply 0 >) partition '
+    '(1 2 3 4) -1 rotate (1 2 1 (3) x (3) x) unique "  to be\tor\\n" () strsplit (0 1 2 0 3) (apply 0 >) partition '
     '16 sqrt (-1 sqrt) () catch (1 2) (2) array (1 2 3) (3) array (-) table',
+    '(N) incr (N) incr N 1 (E) PUSH 7 (E) PUSH (E) incr (E) SNAPSHOT "hi" (S) set ((S) incr) () catch (S) SNAPSHOT',
     '0 (1 2 3) (apply +) foreach 10 (1 2 3) (apply over + unit) map 3 (1 5 2 8) (apply over >) filter '
     '5 (9 1 6 4) (2 pick - abs swap 2 pick - abs swap <=) sortby 2 () 1 (dup 10 >) (over *) unfoldr '
     '((1 2) (() (Boom) throw) map) () catch',

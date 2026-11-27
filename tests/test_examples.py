@@ -21,7 +21,7 @@ HELPER_OUTPUT = ("(3 (b C) a)\n(a)\n(a (b C) 3)\n()\n6\n6\n17\n1\n7\n"
 
 
 def programs():
-    return sorted(f[:-3] for f in os.listdir(EXAMPLES) if f.endswith(".bo") and f != "lib.bo")
+    return sorted(f[:-3] for f in os.listdir(EXAMPLES) if f.endswith(".bo"))
 
 
 def run(cmd, name, directory="examples", env=None):

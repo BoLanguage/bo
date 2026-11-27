@@ -4,7 +4,6 @@
 
 ;Named stacks serve as variables: (NAME) incr adds one, (NAME) set assigns,
 ;and naming a stack that holds a number pushes it.
-"examples/lib.bo" require
 
 0 (lines) PUSH 0 (nwords) PUSH 0 (chars) PUSH 0 (inword) PUSH
 

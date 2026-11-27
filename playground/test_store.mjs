@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLocalClient } from "./client.mjs";
-import { EXAMPLES, SUPPORT_FILES } from "./examples.mjs";
+import { EXAMPLES } from "./examples.mjs";
 import { PUZZLE_FILES, PUZZLE_SUPPORT_FILES, parsePuzzle } from "./puzzles.mjs";
 import { createStore } from "./store.mjs";
 
@@ -26,7 +26,7 @@ test("start creates the machine and reports its version", async () => {
     assert.equal(state().ready, true);
     assert.match(state().version, /^\d+\.\d+/);
     assert.equal(state().status, "idle");
-    assert.equal(state().machine.counts.library, 245);
+    assert.equal(state().machine.counts.library, 246);
 });
 
 test("step on an idle machine loads the program paused before its first op", async () => {
@@ -435,7 +435,7 @@ test("onEvent reports a failed setup as an event with its error, and a throwing 
 });
 
 test("the examples list matches the examples folder", () => {
-    const files = readdirSync(join(root, "examples")).filter((f) => f.endsWith(".bo") && !SUPPORT_FILES.includes(f));
+    const files = readdirSync(join(root, "examples")).filter((f) => f.endsWith(".bo"));
     assert.deepEqual(EXAMPLES.map((e) => e.file).sort(), files.sort());
     for (const example of EXAMPLES) {
         assert.ok(example.title, example.file);

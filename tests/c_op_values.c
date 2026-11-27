@@ -908,16 +908,6 @@ static void check_op_source(const char *standard_library, const char *directory,
     assert(val_equal(error->items[1], wu("INCLUDE")));
     List *data = as_list(error->items[2]);
     assert(data->len == 2 && as_num(data->items[1]) == 2);
-    m.data.len = 0;
-    run(&m, "\"examples/lib.bo\" require "
-            "1 4 range 3 3 range 5 2 range -2 1 range");
-    Val positive[] = {from_num(1), from_num(2), from_num(3)};
-    Val negative[] = {from_num(-2), from_num(-1), from_num(0)};
-    assert(m.data.len == 4);
-    assert(val_equal(m.data.items[0], list_from(positive, 3)));
-    assert(val_equal(m.data.items[1], list_from(NULL, 0)));
-    assert(val_equal(m.data.items[2], list_from(NULL, 0)));
-    assert(val_equal(m.data.items[3], list_from(negative, 3)));
 }
 
 int main(int argc, char **argv) {

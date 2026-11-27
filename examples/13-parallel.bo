@@ -3,7 +3,6 @@
 ;Parallel execution maps one quotation over a list. Every worker starts with
 ;its input item on an otherwise empty stack; parallel returns one final stack
 ;per item, in the same order as the input list.
-"examples/lib.bo" require
 
 "double each input:" emits
 (1 2 3 4) (2 *) parallel say

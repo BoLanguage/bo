@@ -1,6 +1,7 @@
 "logic.bo" require
 "math.bo" require
 "list.bo" require
+"value.bo" require
 
 ; Base-128 unsigned integers use a continuation bit, least-significant group first.
     (
@@ -148,4 +149,20 @@ PUSH
 ;size ( key -- n ) returns the number of values in a named stack
     (DEPTH)
     (size)
+PUSH
+
+;incr ( key -- ) add 1 to the number on top of the stack key and make the result its only value, as set does (1 when it is empty); if the top is not a number, raise Type-Error with the key as data and leave the key as it is
+
+    (
+        (dup size 0 >)
+        (
+            (dup get isnumber)
+            (dup get 1 + swap set)
+            (unit (Type-Error) throw)
+        ifte
+        )
+        (1 swap set)
+    ifte
+    )
+    (incr)
 PUSH

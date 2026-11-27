@@ -1,7 +1,6 @@
 "../include/std.bo" require
 
 ;Sorting and searching lists of numbers.
-"examples/lib.bo" require
 
 ;L p lt / ge : the elements of L below / not below p
 ;the predicate is built as data
@@ -137,5 +136,5 @@ PUSH
 
 "search 7 in the sorted data:  " emits data qsort 7 bsearch say
 "search 11 in the sorted data: " emits data qsort 11 bsearch say
-"search 1 in 1..1000:          " emits 1 1001 range 1 bsearch say
-"search 777 in 1..1000:        " emits 1 1001 range 777 bsearch say
+"search 1 in 1..1000:          " emits 1 1000 : 1 bsearch say
+"search 777 in 1..1000:        " emits 1 1000 : 777 bsearch say

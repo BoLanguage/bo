@@ -2,7 +2,7 @@
 import { createWorkerClient } from "./client.mjs";
 import { config } from "./config.mjs";
 import { createEditor } from "./editor.mjs";
-import { EXAMPLES, SUPPORT_FILES } from "./examples.mjs";
+import { EXAMPLES } from "./examples.mjs";
 import { createStaticPuzzleProvider } from "./puzzles.mjs";
 import { createHistory } from "./history.mjs";
 import { createMenu, createToast } from "./menu.mjs";
@@ -498,7 +498,7 @@ function addPuzzle(puzzle, { first = false } = {}) {
 // ---------------------------------------------------------------- start
 
 try {
-    for (const name of [...EXAMPLES.map((e) => e.file), ...SUPPORT_FILES])
+    for (const name of EXAMPLES.map((e) => e.file))
         sources[`examples/${name}`] = await fetchText(new URL(name, examplesUrl));
     const provided = await puzzleProvider.load();
     Object.assign(sources, provided.files);

@@ -1,6 +1,5 @@
 "../include/std.bo" require
 
-"examples/lib.bo" require
 (a (b C) 3) reverse say
 
     (a (b C) 3)

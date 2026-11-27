@@ -2,8 +2,7 @@
 
 ;Named stacks as dictionaries. Keys can be built at run time from
 ;strings, numbers or lists.
-;The library provides x (TAG) tagkey, set, get and size; examples/lib.bo adds incr.
-"examples/lib.bo" require
+;The library provides x (TAG) tagkey, set, get, size and incr.
 
 ;---- memoization: Fibonacci with a table of computed values (linear, not exponential)
     ((FIBMEMO) tagkey)

@@ -1,7 +1,6 @@
 "../include/std.bo" require
 
 ;Classic recursion and loops: factorial, Fibonacci, gcd, Collatz and primality.
-"examples/lib.bo" require
 
 ;recursion: a definition that calls itself by name
     (
@@ -104,4 +103,4 @@ PUSH
 "2^40 = " emits 2 40 ^ say
 "prime(97) = " emits 97 prime? say
 "prime(91) = " emits 91 prime? say
-"primes below 60: " emits 2 60 range (apply prime?) filter say
+"primes below 60: " emits 2 59 : (apply prime?) filter say

@@ -4,7 +4,6 @@
 ;if it fails, the
 ;error list is left on top of the stack (the operands are restored below it) and a
 ;handler runs. throw raises an error of your own, given its data list and its kind, a selector such as `(Bad-Digit)`.
-"examples/lib.bo" require
 
 ;e show-error : print KIND WHERE DATA and the line, from an error list
     (

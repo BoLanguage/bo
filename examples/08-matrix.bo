@@ -2,7 +2,6 @@
 
 ;Matrices as lists of rows: transpose, product, identity, powers
 ;(and Fibonacci numbers from the power of a 2x2 matrix).
-"examples/lib.bo" require
 
 ;M matrix-transpose : the first elements of the rows form the first row, and so on
     (
@@ -76,7 +75,7 @@ PUSH
 ;n identity : the n x n identity matrix
 ;row i is the list of (j = i) for j below n
     (
-    0 N range 
+    0 N 1 - : 
     swap unit 
         (apply) 
     swap append 
@@ -90,7 +89,7 @@ PUSH
     (
         (N) 
     set 
-    0 N range 
+    0 N 1 - : 
         (apply __idrow unit) 
     map
     )

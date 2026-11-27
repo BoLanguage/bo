@@ -24,7 +24,7 @@ test("library stacks are hidden and only counted", async () => {
     const state = bo.state();
     assert.equal(state.status, "idle");
     assert.deepEqual(state.stacks.map((s) => s.origin), ["default"]);
-    assert.equal(state.counts.library, 245);
+    assert.equal(state.counts.library, 246);
     assert.ok(state.counts.kernel > 50);
 });
 
@@ -306,7 +306,7 @@ test("long values are cut and big stacks are windowed", async () => {
 });
 
 test("every example gives its expected output when stepped to the end", async () => {
-    const names = readdirSync(examples).filter((f) => f.endsWith(".bo") && f !== "lib.bo");
+    const names = readdirSync(examples).filter((f) => f.endsWith(".bo"));
     for (const file of names) {
         const name = file.slice(0, -3);
         const inputPath = join(expected, `${name}.in`);

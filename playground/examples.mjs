@@ -19,5 +19,3 @@ export const EXAMPLES = [
     { file: "15-breeze-hash.bo", title: "A tribute to Breeze's # operator" },
 ];
 
-/** Support files every example may include. */
-export const SUPPORT_FILES = ["lib.bo"];

@@ -144,6 +144,7 @@ on the value's size, even though named-stack lookup uses a hash table.
 | Name | Type | Effect | Description |
 |---|---|---|---|
 | `get` | derived | `( key -- v )` | reads the value of the stack key without removing it |
+| `incr` | derived | `( key -- )` | add 1 to the number on top of the stack key and make the result its only value, as set does (1 when it is empty); if the top is not a number, raise Type-Error with the key as data and leave the key as it is |
 | `set` | derived | `( v key -- )` | make v the only value of the stack key |
 | `size` | derived | `( key -- n )` | returns the number of values in a named stack |
 | `tagkey` | derived | `( x tag -- key )` | selector for value x in the table named by the selector tag |
@@ -176,7 +177,6 @@ on the value's size, even though named-stack lookup uses a hash table.
 | `consl` | primitive adapter | `( L U -- L' )` | Prepend the element of unit `U` to list `L`. |
 | `consr` | primitive adapter | `( L U -- L' )` | Append the element of unit `U` to list `L`. |
 | `contains` | derived | `( L P -- 0\|1 )` | 1 if the elements of P occur in L next to each other, in that order |
-| `dedup` | derived | `( L -- L' )` | the elements of L without repetitions, each where it first occurs |
 | `endswith` | derived | `( L P -- 0\|1 )` | 1 if L ends with the elements of P |
 | `filter` | derived | `( L p -- L' )` | the elements of L for which p, applied to a unit containing the element with the caller's stack below, leaves a true value |
 | `foldl` | derived | `( L b q -- r )` | fold from the left: q receives the accumulator and a unit containing each element, with the caller's stack below |
@@ -204,6 +204,7 @@ on the value's size, even though named-stack lookup uses a hash table.
 | `unconsr` | primitive adapter | `( L -- L' U )` | Remove the last element of a non-empty list into a unit. |
 | `unfoldl` | derived | `( L b stop step -- L' )` | until the program stop, run on the seed b, leaves a true value: b becomes step applied to b, and the new b is added to the left of L; stop and step see the caller's stack below the seed |
 | `unfoldr` | derived | `( L b stop step -- L' )` | like unfoldl, but the new values are added to the right of L |
+| `unique` | derived | `( L -- L' )` | the elements of L without repetitions, each where it first occurs |
 | `unit` | primitive adapter | `( X -- U )` | Wrap the top value in a one-element list. |
 | `zip` | derived | `( A B -- C )` | pair corresponding elements of A and B, stopping at the shorter list |
 

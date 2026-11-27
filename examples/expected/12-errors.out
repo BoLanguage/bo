@@ -1,13 +1,13 @@
 division by zero:
-Domain-Error DIV (1 0) line 21
+Domain-Error DIV (1 0) line 20
 unknown op:
-Existence-Error EXECUTE ((FOO)) line 27
+Existence-Error EXECUTE ((FOO)) line 26
 wrong type:
-Type-Error MUL (() 3) line 33
+Type-Error MUL (() 3) line 32
 safe division, 8 / 0 -> 0
 safe division, 8 / 2 -> 4
 parse 2024: 2024
 parse 20x4:
-Bad-Digit THROW (120) line 70
+Bad-Digit THROW (120) line 69
 nested:
-Parse-Failed THROW (()) line 82
+Parse-Failed THROW (()) line 81

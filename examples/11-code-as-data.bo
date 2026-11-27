@@ -3,7 +3,6 @@
 ;Code is data: programs are lists, so they can be generated, inspected and defined at
 ;run time. a polynomial is compiled to a program (Horner's rule), differentiated as
 ;data, and the two compiled programs drive Newton's method.
-"examples/lib.bo" require
 
 ;coefficients, highest power first. Each coefficient c adds  over * c +  to a program that
 ;starts with 0 and ends with nip, so (3 2 1) gives (0 over * 3 + over * 2 + over * 1 + nip)
@@ -57,7 +56,7 @@ PUSH
     (define-series)
 PUSH
 
-1 6 range (apply define-series) foreach
+1 5 : (apply define-series) foreach
 "10 ADD3: " emits 10 ADD3 say
 
 ;Newton's method on the polynomial x^2 - 2: compile P and its derivative DP

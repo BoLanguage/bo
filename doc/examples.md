@@ -1,6 +1,6 @@
 # Examples
 
-The programs in `examples/` and helpers in `examples/lib.bo` explicitly load
+The programs in `examples/` explicitly load
 `include/std.bo` with `require`, except for the Breeze tribute, which loads only
 the I/O module. They are tested on both implementations against
 `examples/expected/`. Run an example from the repository root, for example
@@ -20,7 +20,7 @@ PUSH
 ```
 Helper ops are private ops with two leading underscores (for example `__lenacc` in `include/list.bo`), as explained in the [language guide](language.md#private-ops).
 
-The helpers in `examples/lib.bo` are `range` and `incr`; the examples also use standard-library ops such as `say`, `sum`, dictionary keys with `tagkey`, and variables with `set`/`get`. `filter` is a standard-library op (with `mask`, `reverse`, `startswith`, `endswith` and `contains`, in `include/list.bo`); its predicates receive element units; `selector` converts a string holding a valid op name to a selector, and `tagkey` encodes a value under a selector tag as a named-stack selector.
+The examples use only the standard library: for example `say`, `sum`, ranges with `:` (`1 10 :` is `(1 2 ... 10)`), dictionary keys with `tagkey`, and variables with `set`/`get`/`incr`. `filter` is a standard-library op (with `mask`, `reverse`, `startswith`, `endswith` and `contains`, in `include/list.bo`); its predicates receive element units; `selector` converts a string holding a valid op name to a selector, and `tagkey` encodes a value under a selector tag as a named-stack selector.
 
 | File | Shows |
 |---|---|

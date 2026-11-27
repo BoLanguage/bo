@@ -12,7 +12,7 @@ const sources = readdirSync(examples).filter((f) => f.endsWith(".bo"));
 const skip = new Set((process.env.BO_WASM_SKIP ?? "").split(",").filter(Boolean));
 
 let failed = 0;
-for (const file of sources.filter((f) => f !== "lib.bo")) {
+for (const file of sources) {
     const name = file.slice(0, -3);
     if (skip.has(name)) {
         console.log(`skip ${name}`);

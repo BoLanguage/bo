@@ -368,10 +368,10 @@ PUSH
     (rotate)
 PUSH
 
-;dedup ( L -- L' ) the elements of L without repetitions, each where it first occurs
+;unique ( L -- L' ) the elements of L without repetitions, each where it first occurs
 
     (null ((2dup swap in) (drop) (consr) ifte) foldl)
-    (dedup)
+    (unique)
 PUSH
 
 ;__flushrun: add the current run in __itc to the runs in __itr unless it is empty, and start a new one

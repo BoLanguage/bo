@@ -8,6 +8,14 @@ for their banner and `--version`.
 
 ## Unreleased
 
+- `dedup` is now `unique`.
+- `incr` moved from `examples/lib.bo` to the standard library (`include/dict.bo`), and
+  `examples/lib.bo` is gone: the examples use only the standard library. Its exclusive `range`
+  was not kept, as it would read like the inclusive `RANGE` primitive (`::`); the examples
+  write ranges with `:` instead (`1 10 :` rather than `1 11 range`).
+- `incr` raises `Type-Error` with the key as data when the key's top value is not a number,
+  leaving the key as it was (it used to fail inside `ADD`). As documented now, the result
+  becomes the key's only value, as with `set`.
 - The callbacks of the iterating ops see the caller's stack right below their arguments, as in
   Joy and Factor: `0 (1 2 3) (apply +) foreach` leaves `6`, and
   `10 (1 2 3) (apply over + unit) map` leaves `10 (11 12 13)`. This holds for `foreach`, `map`,

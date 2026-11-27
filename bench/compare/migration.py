@@ -8,8 +8,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-include = '"examples/lib.bo" require '
-range = "1 200001 range "
+include = '"include/std.bo" require '
+range = "1 200000 : "
 LEGACY = ("(dup *) map ", "(2 mod 0 =) FILTER ", "0 (+) foldl ")
 CURRENT = ("(apply dup * unit) map ", "(apply 2 mod 0 =) FILTER ",
            "0 (apply +) foldl ")

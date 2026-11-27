@@ -1,7 +1,6 @@
 "../include/std.bo" require
 
 ;Three ways to find primes, from the least to the most list-heavy.
-"examples/lib.bo" require
 
 ;1. trial division (as in 01-classics)
     (
@@ -92,9 +91,9 @@ PUSH
     (factors)
 PUSH
 
-"sieve below 100:        " emits 2 100 range sieve say
-"trial division below 100:" emits 2 100 range (apply prime?) filter say
-"how many below 2000:    " emits 2 2000 range (apply prime?) filter len say
+"sieve below 100:        " emits 2 99 : sieve say
+"trial division below 100:" emits 2 99 : (apply prime?) filter say
+"how many below 2000:    " emits 2 1999 : (apply prime?) filter len say
 "factors of 360:         " emits 360 factors say
 "factors of 9699690:     " emits 9699690 factors say
 "factors of 600851475143:" emits 600851475143 factors say

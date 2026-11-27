@@ -1,9 +1,8 @@
 "../../include/std.bo" () INCLUDE
 
-;sum of the even squares of 1..200000: range, map, filter, fold
-"examples/lib.bo" require
+;sum of the even squares of 1..200000: a range, map, filter, fold
 
-1 200001 range
+1 200000 :
 (apply dup * unit)
 map
 (apply 2 mod 0 =)

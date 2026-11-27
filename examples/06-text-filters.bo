@@ -2,7 +2,6 @@
 
 ;Text as data: read all of standard input into a list of character codes, then
 ;transform it with map and filter.
-"examples/lib.bo" require
 
 ;the input as a list of codes (consr grows the list in place, so this is linear)
     (

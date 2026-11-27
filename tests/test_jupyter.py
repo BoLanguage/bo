@@ -124,7 +124,7 @@ class JupyterKernelTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, contextlib.chdir(directory):
             kernel, _ = self.make_kernel()
             with contextlib.redirect_stderr(io.StringIO()):
-                result = kernel.do_execute('"examples/lib.bo" require', False)
+                result = kernel.do_execute('"include/std.bo" require', False)
         self.assertEqual(result["status"], "ok")
 
     def test_execute_reports_bo_errors(self):

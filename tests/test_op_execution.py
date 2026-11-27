@@ -395,6 +395,13 @@ class OpExecution(unittest.TestCase):
         data = run("((1) (apply 1 +) map) () catch", standard_library=True)
         self.assertEqual(data[-1][0], [Op("Type-Error")])
 
+    def test_incr_counts_and_rejects_a_key_that_does_not_hold_a_number(self):
+        self.assertEqual(run("(N) incr (N) incr N 2.5 (D) set (D) incr D 1 (E) PUSH 7 (E) PUSH (E) incr (E) SNAPSHOT",
+                             standard_library=True), [2, 3.5, [8]], "incr makes the result the only value, as set does")
+        data = run('"hi" (S) set ((S) incr) () catch (S) SNAPSHOT', standard_library=True)
+        self.assertEqual(data[-2][:3], [[Op("Type-Error")], [Op("THROW")], [[Op("S")]]])
+        self.assertEqual(data[-1], [from_str("hi")], "the key keeps its value")
+
     def test_iterating_ops_show_the_callers_stack_to_their_callbacks(self):
         self.assertEqual(run("0 (1 2 3) (apply +) foreach "
                              "10 (1 2 3) (apply over + unit) map nip "
@@ -464,7 +471,7 @@ class OpExecution(unittest.TestCase):
                          [[[0, y], [0, w], [1, x], [1, z]]], "sortby is stable")
         self.assertEqual(run("(1 2 3 4) 1 rotate (1 2 3 4) -1 rotate (1 2 3) 5 rotate () 2 rotate",
                              standard_library=True), [[2, 3, 4, 1], [4, 1, 2, 3], [3, 1, 2], []])
-        self.assertEqual(run("(1 2 1 (3) 2 (3) x x) dedup () dedup", standard_library=True),
+        self.assertEqual(run("(1 2 1 (3) 2 (3) x x) unique () unique", standard_library=True),
                          [[1, 2, [3], x], []])
         self.assertEqual(run("(0 1 2 0 0 3 0) (apply 0 >) partition () (drop 1) partition", standard_library=True),
                          [[[1, 2], [3]], []])
@@ -626,11 +633,6 @@ class OpSourceExecution(unittest.TestCase):
         self.assertFalse(self.execute("(OTHER-MISSING) (EXCEPTION) PUSH MISSING"))
         self.assertEqual(self.machine.data[0][0], [Op("Existence-Error")])
         self.assertEqual(self.machine.data[0][2], [[Op("MISSING")]])
-
-    def test_examples_range_with_op_values(self):
-        self.assertTrue(self.execute('"examples/lib.bo" require '
-                                     '1 4 range 3 3 range 5 2 range -2 1 range'))
-        self.assertEqual(self.machine.data, [[1, 2, 3], [], [], [-2, -1, 0]])
 
     def test_include_parse_failure_is_catchable(self):
         with tempfile.TemporaryDirectory() as directory:

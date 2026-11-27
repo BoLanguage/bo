@@ -1,7 +1,6 @@
 "../include/std.bo" require
 
 ;Numbers as text: conversion between bases, parsing, and Roman numerals.
-"examples/lib.bo" require
 
 ;acc n b __digitsacc : prepend the digits of n in base b to acc, least significant last
     (
