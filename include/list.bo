@@ -261,3 +261,110 @@ PUSH
     (null swap __reverseacc)
     (reverse)
 PUSH
+
+;sum ( L -- n ) the sum of the numbers in L (0 for the empty list)
+
+    (0 (apply +) foldl)
+    (sum)
+PUSH
+
+;product ( L -- n ) the product of the numbers in L (1 for the empty list)
+
+    (1 (apply *) foldl)
+    (product)
+PUSH
+
+;__mergeacc: move the head of a or b chosen by the comparison in __sortq to acc until one is empty (acc a b -- L)
+
+    (
+        (over null =)
+        (nip append)
+        (
+            (dup null =)
+            (drop append)
+            (
+                (over unconsl nip apply over unconsl nip apply (__sortq) TOP apply)
+                (swap unconsl 3 roll swap consr -rot swap __mergeacc)
+                (unconsl 3 roll swap consr -rot __mergeacc)
+            ifte
+            )
+        ifte
+        )
+    ifte
+    )
+    (__mergeacc)
+PUSH
+
+;__msort: merge sort with the comparison in __sortq
+
+    (
+        (dup len 2 <)
+        ()
+        (dup len 2 // split swap __msort swap __msort null -rot __mergeacc)
+    ifte
+    )
+    (__msort)
+PUSH
+
+;sortby ( L q -- L' ) the elements of L sorted by q ( a b -- 0|1 ), true when a may come before b; equal elements keep their order (merge sort)
+
+    (
+    (__sortq) PUSH
+    () (__msort) (rethrow) ((__sortq) POP drop)
+    call
+    )
+    (sortby)
+PUSH
+
+;sort ( L -- L' ) the numbers of L in increasing order
+
+    ((<=) sortby)
+    (sort)
+PUSH
+
+;rotate ( L n -- L' ) L rotated left by n places (right if n is negative)
+
+    (
+        (over null =)
+        (drop)
+        (over len mod split swap append)
+    ifte
+    )
+    (rotate)
+PUSH
+
+;dedup ( L -- L' ) the elements of L without repetitions, each where it first occurs
+
+    (null ((2dup swap in) (drop) (consr) ifte) foldl)
+    (dedup)
+PUSH
+
+;__flushgroup: add the group C to G unless it is empty (G C -- G')
+
+    ((dup null =) (drop) (unit consr) ifte)
+    (__flushgroup)
+PUSH
+
+;__partacc: split the (element flag) pairs P into groups (G C P -- G')
+
+    (
+        (dup null =)
+        (drop __flushgroup)
+        (
+        unconsl apply unconsl swap apply
+            ()
+            (rot swap consr swap)
+            (drop -rot __flushgroup null rot)
+        ifte
+        __partacc
+        )
+    ifte
+    )
+    (__partacc)
+PUSH
+
+;partition ( L p -- G ) the runs of consecutive elements of L for which p, applied to a unit containing the element, leaves a true value; the other elements separate the runs and are dropped
+
+    ((unit) append over swap map zip null null rot __partacc)
+    (partition)
+PUSH

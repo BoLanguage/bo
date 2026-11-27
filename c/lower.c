@@ -1,4 +1,4 @@
-/* Lowering: source text -> numbers, lists and words (README section 3). */
+/* Lowering: source text -> numbers, lists and ops (README section 3). */
 #include "bo.h"
 
 typedef struct { Val *a; size_t n, cap; } Vec;
@@ -134,7 +134,7 @@ static int lower(const char *text, size_t n, int first_line, uint32_t owner, For
             st.depth--;
             Vec *v = &st.open[st.depth];
             Val l = list_from(v->a, (uint32_t)v->n);
-            if (owner) as_list(l)->owner = owner; /* which file the list was read from (words: see below) */
+            if (owner) as_list(l)->owner = owner; /* which file the list was read from (ops: see below) */
             int start = st.open_line[st.depth];
             free(v->a);
             emit(&st, &l, 1, start);
@@ -206,15 +206,15 @@ static int lower(const char *text, size_t n, int first_line, uint32_t owner, For
             } else {
                 Val name = list_from(codes.a, (uint32_t)codes.n);
                 Val unit;
-                if (text_to_word(name, &unit) != WORD_OK) {
+                if (name_to_selector(name, &unit) != NAME_OK) {
                     free(codes.a); free(ascii); free_state(&st);
-                    return fail(err, line, 0, "invalid word name%s", "");
+                    return fail(err, line, 0, "invalid op name%s", "");
                 }
-                Val word = as_list(unit)->items[0];
+                Val op = as_list(unit)->items[0];
                 /* `__name`: private to the file being read */
                 if (owner && codes.n >= 2 && codes.a[0] == from_num('_') && codes.a[1] == from_num('_'))
-                    as_word(word)->owner = owner;
-                emit(&st, &word, 1, line);
+                    as_op(op)->owner = owner;
+                emit(&st, &op, 1, line);
             }
             free(codes.a);
             free(ascii);
@@ -229,9 +229,9 @@ static int lower(const char *text, size_t n, int first_line, uint32_t owner, For
     return 0;
 }
 
-/* `owner` is the id of the source file being read (0 for text that is not a file): the words that
+/* `owner` is the id of the source file being read (0 for text that is not a file): the ops that
    start with `__` are private to it. */
-int lower_word_forms(const char *text, size_t len, int first_line, uint32_t owner, Forms *out,
-                     LowerErr *err) {
+int lower_op_forms(const char *text, size_t len, int first_line, uint32_t owner, Forms *out,
+                   LowerErr *err) {
     return lower(text, len, first_line, owner, out, err);
 }

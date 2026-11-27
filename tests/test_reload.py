@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from python.bo.machine import Machine
-from python.bo.values import Word, to_str
+from python.bo.values import Op, to_str
 from tests.diff_c import dump
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -17,10 +17,10 @@ C_BIN = ROOT / "c" / "bo"
 
 
 class Reload(unittest.TestCase):
-    def run_both(self, code, private_words=True):
+    def run_both(self, code, private_ops=True):
         """The data stack after `code`, in the Python runtime and, when built, in C."""
         machine = Machine()
-        machine.private_words = private_words
+        machine.private_ops = private_ops
         errors = io.StringIO()
         with contextlib.chdir(ROOT), contextlib.redirect_stderr(errors):
             self.assertTrue(machine.include_file("include/core.bo"))
@@ -28,7 +28,7 @@ class Reload(unittest.TestCase):
         if C_BIN.exists():
             with tempfile.TemporaryDirectory() as directory:
                 path = Path(directory) / "stack"
-                env = dict(os.environ, **({} if private_words else {"BO_NO_PRIVATE": "1"}))
+                env = dict(os.environ, **({} if private_ops else {"BO_NO_PRIVATE": "1"}))
                 result = subprocess.run([str(C_BIN), "--dump", str(path), "-e", code],
                                         cwd=ROOT, env=env, capture_output=True, text=True,
                                         timeout=30)
@@ -77,16 +77,16 @@ class Reload(unittest.TestCase):
             '("tests/reload_lock.bo" include) () catch drop (RELOAD-L) EXISTS (RELOAD-L) LOCKED '
             '1 (RELOAD-L) PUSH (RELOAD-L) DEPTH'), [0, 0, 1])
 
-    def test_it_works_when_private_words_are_switched_off(self):
+    def test_it_works_when_private_ops_are_switched_off(self):
         self.assertEqual(self.run_both(
             '"tests/reload_a.bo" include "tests/reload_a.bo" include (RELOAD-Y) DEPTH',
-            private_words=False), [1])
+            private_ops=False), [1])
 
     def test_include_refuses_a_file_that_is_being_loaded(self):
         data = self.run_both('("tests/cycle_a.bo" include) () catch')
         error = data[-1]
-        self.assertEqual(error[1], [Word("INCLUDE")])
-        self.assertEqual(error[0], [Word("Cycle-Error")])
+        self.assertEqual(error[1], [Op("INCLUDE")])
+        self.assertEqual(error[0], [Op("Cycle-Error")])
         self.assertEqual(to_str(error[2][0]), "tests/cycle_a.bo")
 
     def test_require_follows_a_cycle_without_error(self):

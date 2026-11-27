@@ -1,6 +1,6 @@
 // Validates a puzzle file (see "Puzzle package" in doc/playground-plus.md) by running it on the real
 // Bo machine, in WebAssembly (so its code cannot reach the host: the virtual file system is in
-// memory). Every run is stepped with a word budget, so an endless loop is reported, not suffered.
+// memory). Every run is stepped with an op budget, so an endless loop is reported, not suffered.
 //
 // What is checked, and how each finding is reported, is described by `checks` in the result; a
 // check with level "error" fails the puzzle, one with level "warning" is only advice.
@@ -13,7 +13,7 @@ import { parsePuzzle } from "../playground/puzzles.mjs";
 import { answerLength } from "./tokens.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-export const DEFAULT_BUDGET = 200_000; // words one run may execute
+export const DEFAULT_BUDGET = 200_000; // ops one run may execute
 export const LIMITS = { source: 64 * 1024, title: 120, goal: 300, description: 4000 };
 const RESULTS = ["missing", "wrong", "solved", "error"]; // the codes `guess` leaves on puzzle.last
 const LIBRARY = "examples/puzzles/lib.bo";
@@ -89,7 +89,7 @@ function failureDetail(machine) {
 /**
  * @param {string} text the puzzle file
  * @param {{file?: string, budget?: number, files?: Record<string, string>}} [options] `files` are the
- *   files the puzzle may include (by default the puzzle library); `budget` the words one run may execute
+ *   files the puzzle may include (by default the puzzle library); `budget` the ops one run may execute
  * @returns {Promise<{ok: boolean, id: string, puzzle: object|null, checks: object[], metrics: object}>}
  */
 export async function validatePuzzle(text, { file = "puzzle.bo", budget = DEFAULT_BUDGET, files = defaultFiles() } = {}) {

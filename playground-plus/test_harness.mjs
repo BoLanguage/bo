@@ -32,7 +32,7 @@ const failing = (report) => report.checks.filter((c) => !c.ok && c.level === "er
 
 // ---------------------------------------------------------------- tokens
 
-test("top-level tokens: words, numbers, strings and whole lists each count once", () => {
+test("top-level tokens: ops, numbers, strings and whole lists each count once", () => {
     assert.deepEqual(topLevelTokens("rot guess"), ["rot", "guess"]);
     assert.deepEqual(topLevelTokens("(2 *) (twicer) PUSH guess"), ["(2 *)", "(twicer)", "PUSH", "guess"]);
     assert.deepEqual(topLevelTokens('"a b" 1.5 (1 (2 3) ()) x'), ['"a b"', "1.5", "(1 (2 3) ())", "x"]);
@@ -126,7 +126,7 @@ test("a puzzle that is already solved, or whose check fails on the untouched sta
     const solved = await validatePuzzle(puzzle({ setup: SETUP.replace("3 1 2", "1 2 3") }), options);
     assert.ok(failing(solved).includes("untouched"));
     assert.match(find(solved, "untouched").message, /solved before the player does anything \(the default stack at the start is \(1 2 3\)\)/);
-    const broken = await validatePuzzle(puzzle({ setup: SETUP.replace("(snapshot puzzle.solution =)", "(no-such-word)") }), options);
+    const broken = await validatePuzzle(puzzle({ setup: SETUP.replace("(snapshot puzzle.solution =)", "(no-such-op)") }), options);
     assert.match(find(broken, "untouched").message, /raises an error/);
 });
 
@@ -148,8 +148,8 @@ test("solutions, right samples and wrong samples are each checked on a fresh puz
     assert.deepEqual(failing(lenient), ["wrong:1"]);
     assert.match(find(lenient, "wrong:1").message, /too lenient \(the default stack was then \(1 2 3\)\)/);
 
-    const undefinedWord = await validatePuzzle(puzzle({ header: [...without(";@wrong"), ";@wrong no-such-word guess"] }), options);
-    assert.equal(undefinedWord.ok, true, "a wrong sample that raises an error is still wrong");
+    const undefinedOp = await validatePuzzle(puzzle({ header: [...without(";@wrong"), ";@wrong no-such-op guess"] }), options);
+    assert.equal(undefinedOp.ok, true, "a wrong sample that raises an error is still wrong");
 
     const hung = await validatePuzzle(puzzle({ header: [...without(";@wrong"), `;@wrong ${SPIN} guess`] }), options);
     assert.deepEqual(failing(hung), ["wrong:1"]);

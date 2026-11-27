@@ -1,0 +1,39 @@
+"include/std.bo" require
+
+;Elementary cellular automata, after Uiua's Rule 30 (an image there, text here).
+;Each cell looks at its left neighbour, itself and its right neighbour: the three bits
+;form a number k from 0 to 7, and the new cell is bit k of the rule number.
+
+;l c r __next : the new cell under the rule kept in __rule
+    (rot 4 * rot 2 * + + (__rule) get swap >> 2 mod)
+    (__next)
+PUSH
+
+;R __step : the next row; rotating the row gives the neighbours (it wraps around)
+    (
+    dup -1 rotate over zip          ; pairs (l c)
+    swap 1 rotate zip               ; triples ((l c) r)
+        (apply apply swap apply rot __next unit)
+    map
+    )
+    (__step)
+PUSH
+
+;R __show : one line, a block for a living cell (the character is picked with nth)
+    (((32 9608) swap apply 1 + nth apply emitc) foreach nl)
+    (__show)
+PUSH
+
+;rule width generations automaton : run from a single living cell in the middle
+    (
+    rot (__rule) set
+    swap dup 2 // (__middle) set
+    1 - 0 swap : (apply (__middle) get = unit) map
+    swap (dup __show __step) swap times drop
+    )
+    (automaton)
+PUSH
+
+30 63 32 automaton
+nl
+90 63 32 automaton      ; rule 90 draws a Sierpinski triangle

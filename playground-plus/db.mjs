@@ -259,7 +259,7 @@ export function openDatabase(path = ":memory:") {
         cancelRequest: (id, now = Date.now()) => statements.closeRequest.run("cancelled", null, now, id).changes > 0,
         /** Marks a pending request as answered by `puzzleId`. Returns whether it was still pending. */
         fulfilRequest: (id, puzzleId, now = Date.now()) => statements.closeRequest.run("fulfilled", puzzleId, now, id).changes > 0,
-        /** Every prompt line recorded, as `{sessionId, code}`, in order (for counting the words a player typed). */
+        /** Every prompt line recorded, as `{sessionId, code}`, in order (for counting the tokens a player typed). */
         listPromptLines: () => statements.promptLines.all().map((row) => ({ sessionId: row.session_id, code: row.code })),
         /** What the human player's history holds, for showing and exporting it: sessions, each with its prompt lines. */
         exportHumanHistory() {

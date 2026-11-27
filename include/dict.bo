@@ -50,11 +50,11 @@ PUSH
         (dup () =)
         (drop 0 __key-uint)
         (
-        unconsl apply rot swap __key-uint swap __key-word-text
+        unconsl apply rot swap __key-uint swap __key-op-name
         )
     ifte
     )
-    (__key-word-text)
+    (__key-op-name)
 PUSH
 
 ; A list is a sequence of values: its elements are visited by an anonymous recursion (lambda and rec),
@@ -78,7 +78,7 @@ PUSH
             lambda
             )
             (
-            text swap 87 unit consr swap __key-word-text
+            name swap 87 unit consr swap __key-op-name
             )
         ifte
         )
@@ -94,7 +94,7 @@ PUSH
 PUSH
 
 ; Base64url: every three bytes make four characters. The three steps of a round are written out
-; in one word.
+; in one definition.
     (
         (dup () =)
         (drop)
@@ -122,10 +122,14 @@ PUSH
     (__key-b64-0)
 PUSH
 
-;tagkey ( x tag -- key ) selector for value x in the table named by a word unit
+;tagkey ( x tag -- key ) selector for value x in the table named by the selector tag
     (
-    text swap unit () swap __key-value () swap __key-b64-0
-    swap 46 unit consr swap append word
+        (dup null =)
+        (unit (Type-Error) throw)
+        ()
+    ifte
+    name swap unit () swap __key-value () swap __key-b64-0
+    swap 46 unit consr swap append selector
     )
     (tagkey)
 PUSH

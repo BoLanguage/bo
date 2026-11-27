@@ -53,7 +53,7 @@ redefinition.
 
 ### Language and library
 
-- Public words share one namespace; only private words (`__name`, owned by the file that writes them) are hidden, and there is no module or package system.
+- Public ops share one namespace; only private ops (`__name`, owned by the file that writes them) are hidden, and there is no module or package system.
 - Names, definitions and execution are dynamically resolved.
 - Numeric values are IEEE-754 doubles; NaNs and infinities are not produced by
   arithmetic.

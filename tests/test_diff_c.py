@@ -6,7 +6,7 @@ from tests.diff_c import collect
 
 
 class DifferentialCollection(unittest.TestCase):
-    def test_collection_records_word_execution_and_restores_execute(self):
+    def test_collection_records_op_execution_and_restores_execute(self):
         class PassingCase(unittest.TestCase):
             def runTest(self):
                 self.assertTrue(Machine().execute('"include/core.bo" () INCLUDE (OP) unittype'))

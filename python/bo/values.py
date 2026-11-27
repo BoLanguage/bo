@@ -1,14 +1,14 @@
-"""Bo values: numbers, lists, and words."""
+"""Bo values: numbers, lists, and ops."""
 
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class Word:
-    """A word's identity is its case-sensitive name, not its current definition.
+class Op:
+    """An op's identity is its case-sensitive name, not its current definition.
 
-    A private word (written `__name` in a source file) also carries the id of the file that owns
-    it, so it never equals, and never names the same stack as, a word spelled alike elsewhere.
+    A private op (written `__name` in a source file) also carries the id of the file that owns
+    it, so it never equals, and never names the same stack as, an op spelled alike elsewhere.
     """
 
     name: str
@@ -65,8 +65,8 @@ def canon(v):
     """Hashable canonical form: structural identity (numbers are compared by value)."""
     if isinstance(v, list):
         return ("l", tuple(canon(x) for x in v))
-    if isinstance(v, Word):
-        return ("w", v.name, v.owner) if v.owner else ("w", v.name)
+    if isinstance(v, Op):
+        return ("o", v.name, v.owner) if v.owner else ("o", v.name)
     return ("n", v)
 
 

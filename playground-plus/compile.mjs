@@ -14,23 +14,23 @@ export { TAGS };
 /** Kinds of puzzle. Only available ones are offered to agents. */
 export const KINDS = {
     arrange: { available: true, summary: "rearrange or compute on a given stack; the player ends with a stack equal to what the solution leaves" },
-    define: { available: true, summary: "define a word that turns each test input into the expected result" },
+    define: { available: true, summary: "define an op that turns each test input into the expected result" },
     predict: { available: false, summary: "the player says what a shown program leaves on the stack" },
     fix: { available: false, summary: "a broken definition is given and the player repairs it" },
-    golf: { available: false, summary: "define a word with as few words as possible" },
+    golf: { available: false, summary: "define an op with as few tokens as possible" },
     "named-stack": { available: false, summary: "leave values on named stacks" },
 };
 export const availableKinds = () => Object.keys(KINDS).filter((kind) => KINDS[kind].available);
 
-export const SPEC_LIMITS = { goal: 300, hint: 300, hints: 3, tags: 3, solution: 300, word: 30, value: 1_000_000, stack: 12, cases: 8 };
+export const SPEC_LIMITS = { goal: 300, hint: 300, hints: 3, tags: 3, solution: 300, op: 30, value: 1_000_000, stack: 12, cases: 8 };
 const MIN_CASES = 3;
 // hints that every puzzle of a kind starts with, and that do not count as help
 const FREE_HINTS = {
     arrange: [],
-    define: (word) => [`Define a word by pushing a quotation onto a stack with its name: (BODY) (${word}) PUSH. Then run guess.`],
+    define: (op) => [`Define an op by pushing a quotation onto a stack with its name: (BODY) (${op}) PUSH. Then run guess.`],
 };
-// words that show a tag was really used (only for the tags where that is clear)
-const TAG_WORDS = {
+// ops that show a tag was really used (only for the tags where that is clear)
+const TAG_OPS = {
     shuffle: ["swap", "rot", "-rot", "over", "dup", "drop", "nip", "tuck", "roll", "pick"],
     arithmetic: ["+", "-", "*", "/", "//", "mod", "neg", "abs", "min", "max", "^"],
     conditional: ["ifte"],
@@ -39,12 +39,12 @@ const TAG_WORDS = {
 const ITERATION = ["ifte", "map", "filter", "foldl"];
 
 /**
- * A machine error line with a pointer for what small models most often get wrong: a word that does not
+ * A machine error line with a pointer for what small models most often get wrong: an op that does not
  * exist (`if`, `then`, `rec`) and the order of `ifte`'s three quotations.
  */
 export function explainFailure(line) {
-    const missing = /Existence-Error \(WORD\) \(\(([^()\s]+)\)\)/.exec(line)?.[1];
-    if (missing) return `${line}. "${missing}" is not a Bo word (a word you are defining can call itself by its own name; conditions use ifte: (condition) (then) (else) ifte). get_bo_reference with the query "${missing}" searches the documentation`;
+    const missing = /Existence-Error \(EXECUTE\) \(\(([^()\s]+)\)\)/.exec(line)?.[1];
+    if (missing) return `${line}. "${missing}" is not a Bo op (an op you are defining can call itself by its own name; conditions use ifte: (condition) (then) (else) ifte). get_bo_reference with the query "${missing}" searches the documentation`;
     if (/\(IFTE\)/.test(line)) return `${line}. ifte needs three quotations in this order: (condition) (then) (else) ifte, for example (dup 0 <) (neg) (nop) ifte; the condition runs on the value below them`;
     return line;
 }
@@ -54,16 +54,16 @@ const quote = (text) => `"${clean(text).replace(/\\/g, "\\\\").replace(/"/g, '\\
 const isValue = (value) => Number.isInteger(value) && Math.abs(value) <= SPEC_LIMITS.value;
 const literal = (value) => (Array.isArray(value) ? `(${value.map(String).join(" ")})` : String(value));
 const stackLiteral = (stack) => stack.map(literal).join(" ");
-/** The words of a piece of Bo, without strings, parentheses or comments. */
-const wordsOf = (code) => code.replace(/"(?:[^"\\]|\\.)*"/g, " ").replace(/;[^\n]*/g, " ").replace(/[()]/g, " ").split(/\s+/).filter(Boolean);
+/** The tokens of a piece of Bo (ops and numbers), without strings, parentheses or comments. */
+const tokensOf = (code) => code.replace(/"(?:[^"\\]|\\.)*"/g, " ").replace(/;[^\n]*/g, " ").replace(/[()]/g, " ").split(/\s+/).filter(Boolean);
 
 /** A first estimate of difficulty (1 to 5) from the solution's size; real play data can correct it later. */
 export function estimateDifficulty(kind, solution) {
-    const words = wordsOf(solution);
-    const size = words.length;
+    const tokens = tokensOf(solution);
+    const size = tokens.length;
     const thresholds = kind === "arrange" ? [1, 2, 4, 6] : [2, 4, 7, 11];
     let level = 1 + thresholds.filter((limit) => size > limit).length;
-    if (words.some((word) => ITERATION.includes(word))) level++;
+    if (tokens.some((token) => ITERATION.includes(token))) level++;
     return Math.min(level, 5);
 }
 
@@ -79,7 +79,7 @@ export function normalizeSpec(spec) {
     let solution = text(spec.solution);
     if (typeof solution === "string") solution = solution.replace(/\s*\bguess$/, "");
     const normal = { kind: spec.kind, tags: spec.tags, goal: text(spec.goal), inputs: spec.inputs, solution, hints: Array.isArray(spec.hints) ? spec.hints.map(text) : spec.hints };
-    if (spec.word !== undefined) normal.word = text(spec.word);
+    if (spec.op !== undefined) normal.op = text(spec.op);
     return normal;
 }
 
@@ -92,7 +92,7 @@ function checkShape(spec) {
     if (!Array.isArray(spec.tags) || spec.tags.length < 1 || spec.tags.length > SPEC_LIMITS.tags || !spec.tags.every((tag) => TAGS.includes(tag)) || new Set(spec.tags).size !== spec.tags.length)
         problems.push(`tags must be 1 to ${SPEC_LIMITS.tags} different values from ${TAGS.join(", ")}; the first is the main topic`);
     if (typeof spec.goal !== "string" || spec.goal.length < 10 || spec.goal.length > SPEC_LIMITS.goal) problems.push(`goal must be a sentence of 10 to ${SPEC_LIMITS.goal} characters saying what the player must do`);
-    if (typeof spec.solution !== "string" || !spec.solution.trim()) problems.push("solution must be the Bo words that solve the puzzle");
+    if (typeof spec.solution !== "string" || !spec.solution.trim()) problems.push("solution must be the Bo ops that solve the puzzle");
     else if (spec.solution.length > SPEC_LIMITS.solution) problems.push(`solution is longer than ${SPEC_LIMITS.solution} characters`);
     else {
         try {
@@ -100,7 +100,7 @@ function checkShape(spec) {
         } catch (error) {
             problems.push(`solution is not valid Bo: ${error.message}`);
         }
-        if (wordsOf(spec.solution).includes("guess")) problems.push("solution must not contain guess (it is added for you)");
+        if (tokensOf(spec.solution).includes("guess")) problems.push("solution must not contain guess (it is added for you)");
     }
     if (!Array.isArray(spec.hints) || spec.hints.length < 1 || spec.hints.length > SPEC_LIMITS.hints || !spec.hints.every((hint) => typeof hint === "string" && hint.trim() && hint.length <= SPEC_LIMITS.hint))
         problems.push(`hints must be a list of 1 to ${SPEC_LIMITS.hints} texts of up to ${SPEC_LIMITS.hint} characters, from a gentle nudge to a strong one`);
@@ -112,11 +112,11 @@ function checkShape(spec) {
     }
     if (spec.kind === "arrange" && Array.isArray(spec.inputs) && spec.inputs.length > 1) problems.push("an arrange puzzle needs exactly one input: the stack the player starts with");
     if (spec.kind === "define") {
-        if (typeof spec.word !== "string" || !/^[a-z][a-z0-9-]*$/.test(spec.word) || spec.word.length > SPEC_LIMITS.word)
-            problems.push(`word must be the name to define: lowercase letters, digits and hyphens, starting with a letter (at most ${SPEC_LIMITS.word} characters)`);
+        if (typeof spec.op !== "string" || !/^[a-z][a-z0-9-]*$/.test(spec.op) || spec.op.length > SPEC_LIMITS.op)
+            problems.push(`op must be the name of the op to define: lowercase letters, digits and hyphens, starting with a letter (at most ${SPEC_LIMITS.op} characters)`);
         if (Array.isArray(spec.inputs) && (spec.inputs.length < MIN_CASES || spec.inputs.length > SPEC_LIMITS.cases))
             problems.push(`a define puzzle needs ${MIN_CASES} to ${SPEC_LIMITS.cases} inputs, so that a hard-coded answer fails`);
-    } else if (spec.word !== undefined) problems.push("word is only for define puzzles");
+    } else if (spec.op !== undefined) problems.push("op is only for define puzzles");
     return problems;
 }
 
@@ -133,7 +133,7 @@ export async function compileSpec(spec, { agent = null, number, files = defaultF
     if (shape.length) return result(shape);
 
     const { kind, tags, goal, inputs, solution, hints } = normalized;
-    const word = normalized.word;
+    const op = normalized.op;
     const warnings = [];
     const problems = [];
 
@@ -163,30 +163,30 @@ export async function compileSpec(spec, { agent = null, number, files = defaultF
             else if (results[0] === start) problems.push("the solution leaves the stack as it started, so there is nothing to solve");
         }
     } else {
-        if (machine.run(`(${word}) EXISTS emit`).stdout !== "0") problems.push(`word "${word}" already exists in Bo; choose another name`);
+        if (machine.run(`(${op}) EXISTS emit`).stdout !== "0") problems.push(`op "${op}" already exists in Bo; choose another name`);
         else {
-            const defined = machine.run(`(${solution}) (${word}) PUSH`);
+            const defined = machine.run(`(${solution}) (${op}) PUSH`);
             if (defined.status !== "done") problems.push(`the solution could not be defined: ${explainFailure(defined.stderr.trim().split("\n")[0] || defined.status)}`);
-            else collect(inputs.map((stack) => outcome(machine.run(`clear ${stackLiteral(stack)} ${word} snapshot emit`))));
+            else collect(inputs.map((stack) => outcome(machine.run(`clear ${stackLiteral(stack)} ${op} snapshot emit`))));
         }
         if (results.length) {
             const ins = inputs.map((stack) => `(${stackLiteral(stack)})`);
-            const shown = inputs.slice(0, 4).map((stack, index) => `${stackLiteral(stack)} ${word} -> ${results[index]}`).join("; ");
+            const shown = inputs.slice(0, 4).map((stack, index) => `${stackLiteral(stack)} ${op} -> ${results[index]}`).join("; ");
             if (new Set(ins).size !== ins.length) problems.push("inputs must all be different");
-            if (results.every((r, index) => r === ins[index])) problems.push(`every input comes out unchanged (${shown}), so doing nothing would pass. Check that your solution does what the goal says, or choose inputs that the word changes`);
-            else if (new Set(results).size === 1) problems.push(`every input gives ${results[0]} (${shown}), so a word that ignores its input would pass. Check that your solution does what the goal says, or choose inputs with different results`);
+            if (results.every((r, index) => r === ins[index])) problems.push(`every input comes out unchanged (${shown}), so doing nothing would pass. Check that your solution does what the goal says, or choose inputs that the op changes`);
+            else if (new Set(results).size === 1) problems.push(`every input gives ${results[0]} (${shown}), so an op that ignores its input would pass. Check that your solution does what the goal says, or choose inputs with different results`);
         }
     }
     if (problems.length) return result(problems);
 
     // 2. the hints, free ones first
-    const free = typeof FREE_HINTS[kind] === "function" ? FREE_HINTS[kind](word) : FREE_HINTS[kind];
+    const free = typeof FREE_HINTS[kind] === "function" ? FREE_HINTS[kind](op) : FREE_HINTS[kind];
     const allHints = [...free, ...hints];
     const solutionText = clean(solution);
     if (solutionText.length >= 4 && hints.some((hint) => clean(hint).includes(solutionText))) warnings.push("a hint contains the whole solution; hints should help without giving it away");
-    if (kind === "define" && !goal.includes(word)) warnings.push(`the goal does not mention the word "${word}", so the player may not know what to define`);
+    if (kind === "define" && !goal.includes(op)) warnings.push(`the goal does not mention the op "${op}", so the player may not know what to define`);
     for (const tag of tags)
-        if (TAG_WORDS[tag] && !wordsOf(solution).some((used) => TAG_WORDS[tag].includes(used))) warnings.push(`tag "${tag}" is claimed but the solution uses none of its usual words (${TAG_WORDS[tag].slice(0, 4).join(" ")} ...)`);
+        if (TAG_OPS[tag] && !tokensOf(solution).some((used) => TAG_OPS[tag].includes(used))) warnings.push(`tag "${tag}" is claimed but the solution uses none of its usual ops (${TAG_OPS[tag].slice(0, 4).join(" ")} ...)`);
 
     // 3. the file
     const title = makeTitle(tags, number, agent);
@@ -204,14 +204,14 @@ export async function compileSpec(spec, { agent = null, number, files = defaultF
         require = `() (snapshot (${strip(results[0])}) puzzle.eq) puzzle.require`;
         start = stackLiteral(inputs[0]);
     } else {
-        const shown = inputs.slice(0, 2).map((stack, index) => `\`${stackLiteral(stack)} ${word}\` leaves ${strip(results[index]) ? `\`${strip(results[index])}\`` : "nothing"}`);
-        description = [`For example, ${shown.join(" and ")}.`, `Push a quotation onto \`${word}\`.`];
-        solutionLine = `(${solution}) (${word}) PUSH guess`;
-        wrongLines = [`() (${word}) PUSH guess`];
+        const shown = inputs.slice(0, 2).map((stack, index) => `\`${stackLiteral(stack)} ${op}\` leaves ${strip(results[index]) ? `\`${strip(results[index])}\`` : "nothing"}`);
+        description = [`For example, ${shown.join(" and ")}.`, `Push a quotation onto \`${op}\`.`];
+        solutionLine = `(${solution}) (${op}) PUSH guess`;
+        wrongLines = [`() (${op}) PUSH guess`];
         const sameLength = inputs.every((stack) => stack.length === inputs[0].length);
-        if (sameLength) wrongLines.push(`(${"drop ".repeat(inputs[0].length)}${strip(results[0])}) (${word}) PUSH guess`);
-        const cases = inputs.map((stack, index) => `clear ${stackLiteral(stack)} ${word} snapshot ${results[index]} puzzle.eq drop`).join(" ");
-        require = `(${word}) (${cases} (puzzle.mismatch) DEPTH 0 =) puzzle.require`;
+        if (sameLength) wrongLines.push(`(${"drop ".repeat(inputs[0].length)}${strip(results[0])}) (${op}) PUSH guess`);
+        const cases = inputs.map((stack, index) => `clear ${stackLiteral(stack)} ${op} snapshot ${results[index]} puzzle.eq drop`).join(" ");
+        require = `(${op}) (${cases} (puzzle.mismatch) DEPTH 0 =) puzzle.require`;
     }
     const lines = [
         ";@puzzle", `;@title ${title}`, `;@goal ${goal}`, `;@hints ${allHints.length}`, ...(free.length ? [`;@freehints ${free.length}`] : []),

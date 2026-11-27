@@ -6,11 +6,11 @@ clears the prompt). The default stack is shown on a row of its own, top on the l
 the right (the other stacks list their top item first, too).
 
 For longer programs, open the editor: the tab on the left edge of the window (`>`), or pick an
-example or "Write your own". It slides in as a sidebar with a debugger (step by word, by line, or
-by line plus user words), the word about to run and the nested programs being executed. Drag the
+example or "Write your own". It slides in as a sidebar with a debugger (step by op, by line, or
+by line plus user ops), the op about to run and the nested programs being executed. Drag the
 sidebar's edge to resize it (the width is remembered, double-click resets it). The prompt keeps
 working while a program is paused, evaluating at the pause point, and a breakpoint (`@`) pauses a
-program, from the editor or from the prompt itself (the prompt then turns yellow, and the words
+program, from the editor or from the prompt itself (the prompt then turns yellow, and the ops
 `step`, `next`, `continue` and `stop` typed there act like the buttons); see
 [debugging](../doc/debugging.md).
 
@@ -30,7 +30,7 @@ and **Examples**. A provider marks a puzzle `recorded` and, once it was played, 
 counts the hints used so far ("3 hints available (1 used; the first is free)") from the runtime's hidden stacks.
 Selecting a puzzle starts a fresh machine and
 silently evaluates its setup source, then focuses the prompt. Read the level's comments and
-interact using its words (for example, `42 (ANSWER) PUSH guess`). Its completion check is Bo code,
+interact using its ops (for example, `42 (ANSWER) PUSH guess`). Its completion check is Bo code,
 so a puzzle needs no special playground API. Levels live in `examples/puzzles/`; put their title,
 goal, hint count, and optional multiline description in the opening `;@puzzle` comment header (it also
 accepts `;@tags`, `;@difficulty`, `;@solution`, `;@right` and `;@wrong`, which describe a puzzle for tools that
@@ -39,7 +39,7 @@ runtime reads `puzzle.free` and does not record those on `puzzle.hint-used`, and
 backticks to render inline Bo code in titles, goals, and descriptions. Active puzzles
 automatically hide `puzzle.*` implementation stacks; `@hide` remains available for other names. Add only its
 file name to `PUZZLE_FILES` in `playground/puzzles.mjs`, since a static browser cannot enumerate the
-directory. `puzzles/lib.bo` supplies the shared `guess`, `hint` and `reveal` words (`filter` comes from the standard library); list it in
+directory. `puzzles/lib.bo` supplies the shared `guess`, `hint` and `reveal` ops (`filter` comes from the standard library); list it in
 `PUZZLE_SUPPORT_FILES`. A puzzle lists its hints, in order, as a list of texts pushed onto
 `puzzle.hints` (`("first" "second") (puzzle.hints) PUSH`; each `hint` shows the next one and then
 repeats the last, and the header's hint count should match). `reveal` gives up: it shows the text on
@@ -53,7 +53,7 @@ revealing their names or contents. If a player definition raises an error during
 checker restores the prompt stack and shows a generic retry message rather than raw diagnostics.
 Puzzles can also validate the default stack itself: `07-order-three.bo` uses `snapshot` to make
 the visible stack arrangement the goal. `09-submit-stack-program.bo` shows a puzzle-specific
-`restart` word, a visible submitted-program stack, and a custom scored completion message.
+`restart` op, a visible submitted-program stack, and a custom scored completion message.
 
 No stacks are displayed on a fresh page or after "Reset everything" (which `exit` typed at the
 prompt does too, with a message giving the exit status). Once something is on a stack
@@ -62,7 +62,7 @@ Hovering over a stack shows icons for quick operations: duplicate, swap the top 
 top, and empty it. Clicking one writes the line it stands for under the prompt (for example
 `1 () ROLL`, or `1 (s) PUSH (s) ROLL` for a stack named `s`, because
 `PICK` and `ROLL` read their index from the stack itself) and evaluates it like
-anything typed there. Locked stacks and, for library words the program redefined, everything but
+anything typed there. Locked stacks and, for library ops the program redefined, everything but
 Drop are disabled. Locked stacks have a purple outline and a `locked` badge in their header.
 
 Fast run: Run starts the program on a fresh machine without the stepper, which is faster (about 2x
@@ -117,8 +117,8 @@ The machine marks everything loaded at start (the standard library) as the basel
 shown if it is the default stack, new, or has definitions the baseline does not have (`shadows`).
 Library, kernel and empty stacks are only counted. See `c/debugger.inc`.
 
-The library's helpers are private words (`__name`, owned by the file that defines them): they are real
-words, counted with the library but never listed, and stepping through a library word shows a helper by
+The library's helpers are private ops (`__name`, owned by the file that defines them): they are real
+ops, counted with the library but never listed, and stepping through a library op shows a helper by
 name. The search for library stacks does not offer them.
 
 ## Fonts

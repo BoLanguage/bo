@@ -11,7 +11,7 @@ int unit_type(Val unit, int *type) {
     if (unit_element(unit, &element)) return UNIT_TYPE_ERROR;
     if (is_num(element)) *type = 0;
     else if (is_list(element)) *type = 1;
-    else if (is_word(element)) *type = 2;
+    else if (is_op(element)) *type = 2;
     else return UNIT_TYPE_ERROR;
     return UNIT_OK;
 }

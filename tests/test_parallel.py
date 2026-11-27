@@ -2,8 +2,8 @@ import contextlib
 import io
 import unittest
 
-from python.bo.machine import Machine, WORD_DIAGNOSTICS_KEY
-from python.bo.values import Word, canon, from_str
+from python.bo.machine import Machine, OP_DIAGNOSTICS_KEY
+from python.bo.values import Op, canon, from_str
 
 
 class ParallelTests(unittest.TestCase):
@@ -54,20 +54,20 @@ class ParallelTests(unittest.TestCase):
             "((1 0) (1 swap /) parallel) () catch"
         )
         error = machine.data[0]
-        self.assertEqual(error[:2], [[Word("Domain-Error")], [Word("DIV")]])
-        self.assertEqual(machine.stacks[WORD_DIAGNOSTICS_KEY], [error])
+        self.assertEqual(error[:2], [[Op("Domain-Error")], [Op("DIV")]])
+        self.assertEqual(machine.stacks[OP_DIAGNOSTICS_KEY], [error])
 
     def test_worker_exit_becomes_parallel_error(self):
         machine = self.run_bo("((1) (0 exit) parallel) () catch")
         self.assertEqual(
             machine.data[0][:2],
-            [[Word("Evaluation-Error")], [Word("PARALLEL")]],
+            [[Op("Evaluation-Error")], [Op("PARALLEL")]],
         )
 
     def test_invalid_operands_raise_parallel_type_error(self):
         machine = self.run_bo("(42 (dup) () PARALLEL) () catch")
         self.assertEqual(machine.data[-1][:2], [
-            [Word("Type-Error")], [Word("PARALLEL")]
+            [Op("Type-Error")], [Op("PARALLEL")]
         ])
 
     def test_control_parallel_is_an_unlocked_default_adapter(self):
@@ -76,8 +76,8 @@ class ParallelTests(unittest.TestCase):
             self.assertTrue(machine.execute(
                 '"include/core.bo" () INCLUDE'
             ))
-        key = canon([Word("parallel")])
-        self.assertEqual(machine.stacks[key], [[[], Word("PARALLEL")]])
+        key = canon([Op("parallel")])
+        self.assertEqual(machine.stacks[key], [[[], Op("PARALLEL")]])
         self.assertNotIn(key, machine.locked)
 
 

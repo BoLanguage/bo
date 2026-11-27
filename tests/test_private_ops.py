@@ -1,4 +1,4 @@
-"""Private words: in a source file a word that starts with `__` belongs to that file."""
+"""Private ops: in a source file an op that starts with `__` belongs to that file."""
 
 import io
 import tempfile
@@ -16,7 +16,7 @@ STD = str(ROOT / "include" / "std.bo")
 def machine_with(files, std=True, private=True):
     """A machine that has loaded the files, given as {name: text}, from a temporary directory."""
     machine = Machine()
-    machine.private_words = private
+    machine.private_ops = private
     if std:
         assert machine.include_file(str(ROOT / "include" / "core.bo"))
         assert machine.include_file(STD)
@@ -38,14 +38,14 @@ def error_kind(machine, text):
     return None if ok else stderr.getvalue().split(" ")[4]
 
 
-class PrivateWords(unittest.TestCase):
-    def test_a_private_word_works_in_its_file_and_is_unreachable_elsewhere(self):
+class PrivateOps(unittest.TestCase):
+    def test_a_private_op_works_in_its_file_and_is_unreachable_elsewhere(self):
         machine = machine_with({"main.bo": """
 (+) (__plus) PUSH
 (1 __plus) (succ) PUSH
 (__plus) EXISTS (__plus) TOP
 """})
-        self.assertEqual(machine.data[0], 1)  # inside the file the word exists
+        self.assertEqual(machine.data[0], 1)  # inside the file the op exists
         machine.data.clear()
         self.assertTrue(machine.execute("2 succ"))
         self.assertEqual(machine.data, [3])
@@ -55,12 +55,12 @@ class PrivateWords(unittest.TestCase):
         self.assertEqual(error_kind(machine, "1 2 __plus"), "Existence-Error")
         self.assertEqual(error_kind(machine, "(__plus) TOP"), "Stack-Error")  # as for any absent stack
 
-    def test_the_code_of_a_public_word_shows_the_private_word_by_name(self):
+    def test_the_code_of_a_public_op_shows_the_private_op_by_name(self):
         machine = machine_with({"main.bo": "(+) (__plus) PUSH\n(1 __plus) (succ) PUSH\n"})
         self.assertTrue(machine.execute("(succ) TOP"))
         self.assertEqual([getattr(item, "name", item) for item in machine.data[-1]], [1, "__plus"])
 
-    def test_private_words_are_not_in_the_lexicon(self):
+    def test_private_ops_are_not_in_the_lexicon(self):
         machine = machine_with({"main.bo": "(1) (__hidden) PUSH\n(1) (shown) PUSH\n"})
         self.assertTrue(machine.execute("() LEXICON"))
         names = [item[0].name for item in machine.data[-1]]
@@ -76,14 +76,14 @@ class PrivateWords(unittest.TestCase):
         self.assertTrue(machine.execute("one two"))
         self.assertEqual(machine.data, [1, 2])
 
-    def test_a_private_word_given_to_a_callback_keeps_its_meaning(self):
+    def test_a_private_op_given_to_a_callback_keeps_its_meaning(self):
         machine = machine_with({
             "lib.bo": "(dup *) (__square) PUSH\n((__square)) (callback) PUSH\n",
         })
         self.assertTrue(machine.execute("3 callback apply"))
         self.assertEqual(machine.data, [9])
 
-    def test_private_words_may_be_recursive_and_mutually_recursive(self):
+    def test_private_ops_may_be_recursive_and_mutually_recursive(self):
         machine = machine_with({"main.bo": """
 ((dup 0 =) (drop 1) (dup 1 - __fact *) ifte) (__fact) PUSH
 ((dup 0 =) (drop 1) (1 - __odd) ifte) (__even) PUSH
@@ -94,15 +94,15 @@ class PrivateWords(unittest.TestCase):
         self.assertTrue(machine.execute("5 fact 10 even 7 even"))
         self.assertEqual(machine.data, [120, 1, 0])
 
-    def test_equality_tells_a_private_word_from_a_plain_one(self):
+    def test_equality_tells_a_private_op_from_a_plain_one(self):
         machine = machine_with({"main.bo": "(1 __w) (code) PUSH\n(7) (__w) PUSH\n"})
         self.assertTrue(machine.execute("(code) TOP unconsl drop (__w) ="))
         self.assertEqual(machine.data, [0])
         machine.data.clear()
-        self.assertTrue(machine.execute("(code) TOP unconsl drop text (__w) text ="))
+        self.assertTrue(machine.execute("(code) TOP unconsl drop name (__w) name ="))
         self.assertEqual(machine.data, [1])
 
-    def test_loading_a_file_again_replaces_its_private_words(self):
+    def test_loading_a_file_again_replaces_its_private_ops(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "lib.bo"
             path.write_text("(1) (__x) PUSH\n(__x) (get-x) PUSH\n", encoding="utf-8")
@@ -113,7 +113,7 @@ class PrivateWords(unittest.TestCase):
             self.assertEqual(machine.data, [2])
             self.assertEqual(len([k for k in machine.stacks if len(k[1]) == 1 and len(k[1][0]) == 3]), 1)
 
-    def test_outside_a_file_and_without_ownership_the_words_are_plain(self):
+    def test_outside_a_file_and_without_ownership_the_ops_are_plain(self):
         machine = machine_with({})
         self.assertTrue(machine.execute("(1 +) (__inc) PUSH 2 __inc"))
         self.assertEqual(machine.data, [3])
@@ -121,7 +121,7 @@ class PrivateWords(unittest.TestCase):
         self.assertTrue(machine.execute("2 __inc"))
         self.assertEqual(machine.data, [3])
 
-    def test_a_private_word_can_call_public_words_in_tail_position_without_growth(self):
+    def test_a_private_op_can_call_public_ops_in_tail_position_without_growth(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "tail.bo"
             path.write_text("""

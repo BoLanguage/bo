@@ -1,4 +1,4 @@
-"""Compare a pre-word release with the current runtime and list pipeline stages."""
+"""Compare a release from before op values with the current runtime and list pipeline stages."""
 
 import argparse
 import os

@@ -71,7 +71,7 @@ EMSCRIPTEN_KEEPALIVE int bo_debug_load_fast(const char *code, int scratch) {
     return ok;
 }
 
-/* Runs up to `budget` steps (mode 0: words; 1: lines; 2: lines and user words; 3: none, only a
+/* Runs up to `budget` steps (mode 0: ops; 1: lines; 2: lines and user ops; 3: none, only a
    BREAKPOINT pauses) and pauses before the next one; returns 0 idle, 1 ready, 2 paused,
    3 done, 4 error, 5 exit. */
 EMSCRIPTEN_KEEPALIVE int bo_debug_step(int budget, int mode) {

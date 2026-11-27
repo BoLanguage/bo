@@ -4,9 +4,9 @@ import os
 import tempfile
 import unittest
 
-from python.bo.lower import lower_word_forms
-from python.bo.machine import AbortSignal, Machine, WORD_DIAGNOSTICS_KEY
-from python.bo.values import Word, from_str
+from python.bo.lower import lower_op_forms
+from python.bo.machine import AbortSignal, Machine, OP_DIAGNOSTICS_KEY
+from python.bo.values import Op, from_str
 
 
 def run(code, standard_library=False):
@@ -17,29 +17,31 @@ def run(code, standard_library=False):
                 raise RuntimeError("cannot load standard library")
         elif not (machine.include_file("include/core.bo") and machine.include_file("include/std.bo")):
             raise RuntimeError("cannot load default library")
-        program = [item for _, items in lower_word_forms(code) for item in items]
+        program = [item for _, items in lower_op_forms(code) for item in items]
         machine.run(program)
     return machine.data
 
 
-class WordExecution(unittest.TestCase):
+class OpExecution(unittest.TestCase):
     def test_execution_and_redefinition(self):
         self.assertEqual(run("(1) (X) PUSH X (2) (X) PUSH X (X) POP X"),
                          [1, 2, [2], 1])
 
-    def test_unit_round_trips_without_executing_words(self):
-        self.assertEqual(run("(OP 2 3) unconsl"), [[2, 3], [Word("OP")]])
-        self.assertEqual(run("(1 2 OP) unconsr"), [[1, 2], [Word("OP")]])
-        self.assertEqual(run("(OP 2 3) unconsl consl"), [[Word("OP"), 2, 3]])
-        self.assertEqual(run("(1 2 OP) unconsr consr"), [[1, 2, Word("OP")]])
+    def test_unit_round_trips_without_executing_ops(self):
+        self.assertEqual(run("(OP 2 3) unconsl"), [[2, 3], [Op("OP")]])
+        self.assertEqual(run("(1 2 OP) unconsr"), [[1, 2], [Op("OP")]])
+        self.assertEqual(run("(OP 2 3) unconsl consl"), [[Op("OP"), 2, 3]])
+        self.assertEqual(run("(1 2 OP) unconsr consr"), [[1, 2, Op("OP")]])
 
     def test_conversions_and_unit_types(self):
-        self.assertEqual(run('"OP" word text'), [from_str("OP")])
-        self.assertEqual(run("(OP) text word"), [[Word("OP")]])
+        self.assertEqual(run('"OP" selector name'), [from_str("OP")])
+        self.assertEqual(run("(OP) name selector"), [[Op("OP")]])
+        self.assertEqual(run('() name "" selector 5 "" selector PUSH'), [[], [], 5],
+                         "the empty name and the default-stack selector convert into each other")
         self.assertEqual(run("(42) unittype ((1 2)) unittype (OP) unittype"), [0, 1, 2])
-        self.assertEqual(run('"+" word'), [[Word("+")]])
-        self.assertEqual(run('1 2 "+" word apply'), [3])
-        self.assertEqual(run('(17) (OP) PUSH "OP" word apply'), [17])
+        self.assertEqual(run('"+" selector'), [[Op("+")]])
+        self.assertEqual(run('1 2 "+" selector apply'), [3])
+        self.assertEqual(run('(17) (OP) PUSH "OP" selector apply'), [17])
         self.assertEqual(run('(1) unconsl apply ((1 2)) unconsl apply'), [[], 1, [], [1, 2]])
 
     def test_matlab_style_range_operators(self):
@@ -58,18 +60,18 @@ class WordExecution(unittest.TestCase):
     def test_range_errors_restore_operands(self):
         data = run('("x" 0.1 1 ::) () catch')
         self.assertEqual(data[:3], [from_str("x"), 0.1, 1])
-        self.assertEqual(data[-1][0:2], [[Word("Type-Error")], [Word("RANGE")]])
+        self.assertEqual(data[-1][0:2], [[Op("Type-Error")], [Op("RANGE")]])
         for code in ("(0 1e-320 1 ::) () catch",
                      "(0 1 4294967295 ::) () catch"):
             data = run(code)
             self.assertEqual(data[-1][0:2],
-                             [[Word("Resource-Error")], [Word("RANGE")]])
+                             [[Op("Resource-Error")], [Op("RANGE")]])
 
     def test_parse_reads_source_text_into_a_program_without_running_it(self):
-        self.assertEqual(run('"1 2 +" parse'), [[1, 2, Word("+")]])
+        self.assertEqual(run('"1 2 +" parse'), [[1, 2, Op("+")]])
         self.assertEqual(run('"" parse'), [[]])
         self.assertEqual(run(r'"(1 (A) \"x\") ; note\n5" parse'),
-                         [[[1, [Word("A")], from_str("x")], 5]])
+                         [[[1, [Op("A")], from_str("x")], 5]])
         self.assertEqual(run('"2 3 *" eval', standard_library=True), [6])
 
     def test_parse_reports_source_errors_as_catchable_syntax_errors(self):
@@ -78,18 +80,18 @@ class WordExecution(unittest.TestCase):
                                     (r'"\"a\\q\""', "bad escape \\q", 1)):
             with self.subTest(code=code):
                 data = run(f"({code} parse) () catch")
-                self.assertEqual(data[-1][:3], [[Word("Syntax-Error")], [Word("PARSE")],
+                self.assertEqual(data[-1][:3], [[Op("Syntax-Error")], [Op("PARSE")],
                                                 [from_str(message), line]])
                 self.assertEqual(len(data), 2)
         data = run('("1 (" eval) () catch', standard_library=True)
-        self.assertEqual([data[0], data[1][0]], [from_str("1 ("), [Word("Syntax-Error")]])
+        self.assertEqual([data[0], data[1][0]], [from_str("1 ("), [Op("Syntax-Error")]])
 
     def test_parse_rejects_what_is_not_source_text(self):
         for code, kind in (("(A)", "Type-Error"), ("5", "Type-Error"),
                            ("(1114112)", "Domain-Error")):
             with self.subTest(code=code):
                 data = run(f"({code} parse) () catch")
-                self.assertEqual(data[-1][:2], [[Word(kind)], [Word("PARSE")]])
+                self.assertEqual(data[-1][:2], [[Op(kind)], [Op("PARSE")]])
 
     def test_tensor_construction_inspection_reshape_get_and_set(self):
         reshaped = [[1, 2, 3, 4, 5, 6], [3, 2]]
@@ -169,7 +171,7 @@ class WordExecution(unittest.TestCase):
                      '(((1 2) (2)) flipud) () catch'):
             with self.subTest(code=code):
                 self.assertEqual(run(code)[-1][0:2],
-                                 [[Word("Shape-Error")], [Word("THROW")]])
+                                 [[Op("Shape-Error")], [Op("THROW")]])
         self.assertEqual(
             run("(1 2 3 4 5 6) (2 3) array () mean "
                 "(1 2 3 4 5 6) (2 3) array 0 mean "
@@ -238,7 +240,7 @@ class WordExecution(unittest.TestCase):
             ('((() (0 1)) 0 (min) ..) () catch', "Domain-Error", "REDUCE"),
             ('((() (0)) () any) () catch', "Domain-Error", "REDUCE"),
             ('((() (0)) () all) () catch', "Domain-Error", "REDUCE"),
-            ('(((1 2) (2)) () (UNDEFINED-WORD) ..) () catch', "Existence-Error", "WORD"),
+            ('(((1 2) (2)) () (UNDEFINED-OP) ..) () catch', "Existence-Error", "EXECUTE"),
             ('((() (0 3)) () mean) () catch', "Domain-Error", "MEAN"),
             ('(() (0 65536 65536) array 0 mean) () catch',
              "Resource-Error", "MEAN"),
@@ -259,10 +261,10 @@ class WordExecution(unittest.TestCase):
         for code, kind, where in cases:
             with self.subTest(code=code):
                 data = run(code)
-                self.assertEqual(data[-1][0:2], [[Word(kind)], [Word(where)]])
+                self.assertEqual(data[-1][0:2], [[Op(kind)], [Op(where)]])
                 if where in ("ADD", "MUL"):
                     self.assertEqual(data[-1][2], [1e308, 1e308])
-                elif where != "WORD":
+                elif where != "EXECUTE":
                     self.assertEqual(data[-1][2], data[:-1])
 
     def test_tensor_broadcast_operators(self):
@@ -295,8 +297,8 @@ class WordExecution(unittest.TestCase):
             ('((1 1) (2) array (1 0) (2) array (/) .) () catch',
              "Domain-Error", "DIV", [1, 0]),
             ('((-1) (1) array 0.5 (^) .) () catch', "Domain-Error", "POW", [-1, 0.5]),
-            ('((1 2) (2) array 1 (UNDEFINED-WORD) .) () catch',
-             "Existence-Error", "WORD", [[Word("UNDEFINED-WORD")]]),
+            ('((1 2) (2) array 1 (UNDEFINED-OP) .) () catch',
+             "Existence-Error", "EXECUTE", [[Op("UNDEFINED-OP")]]),
             ('((1 2) (2) array 1 (dup) .) () catch', "Stack-Error", "BROADCAST", [1, 1]),
             ('(drop drop) (nothing) PUSH ((1 2) (2) array 1 (nothing) .) () catch',
              "Stack-Error", "BROADCAST", [1, 1]),
@@ -306,14 +308,14 @@ class WordExecution(unittest.TestCase):
         for code, kind, where, details in cases:
             with self.subTest(code=code):
                 data = run(code)
-                self.assertEqual(data[-1][0:2], [[Word(kind)], [Word(where)]])
+                self.assertEqual(data[-1][0:2], [[Op(kind)], [Op(where)]])
                 if details is not None:
                     self.assertEqual(data[-1][2], details)
                 self.assertEqual(len(data), 4)
                 if details is None:
                     self.assertEqual(data[-1][2], data[:-1])
 
-    def test_broadcast_runs_any_word_on_each_pair(self):
+    def test_broadcast_runs_any_op_on_each_pair(self):
         self.assertEqual(
             run("(+ dup *) (sumsq) PUSH (1 2 3) (3) array (4 5 6) (3) array (+) . "
                 "(1 2 3) (3) array 5 (max) . (3 1 2) (3) array 2 (//) . "
@@ -323,7 +325,7 @@ class WordExecution(unittest.TestCase):
         self.assertEqual(run("(swap drop 10 swap -) (rsub) PUSH 4 (1 2 3) (3) array (rsub) ."),
                          [[[9, 8, 7], [3]]])
 
-    def test_broadcast_uses_the_current_definition_of_the_word(self):
+    def test_broadcast_uses_the_current_definition_of_the_op(self):
         self.assertEqual(
             run("(1 2 3) (3) array 10 (+) . (drop drop 7) (+) PUSH "
                 "(1 2 3) (3) array 10 (+) . (+) POP drop "
@@ -331,31 +333,31 @@ class WordExecution(unittest.TestCase):
             [[[11, 12, 13], [3]], [[7, 7, 7], [3]], [[11, 12, 13], [3]]],
         )
 
-    def test_broadcast_restores_the_stack_when_the_word_misbehaves(self):
+    def test_broadcast_restores_the_stack_when_the_op_misbehaves(self):
         data = run("(drop drop drop 0) (eat) PUSH "
                    "100 200 ((1 2) (2) array 1 (eat) .) () catch")
-        self.assertEqual(data[:5], [100, 200, [[1, 2], [2]], 1, [Word("eat")]])
-        self.assertEqual(data[5][0:2], [[Word("Stack-Error")], [Word("BROADCAST")]])
+        self.assertEqual(data[:5], [100, 200, [[1, 2], [2]], 1, [Op("eat")]])
+        self.assertEqual(data[5][0:2], [[Op("Stack-Error")], [Op("BROADCAST")]])
 
     def test_invalid_operands_are_catchable_and_restored(self):
-        data = run('("a b" word) () catch')
+        data = run('("a b" selector) () catch')
         self.assertEqual(data[0], from_str("a b"))
-        self.assertEqual(data[1][0], [Word("Representation-Error")])
+        self.assertEqual(data[1][0], [Op("Representation-Error")])
         data = run('(() () consl) () catch')
         self.assertEqual(data[:2], [[], []])
-        self.assertEqual(data[2][0], [Word("Type-Error")])
+        self.assertEqual(data[2][0], [Op("Type-Error")])
 
-    def test_undefined_word_does_not_push_its_name(self):
+    def test_undefined_op_does_not_push_its_name(self):
         with self.assertRaises(AbortSignal):
             run("NOT-DEFINED")
         data = run("(NOT-DEFINED) () catch")
-        self.assertEqual(data[0][0], [Word("Existence-Error")])
-        self.assertEqual(data[0][1], [Word("WORD")])
-        self.assertEqual(data[0][2], [[Word("NOT-DEFINED")]])
+        self.assertEqual(data[0][0], [Op("Existence-Error")])
+        self.assertEqual(data[0][1], [Op("EXECUTE")])
+        self.assertEqual(data[0][2], [[Op("NOT-DEFINED")]])
 
     def test_primitive_stack_protection_and_redefinition(self):
         data = run("((1) (DROP) PUSH) () catch")
-        self.assertEqual(data[-1][0], [Word("Permission-Error")])
+        self.assertEqual(data[-1][0], [Op("Permission-Error")])
         self.assertEqual(run('(DROP) UNLOCK (99) (DROP) PUSH 42 drop (DROP) POP drop'),
                          [42, [], 99])
 
@@ -373,12 +375,12 @@ class WordExecution(unittest.TestCase):
                 "(OP A) () (swap consl) foldr "
                 "(1 OP 3) 2 nth (OP) (1 OP 2) in",
                 standard_library=True),
-            [[Word("OP"), 2, 3], [2, 3, 4], 6, 2,
-             [Word("OP"), Word("A")], [Word("OP")], 1],
+            [[Op("OP"), 2, 3], [2, 3, 4], 6, 2,
+             [Op("OP"), Op("A")], [Op("OP")], 1],
         )
 
-    def test_standard_library_list_operations_preserve_word_elements(self):
-        a, b, c, d = (Word(name) for name in "ABCD")
+    def test_standard_library_list_operations_preserve_op_elements(self):
+        a, b, c, d = (Op(name) for name in "ABCD")
         self.assertEqual(
             run("(A (B C) 3) (D) append "
                 "(A (B C) 3) 2 split (A (B C) 3) 2 sel "
@@ -391,17 +393,17 @@ class WordExecution(unittest.TestCase):
 
     def test_map_rejects_non_unit_callback_results(self):
         data = run("((1) (apply 1 +) map) () catch", standard_library=True)
-        self.assertEqual(data[-1][0], [Word("Type-Error")])
+        self.assertEqual(data[-1][0], [Op("Type-Error")])
 
     def test_mask_keeps_the_elements_where_the_mask_is_true(self):
-        op = Word("OP")
+        op = Op("OP")
         self.assertEqual(run("(1 2 3 4 5) (0 0 1 1 0) mask", standard_library=True), [[3, 4]])
         self.assertEqual(run("(1 2 3 4 5) (1 1) mask", standard_library=True), [[1, 2]],
                          "it stops at the shorter list")
         self.assertEqual(run("() () mask (1 2 3) (0 0 0) mask (1 2 3) (1 1 1) mask", standard_library=True),
                          [[], [], [1, 2, 3]])
         self.assertEqual(run("((1 2) OP 3 (4)) (1 0 2 1) mask ((1 2) OP) (0 1) mask", standard_library=True),
-                         [[[1, 2], 3, [4]], [op]], "positive means true; words and lists are kept as they are")
+                         [[[1, 2], 3, [4]], [op]], "positive means true; ops and lists are kept as they are")
 
     def test_filter_keeps_the_elements_for_which_the_predicate_is_true(self):
         self.assertEqual(run("(1 2 3 4 5 6) (apply 2 mod 0 =) filter", standard_library=True), [[2, 4, 6]])
@@ -424,29 +426,73 @@ class WordExecution(unittest.TestCase):
                 '(1 (2 3) 4) ((2 3) 4) contains (1 2 3) (3 2) contains', standard_library=True),
             [1, 0, 1, 0, 1, 0])
 
+    def test_dip_keep_bi_and_times(self):
+        self.assertEqual(run("1 2 (10 +) dip 5 (dup *) keep 6 (2 *) (3 +) bi", standard_library=True),
+                         [11, 2, 25, 5, 12, 9])
+        self.assertEqual(run("10 1 (2 (3 +) dip) dip", standard_library=True), [13, 2, 1])
+        self.assertEqual(run("0 (1 +) 5 times 0 (1 +) 0 times 0 (1 +) -2 times 0 ((1 +) 3 times) 4 times",
+                             standard_library=True), [5, 0, 0, 12])
+        data = run("(5 (() (Boom) throw) dip) () catch drop 8 7 (1 +) dip", standard_library=True)
+        self.assertEqual(data[-3:], [5, 9, 7], "dip puts x back on top after an error, and a later dip is not affected")
+        self.assertEqual(run("0 ((() (Boom) throw) 3 times) (drop) catch 2drop (1 +) 2 times", standard_library=True),
+                         [2], "times cleans up after an error")
+
+    def test_list_reductions_sorting_and_reshaping(self):
+        x, y, z, w = (Op(name) for name in "xyzw")
+        self.assertEqual(run("(1 2 3 4) sum () sum (1 2 3 4) product () product", standard_library=True),
+                         [10, 0, 24, 1])
+        self.assertEqual(run("(5 3 9 1 3 7) sort () sort (3 1 2) (>=) sortby", standard_library=True),
+                         [[1, 3, 3, 5, 7, 9], [], [3, 2, 1]])
+        self.assertEqual(run("((1 x) (0 y) (1 z) (0 w)) (1 nth apply swap 1 nth apply swap <=) sortby",
+                             standard_library=True),
+                         [[[0, y], [0, w], [1, x], [1, z]]], "sortby is stable")
+        self.assertEqual(run("(1 2 3 4) 1 rotate (1 2 3 4) -1 rotate (1 2 3) 5 rotate () 2 rotate",
+                             standard_library=True), [[2, 3, 4, 1], [4, 1, 2, 3], [3, 1, 2], []])
+        self.assertEqual(run("(1 2 1 (3) 2 (3) x x) dedup () dedup", standard_library=True),
+                         [[1, 2, [3], x], []])
+        self.assertEqual(run("(0 1 2 0 0 3 0) (apply 0 >) partition () (drop 1) partition", standard_library=True),
+                         [[[1, 2], [3]], []])
+        self.assertEqual(run('"  to be\tor\n" () strsplit', standard_library=True), [[from_str("to"), from_str("be"),
+                                                                              from_str("or")]])
+        self.assertEqual(run('"a,,b," "," strsplit "a--b" "--" strsplit "" "," strsplit', standard_library=True),
+                         [[from_str("a"), [], from_str("b"), []], [from_str("a"), from_str("b")], [[]]],
+                         "empty fields are kept with a separator")
+        self.assertEqual(run('("to" "be") ", " strjoin () "," strjoin ("x") "," strjoin', standard_library=True),
+                         [from_str("to, be"), [], from_str("x")])
+        self.assertEqual(run("16 sqrt (-1 sqrt) () catch", standard_library=True)[0], 4)
+
+    def test_table_and_showmatrix(self):
+        self.assertEqual(run("(1 2) (2) array (1 2 3) (3) array (*) table", standard_library=True),
+                         [[[1, 2, 3, 2, 4, 6], [2, 3]]])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            run("(1 2) (2) array (1 2 3) (3) array (-) table showmatrix (7 8) (2) array showmatrix",
+                standard_library=True)
+        self.assertEqual(output.getvalue(), "0 -1 -2\n1 0 -1\n7 8\n")
+
     def test_standard_library_control_and_unfold(self):
         self.assertEqual(
             run("5 unit (A B) unit 0 (dup 5 <) (1 +) loop "
                 "5 ((dup 0 =) (drop 1) (dup 1 - rec *) ifte) lambda "
                 "() 0 (dup 3 =) (1 +) unfoldl "
                 "() 0 (dup 3 =) (1 +) unfoldr", standard_library=True),
-            [[5], [[Word("A"), Word("B")]], 5, 120, [3, 2, 1], [1, 2, 3]],
+            [[5], [[Op("A"), Op("B")]], 5, 120, [3, 2, 1], [1, 2, 3]],
         )
         self.assertEqual(run("2 1.5 ^", standard_library=True), [2**1.5])
         data = run("(-2 0.5 ^) () catch", standard_library=True)
-        self.assertEqual(data[-1][0], [Word("Domain-Error")])
+        self.assertEqual(data[-1][0], [Op("Domain-Error")])
         for code in ("(5 () in) () catch", "((1 2) () in) () catch"):
-            self.assertEqual(run(code, standard_library=True)[-1][0], [Word("Type-Error")])
+            self.assertEqual(run(code, standard_library=True)[-1][0], [Op("Type-Error")])
 
     def test_standard_library_output_never_executes_list_elements(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             data = run('(99) (OP) PUSH "hi!" emits '
-                       '(OP (1 +) "OP" word text) emit nl '
+                       '(OP (1 +) "OP" selector name) emit nl '
                        '(OP (1 +) "OP") ps', standard_library=True)
-        self.assertEqual(out.getvalue(), "hi!(OP (1 +) (79 80) word text)\n"
+        self.assertEqual(out.getvalue(), "hi!(OP (1 +) (79 80) selector name)\n"
                                         "  0: (OP (1 +) (79 80))\n")
-        self.assertEqual(data, [[Word("OP"), [1, Word("+")], from_str("OP")]])
+        self.assertEqual(data, [[Op("OP"), [1, Op("+")], from_str("OP")]])
 
     def test_emit_writes_numbers_and_emitc_a_character(self):
         out = io.StringIO()
@@ -461,17 +507,17 @@ class WordExecution(unittest.TestCase):
                        "(1 -9007199254740994 emit) () catch", standard_library=True)
         self.assertEqual(out.getvalue(), "9007199254740992\n")
         self.assertEqual([value[0] for value in data if isinstance(value, list) and value
-                          and isinstance(value[0], list) and value[0] == [Word("Domain-Error")]],
-                         [[Word("Domain-Error")]] * 2)
+                          and isinstance(value[0], list) and value[0] == [Op("Domain-Error")]],
+                         [[Op("Domain-Error")]] * 2)
 
-    def test_text_rejects_word_elements_without_executing_them(self):
+    def test_text_rejects_op_elements_without_executing_them(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             data = run('(99) (SIDE) PUSH ((SIDE) emits) () catch '
                        '((SIDE) 1 puts) () catch', standard_library=True)
         self.assertEqual(out.getvalue(), "")
         errors = [value for value in data if isinstance(value, list) and value
-                  and value[0] == [Word("Type-Error")]]
+                  and value[0] == [Op("Type-Error")]]
         self.assertEqual(len(errors), 2)
         self.assertNotIn(99, data)
 
@@ -501,17 +547,17 @@ class WordExecution(unittest.TestCase):
         self.assertEqual(data, [[[1, 2], [2]]])
 
     def test_standard_library_display_round_trips_distinct_value_kinds(self):
-        source = '(OP "OP" (OP) (+ word text π) (1 (2 3) ()) ((1 2) (2)) -5 2.5)'
+        source = '(OP "OP" (OP) (+ op text π) (1 (2 3) ()) ((1 2) (2)) -5 2.5)'
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             run(source + " emit", standard_library=True)
         rendered = output.getvalue()
-        self.assertEqual(rendered, "(OP (79 80) (OP) (+ word text π) (1 (2 3) ()) ((1 2) (2)) -5 2.5)")
-        original = lower_word_forms(source)[0][1]
-        self.assertEqual(lower_word_forms(rendered)[0][1], original)
+        self.assertEqual(rendered, "(OP (79 80) (OP) (+ op text π) (1 (2 3) ()) ((1 2) (2)) -5 2.5)")
+        original = lower_op_forms(source)[0][1]
+        self.assertEqual(lower_op_forms(rendered)[0][1], original)
 
 
-class WordSourceExecution(unittest.TestCase):
+class OpSourceExecution(unittest.TestCase):
     def setUp(self):
         self.machine = Machine()
         with contextlib.redirect_stderr(io.StringIO()):
@@ -526,7 +572,7 @@ class WordSourceExecution(unittest.TestCase):
         self.assertTrue(self.execute("() (EXCEPTION) PUSH\nMISSING", "sample.bo", 7))
         self.assertEqual(
             self.machine.data,
-            [[[Word("Existence-Error")], [Word("WORD")], [[Word("MISSING")]],
+            [[[Op("Existence-Error")], [Op("EXECUTE")], [[Op("MISSING")]],
               from_str("sample.bo"), 8]],
         )
         self.machine.data.clear()
@@ -536,7 +582,7 @@ class WordSourceExecution(unittest.TestCase):
         self.assertFalse(self.execute("(drop abort) (EXCEPTION) PUSH MISSING 100"))
         self.assertEqual(self.machine.data, [])
 
-    def test_include_uses_word_lowering_and_tracks_nested_source(self):
+    def test_include_uses_op_lowering_and_tracks_nested_source(self):
         with tempfile.TemporaryDirectory() as directory:
             outer = os.path.join(directory, "outer.bo")
             inner = os.path.join(directory, "inner.bo")
@@ -546,8 +592,8 @@ class WordSourceExecution(unittest.TestCase):
                 file.write(f'"{inner}" include\n2 SUCC\n')
             self.assertTrue(self.execute(f'() (EXCEPTION) PUSH "{outer}" include'))
             error, value = self.machine.data
-            self.assertEqual(error, [[Word("Existence-Error")], [Word("WORD")],
-                                     [[Word("MISSING")]], from_str(inner), 3])
+            self.assertEqual(error, [[Op("Existence-Error")], [Op("EXECUTE")],
+                                     [[Op("MISSING")]], from_str(inner), 3])
             self.assertEqual(value, 3)
             self.machine.data.clear()
             self.assertTrue(self.execute(f'"{outer}" included "{inner}" included'))
@@ -562,10 +608,10 @@ class WordSourceExecution(unittest.TestCase):
         self.assertEqual(self.machine.data[-1], 99)
         self.machine.data.clear()
         self.assertFalse(self.execute("(OTHER-MISSING) (EXCEPTION) PUSH MISSING"))
-        self.assertEqual(self.machine.data[0][0], [Word("Existence-Error")])
-        self.assertEqual(self.machine.data[0][2], [[Word("MISSING")]])
+        self.assertEqual(self.machine.data[0][0], [Op("Existence-Error")])
+        self.assertEqual(self.machine.data[0][2], [[Op("MISSING")]])
 
-    def test_examples_range_with_word_values(self):
+    def test_examples_range_with_op_values(self):
         self.assertTrue(self.execute('"examples/lib.bo" require '
                                      '1 4 range 3 3 range 5 2 range -2 1 range'))
         self.assertEqual(self.machine.data, [[1, 2, 3], [], [], [-2, -1, 0]])
@@ -576,8 +622,8 @@ class WordSourceExecution(unittest.TestCase):
             with open(path, "w", encoding="utf-8") as file:
                 file.write("\n(1\n")
             self.assertTrue(self.execute(f'("{path}" include) () catch'))
-            self.assertEqual(self.machine.data[-1][0], [Word("Syntax-Error")])
-            self.assertEqual(self.machine.data[-1][1], [Word("INCLUDE")])
+            self.assertEqual(self.machine.data[-1][0], [Op("Syntax-Error")])
+            self.assertEqual(self.machine.data[-1][1], [Op("INCLUDE")])
             self.assertEqual(self.machine.data[-1][2][-1], 2)
 
     def test_catch_around_include_catches_runtime_errors_of_the_file(self):
@@ -585,10 +631,10 @@ class WordSourceExecution(unittest.TestCase):
                                      '(INCLUDE-BEFORE) DEPTH (INCLUDE-AFTER) DEPTH'))
         data = self.machine.data
         error = data[2]
-        self.assertEqual(error[:3], [[Word("Domain-Error")], [Word("DIV")], [1, 0]])
+        self.assertEqual(error[:3], [[Op("Domain-Error")], [Op("DIV")], [1, 0]])
         self.assertEqual(error[3:], [from_str("tests/include_failure.bo"), 2])
         self.assertEqual(data[:2] + data[3:], [1, 0, 1, 0])
-        self.assertEqual(self.machine.stacks[WORD_DIAGNOSTICS_KEY], [error])
+        self.assertEqual(self.machine.stacks[OP_DIAGNOSTICS_KEY], [error])
 
     def test_catch_around_nested_includes_and_rethrow_keep_the_original_error(self):
         self.assertTrue(self.execute(
@@ -596,7 +642,7 @@ class WordSourceExecution(unittest.TestCase):
             '(NESTED-AFTER) DEPTH', "outer.bo", 7))
         data = self.machine.data
         self.assertEqual(data[-2:], [5, 0])
-        diagnostics = self.machine.stacks[WORD_DIAGNOSTICS_KEY]
+        diagnostics = self.machine.stacks[OP_DIAGNOSTICS_KEY]
         self.assertEqual(len(diagnostics), 1)
         self.assertEqual(diagnostics[0][3:], [from_str("tests/include_failure.bo"), 2])
 

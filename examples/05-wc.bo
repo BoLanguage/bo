@@ -6,7 +6,7 @@
 ;and naming a stack that holds a number pushes it.
 "examples/lib.bo" require
 
-0 (lines) PUSH 0 (words) PUSH 0 (chars) PUSH 0 (inword) PUSH
+0 (lines) PUSH 0 (nwords) PUSH 0 (chars) PUSH 0 (inword) PUSH
 
 ;count : update the counters for one character code
     (
@@ -19,7 +19,7 @@
         (0 (inword) set)
         (
             (inword 0 =) 
-            ((words) incr) 
+            ((nwords) incr) 
         ift 
         1 (inword) set
         )
@@ -39,4 +39,4 @@ PUSH
 PUSH
 
 readall
-lines emit 32 emitc words emit 32 emitc chars emit nl
+lines emit 32 emitc nwords emit 32 emitc chars emit nl

@@ -1,7 +1,7 @@
 "math.bo" require
 "stream.bo" require
 
-;__ucode: extract a numeric element from a unit without executing a word
+;__ucode: extract a numeric element from a unit without executing an op
 
     (
         (dup unittype 0 =)
@@ -107,7 +107,7 @@ PUSH
     (__emitf)
 PUSH
 
-;emit ( x -- ) write any value as the REPL would show it: a number in decimal (an integer beyond 2^53 is not exact and raises Domain-Error), a word by its name and a list in parentheses; use emits for text and emitc for one character
+;emit ( x -- ) write any value as the REPL would show it: a number in decimal (an integer beyond 2^53 is not exact and raises Domain-Error), an op by its name and a list in parentheses; use emits for a string and emitc for one character
 
     (
         (dup type 1 =)
@@ -123,6 +123,18 @@ PUSH
     (emit)
 PUSH
 
+;say ( x -- ) write x as emit does, then a newline
+
+    (emit nl)
+    (say)
+PUSH
+
+;says ( L -- ) write the string L, then a newline
+
+    (emits nl)
+    (says)
+PUSH
+
 ;? ( n -- ) print yes if n is true, No otherwise, and a newline
 
     (
@@ -134,11 +146,11 @@ PUSH
     (?)
 PUSH
 
-;__emitu: print an element represented by a unit without executing words
+;__emitu: print an element represented by a unit without executing ops
 
     (
         (dup unittype 2 =)
-        (text emits)
+        (name emits)
         (apply emit)
     ifte
     )

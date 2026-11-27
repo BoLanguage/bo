@@ -18,6 +18,6 @@ make -C c wasm                   # builds wasm/build/bo-core.mjs and bo-core.was
 
 `make test-wasm` runs the tests (`tests/test_wasm.py` does too, from the Python suite). Without `fork`, WASM
 workers run one after another in the same process on saved machine state, and `exit` stops only the current
-evaluation (see the top-level README). Private words (`__name`, see the language guide) work as in the other runtimes:
+evaluation (see the top-level README). Private ops (`__name`, see the language guide) work as in the other runtimes:
 the library's helpers are owned by their files, so they stay out of the stack listings, and stepping
-through a library word still shows their names.
+through a library op still shows their names.

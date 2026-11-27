@@ -7,6 +7,7 @@
 "examples/lib.bo" require
 
 ;Newton: x g loop refines the guess g until g*g is close to x
+;(this sqrt shadows the library's sqrt, which uses ^)
     (
         (dup dup * 2 pick - abs 0.000000000001 >)
         (over over / + 2 /)

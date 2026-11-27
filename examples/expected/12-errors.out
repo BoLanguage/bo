@@ -1,7 +1,7 @@
 division by zero:
 Domain-Error DIV (1 0) line 21
-unknown word:
-Existence-Error WORD ((FOO)) line 27
+unknown op:
+Existence-Error EXECUTE ((FOO)) line 27
 wrong type:
 Type-Error MUL (() 3) line 33
 safe division, 8 / 0 -> 0

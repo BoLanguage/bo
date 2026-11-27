@@ -1,0 +1,16 @@
+"include/std.bo" require
+
+;Acrostic, after Uiua:  "Unabashedly I utilize arrays"  ⊸≠@   ⊜⊢
+;split the string into its words (Uiua partitions it by the mask of non-spaces; Bo's
+;partition op does the same), then take the first letter of each.
+
+    (
+    () strsplit
+        (apply 1 nth)
+    map
+    )
+    (acrostic)
+PUSH
+
+"Unabashedly I utilize arrays" acrostic says
+"  Bo   only   loves   ordered   stacks" acrostic says

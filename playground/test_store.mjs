@@ -26,18 +26,18 @@ test("start creates the machine and reports its version", async () => {
     assert.equal(state().ready, true);
     assert.match(state().version, /^\d+\.\d+/);
     assert.equal(state().status, "idle");
-    assert.equal(state().machine.counts.library, 219);
+    assert.equal(state().machine.counts.library, 242);
 });
 
-test("step on an idle machine loads the program paused before its first word", async () => {
+test("step on an idle machine loads the program paused before its first op", async () => {
     const { actions, state } = await create();
     await actions.step("1 2 +");
     assert.equal(state().status, "paused");
-    assert.equal(state().machine.next.word, "+");
+    assert.equal(state().machine.next.op, "+");
     assert.deepEqual(top(state), ["1", "2"]);
     await actions.step("1 2 +");
-    assert.equal(state().machine.next.word, "ADD");
-    assert.equal(state().previous.next.word, "+", "the previous state is kept to mark changes");
+    assert.equal(state().machine.next.op, "ADD");
+    assert.equal(state().previous.next.op, "+", "the previous state is kept to mark changes");
 });
 
 test("run finishes a program and collects output in order", async () => {
@@ -116,7 +116,7 @@ test("the prompt evaluates on the current machine, also while a program is pause
     await actions.evaluate("(3 *) (triple) PUSH 7 triple");
     assert.equal(state().error, null);
     assert.equal(state().status, "paused", "the program stays paused");
-    assert.equal(state().machine.next.word, "+");
+    assert.equal(state().machine.next.op, "+");
     assert.deepEqual(top(state), ["1", "2", "21"]);
     await actions.run("");
     assert.equal(state().status, "done");
@@ -135,13 +135,13 @@ test("Run stops at a breakpoint, then goes on from there", async () => {
     assert.deepEqual(top(state), ["1", "2"]);
 });
 
-test("a fast run also stops at a breakpoint, and Step goes on one word at a time", async () => {
+test("a fast run also stops at a breakpoint, and Step goes on one op at a time", async () => {
     const { actions, state } = await create();
     await actions.runFast("1 @ 2 3 +");
     assert.equal(state().status, "paused");
     assert.equal(state().fast, null);
     assert.deepEqual(top(state), ["1"]);
-    await actions.step("", 1); // the word after the breakpoint is +, after the literals 2 and 3
+    await actions.step("", 1); // the op after the breakpoint is +, after the literals 2 and 3
     assert.equal(state().status, "paused");
     assert.equal(state().machine.breakpoint, false);
     await actions.run("");
@@ -149,7 +149,7 @@ test("a fast run also stops at a breakpoint, and Step goes on one word at a time
     assert.deepEqual(top(state), ["1", "5"]);
 });
 
-test("a breakpoint at the prompt pauses the line; what follows runs there, and the words resume it", async () => {
+test("a breakpoint at the prompt pauses the line; what follows runs there, and the commands resume it", async () => {
     const { actions, state } = await create();
     await actions.evaluate("1 @ 2");
     assert.equal(state().status, "paused");
@@ -183,7 +183,7 @@ test("a prompt line that ends does not replace the status of the program that ra
     assert.equal(state().machine.steps, 0);
 });
 
-test("step and its words are errors at the prompt when nothing is paused", async () => {
+test("step and its commands are errors at the prompt when nothing is paused", async () => {
     const { actions, state } = await create();
     await actions.evaluate("step");
     assert.match(state().output.map((o) => o.text).join(""), /Debug-Error \(STEP\)/);
@@ -247,21 +247,21 @@ test("modes decide what one step is", async () => {
     assert.deepEqual(top(state), ["7", "7"]);
 });
 
-test('the mode "word, over calls" runs what a word calls without stopping in it', async () => {
+test('the mode "op, over calls" runs what an op calls without stopping in it', async () => {
     const program = "(1 +) (inc) PUSH\n5 inc inc\n7";
     const { actions, state } = await create();
     await actions.step(program);
     await actions.step(""); // PUSH runs; the literal 5 is not a step
-    assert.equal(state().machine.next.word, "inc");
+    assert.equal(state().machine.next.op, "inc");
     await actions.step("");
-    assert.equal(state().machine.next.word, "+", "by words, a step goes into the call");
+    assert.equal(state().machine.next.op, "+", "by ops, a step goes into the call");
     const over = await create();
     over.actions.setMode("over");
     await over.actions.step(program);
     await over.actions.step("");
-    assert.equal(over.state().machine.next.word, "inc");
+    assert.equal(over.state().machine.next.op, "inc");
     await over.actions.step("");
-    assert.equal(over.state().machine.next.word, "inc", "the first inc ran as one step");
+    assert.equal(over.state().machine.next.op, "inc", "the first inc ran as one step");
     assert.deepEqual(top(over.state), ["6"]);
     await over.actions.step("");
     assert.equal(over.state().status, "done");
@@ -413,7 +413,7 @@ test("onEvent also reports setup, step, run, reset, clearStacks and abort", asyn
     await actions.reset();
     assert.deepEqual(events.map((e) => e.type), ["setup", "step", "abort", "run", "clearStacks", "reset"]);
     assert.equal(events[0].code, "1 2 3");
-    assert.deepEqual([events[1].code, events[1].count, events[1].mode], ["4 5", 2, "words"]);
+    assert.deepEqual([events[1].code, events[1].count, events[1].mode], ["4 5", 2, "ops"]);
 });
 
 test("onEvent reports a failed setup as an event with its error, and a throwing observer does not break the store", async () => {

@@ -25,8 +25,8 @@ to find the expected results, checks it, and tells you exactly what is wrong if 
 | `tags` | 1 to 3 of `shuffle`, `arithmetic`, `conditional`, `quotation`, `list`, `recursion`, `definition`; the first is the main topic and goes in the title |
 | `goal` | one or two sentences saying what the player must do. `backticks` mark Bo code. Never include the answer |
 | `inputs` | a list of stacks, bottom first. Whole numbers, or lists of whole numbers, only |
-| `solution` | the Bo words that solve it. You never write the expected values: they are what your solution produces |
-| `word` | `define` only: the name the player defines (lowercase, hyphens allowed) |
+| `solution` | the Bo ops that solve it. You never write the expected values: they are what your solution produces |
+| `op` | `define` only: the name of the op the player defines (lowercase, hyphens allowed) |
 | `hints` | 1 to 3 texts for this puzzle, from a gentle nudge to nearly the answer |
 
 You do not write a title, difficulty, check, hint count or reveal text: they are made for you, and the
@@ -34,11 +34,11 @@ report shows them. After `validate_puzzle` look at what your solution produced; 
 fix the solution or the inputs.
 
 **`arrange`**: the player starts with one stack (`inputs` has exactly one) and must leave the stack your
-solution leaves. `solution` is the words applied to it. Good for stack words, arithmetic and small programs.
+solution leaves. `solution` is the ops applied to it. Good for stack ops, arithmetic and small programs.
 
-**`define`**: the player defines a word, called on each of `inputs` (3 to 8 stacks) and compared with what
-your solution gives. `solution` is the body of the word, without parentheses. Use inputs that tell different
-answers apart: a word that does nothing, or always returns the same value, must fail (the report says if not).
+**`define`**: the player defines an op, called on each of `inputs` (3 to 8 stacks) and compared with what
+your solution gives. `solution` is the body of the op, without parentheses. Use inputs that tell different
+answers apart: an op that does nothing, or always returns the same value, must fail (the report says if not).
 
 ## Three examples
 
@@ -63,7 +63,7 @@ example, or the same solution and inputs under new words, is refused.
 {
   "kind": "define",
   "tags": ["definition", "arithmetic"],
-  "word": "twice-plus-one",
+  "op": "twice-plus-one",
   "goal": "Define `twice-plus-one` so that it doubles the number on top of the stack and then adds one.",
   "inputs": [[0], [3], [10], [-4]],
   "solution": "2 * 1 +",
@@ -77,7 +77,7 @@ A list is one value: this puzzle's inputs are stacks holding a single list.
 {
   "kind": "define",
   "tags": ["list", "quotation"],
-  "word": "total",
+  "op": "total",
   "goal": "Define `total` so that it replaces a list of numbers with their sum.",
   "inputs": [[[1, 2, 3]], [[]], [[5]], [[4, 6]]],
   "solution": "0 (apply +) foldl",
@@ -87,18 +87,18 @@ A list is one value: this puzzle's inputs are stacks holding a single list.
 
 ## Good puzzles
 
-- **Make it your own.** Ideas: swap two values; leave the larger of two numbers; define a word that adds
+- **Make it your own.** Ideas: swap two values; leave the larger of two numbers; define an op that adds
   ten, negates, or squares; reverse the top three values; keep only the even numbers of a list; count the
   elements of a list; compute a factorial with recursion.
 - One clear goal, stated exactly, that never contains the answer.
-- Solvable in a few words, but not by guessing: for `define`, use inputs that include an edge case such as 0
+- Solvable with a few ops, but not by guessing: for `define`, use inputs that include an edge case such as 0
   or an empty list.
 - Hints that help without giving the answer away: the concept, then the method.
 - Do not repeat what `list_puzzles` shows. Vary the tags over time.
 
 ## Bo in one minute
 
-Bo is postfix: values go on a stack, words act on it. The top is the rightmost value.
+Bo is postfix: values go on a stack, ops act on it. The top is the rightmost value.
 
 ```bo
 1 2 +          ; leaves 3
@@ -112,8 +112,8 @@ Bo is postfix: values go on a stack, words act on it. The top is the rightmost v
 5 neg          ; -5   (also - * / // mod  and  < > = which give 1 or 0)
 ```
 
-A list in parentheses is a value; it only runs when applied. Define a word by pushing a list onto the
-stack named by the word: `(2 *) (twice) PUSH` defines `twice`.
+A list in parentheses is a value; it only runs when applied. Define an op by pushing a list onto the
+stack named by the op: `(2 *) (twice) PUSH` defines `twice`.
 
 ```bo
 21 (2 *) (twice) PUSH twice                 ; leaves 42
@@ -126,10 +126,10 @@ stack named by the word: `(2 *) (twice) PUSH` defines `twice`.
 ```
 
 Conditions use `ifte` with three quotations: `(condition) (then) (else) ifte`; there is no `if`, `else` or
-`then`. A word can call itself by its name, so the body of a recursive `fact` is
+`then`. An op can call itself by its name, so the body of a recursive `fact` is
 `(dup 1 >) (dup 1 - fact *) (drop 1) ifte`.
 
-Uppercase words are kernel primitives; lowercase ones act on the default stack. This primer and the
-examples are usually all you need: describe the puzzle after at most one or two lookups. When you do need a
-word, call `get_bo_reference` with just a `query` (for example `foldl`); it searches all the documentation
+Uppercase ops are kernel primitives; lowercase ones act on the default stack. This primer and the
+examples are usually all you need: describe the puzzle after at most one or two lookups. When you do need an
+op, call `get_bo_reference` with just a `query` (for example `foldl`); it searches all the documentation
 and returns the matching entries.

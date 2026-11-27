@@ -257,12 +257,12 @@ test("every way of losing the puzzle ends the session as abandoned, and harmless
         assert.ok(!types.some((t) => ["step", "run", "runFast", "restart", "kill", "clearStacks"].includes(t)), `${what}: editor and machine events are not stored`);
     }
     const harmless = {
-        "the Bo word clear": (a) => a.evaluate("clear"),
+        "the Bo op clear": (a) => a.evaluate("clear"),
         "emptying one stack (its icon)": (a) => a.evaluate("() CLEAR"),
         "abort in the debugger": (a) => a.abort(),
         "a wrong guess": (a) => a.evaluate("guess"),
         "an error": (a) => a.evaluate("1 0 /"),
-        "an unknown word": (a) => a.evaluate("no-such-word"),
+        "an unknown op": (a) => a.evaluate("no-such-op"),
     };
     for (const [what, act] of Object.entries(harmless)) {
         const { actions, recorder } = await play();

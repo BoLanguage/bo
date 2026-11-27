@@ -1,6 +1,7 @@
 "logic.bo" require
 "math.bo" require
 "list.bo" require
+"io.bo" require
 
 ;any ( T axis-or-() -- b-or-T' ) test whether any array element is positive, globally or along one axis; an empty slice raises Domain-Error
 
@@ -63,4 +64,35 @@ PUSH
 ;fliplr ( M -- M' ) the columns of the rank-two array M in reverse order (left to right)
     (2 __flipcheck __rev __flipud)
     (fliplr)
+PUSH
+
+;table ( A B U -- T ) apply the binary op held by unit U to every element of the rank-one array A paired with every element of the rank-one array B, giving the rank-two array T with a row for each element of A
+
+    (
+    rot 1 __flipcheck dup shape (1) consr reshape
+    rot 1 __flipcheck rot .
+    )
+    (table)
+PUSH
+
+;showmatrix ( T -- ) write the rank-two array T one row per line, with spaces between the elements; a rank-one array is written as one row
+
+    (
+        (dup rank 1 =)
+        (dup shape (1) consl reshape)
+        (2 __flipcheck)
+    ifte
+    dup shape 2 nth apply (__cols) set
+    unconsl apply nip 0
+        (
+        swap
+            (dup 0 =)
+            ()
+            ((dup (__cols) get mod 0 =) (nl) (32 emitc) ifte)
+        ifte
+        swap apply emit 1 +
+        )
+    foldl drop nl
+    )
+    (showmatrix)
 PUSH

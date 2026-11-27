@@ -1,0 +1,32 @@
+"include/std.bo" require
+
+;Quadratic formula, after Uiua:  Quad 1 ¯3 2
+;the roots of a x^2 + b x + c. Uiua answers with complex numbers; Bo has none,
+;so a negative discriminant is written as re ± im i.
+;The coefficients are kept in named stacks, used here as local variables.
+
+    ((__c) set (__b) set (__a) set)
+    (__coefficients)
+PUSH
+
+    ((__b) get dup * 4 (__a) get * (__c) get * -)
+    (__discriminant)
+PUSH
+
+;a b c quadratic : write the two roots
+    (
+    __coefficients
+    (__b) get neg 2 (__a) get * /           ; -b / 2a
+    __discriminant dup abs sqrt 2 (__a) get * /   ; sqrt|D| / 2a
+    swap
+        (0 <)
+        (swap emit " ± " emits emit "i" says)
+        (2dup + emit 32 emitc - say)
+    ifte
+    )
+    (quadratic)
+PUSH
+
+1 -3 2 quadratic        ; x^2 - 3x + 2 = (x - 1)(x - 2)
+1 -2 1 quadratic        ; a double root
+1 2 5 quadratic         ; complex: -1 ± 2i

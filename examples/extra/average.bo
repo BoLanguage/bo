@@ -1,0 +1,20 @@
+"include/std.bo" require
+
+;Average of a list, after Uiua's first example:  [1 5 8 2]  ⟜/+  ⧻  ÷
+;Uiua keeps the list ("on") while summing; in Bo, dup plays that role.
+
+    (1 5 8 2)
+dup sum         ; 16, the list is kept below
+swap len        ; 4
+/ say           ; 4
+
+;bi runs two programs on the same value, like Uiua's fork ⊃
+(1 5 8 2) (sum) (len) bi / say
+
+;the same as an op, and with the array op mean (an array is a (flat shape) pair)
+    ((sum) (len) bi /)
+    (average)
+PUSH
+
+(3 9 2 7) average say
+(1 5 8 2) (4) array () mean say

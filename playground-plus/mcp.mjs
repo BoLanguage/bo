@@ -32,7 +32,7 @@ export function createMcpServer(service, { client = null, raw = false, briefEasi
     const version = readFileSync(join(ROOT, "VERSION"), "utf8").trim();
     const server = new McpServer({ name: "playground-plus", version }, {
         instructions:
-            "Playground+ lets you write Bo puzzles for the person using it. Call get_bo_guide first: it explains how to describe a puzzle and how to work, and for most puzzles it contains everything you need, so do not spend turns looking words up. " +
+            "Playground+ lets you write Bo puzzles for the person using it. Call get_bo_guide first: it explains how to describe a puzzle and how to work, and for most puzzles it contains everything you need, so do not spend turns looking ops up. " +
             "Then get_brief (it says what to write next) and describe a puzzle, validate_puzzle until it is valid, and submit_puzzle.",
     });
     const submitter = () => ({ client: client ?? server.server.getClientVersion()?.name ?? null });
@@ -48,7 +48,7 @@ export function createMcpServer(service, { client = null, raw = false, briefEasi
 
     server.registerTool("get_bo_reference", {
         title: "Bo language reference",
-        description: "Look up Bo words and rules when the guide's primer is not enough. Pass a query (a word such as \"foldl\" or \"swap\") to search every document at once and get just the matching entries. A topic (language, library, primitives, examples) reads one document; long ones return an outline.",
+        description: "Look up Bo ops and rules when the guide's primer is not enough. Pass a query (an op such as \"foldl\" or \"swap\") to search every document at once and get just the matching entries. A topic (language, library, primitives, examples) reads one document; long ones return an outline.",
         inputSchema: {
             topic: z.enum(Object.keys(REFERENCES)).optional().describe("one document to read; leave it out to search all of them"),
             query: z.string().max(100).optional().describe("a word or phrase to look up; only the entries that mention it are returned"),
@@ -99,8 +99,8 @@ export function createMcpServer(service, { client = null, raw = false, briefEasi
         tags: z.array(z.enum(TAGS)).min(1).max(3).describe("1 to 3 topics; the first is the main one and goes in the title"),
         goal: z.string().describe("what the player must do, in one or two sentences; use `backticks` around Bo code"),
         inputs: z.array(z.array(z.any())).describe("stacks of whole numbers (or lists of whole numbers), bottom first. arrange: exactly one, the start stack. define: 3 to 8, the test inputs"),
-        solution: z.string().describe("Bo words that solve it. arrange: the words applied to the start stack, e.g. rot. define: the body of the word, without parentheses, e.g. 2 * 1 +"),
-        word: z.string().optional().describe("define only: the name of the word the player defines, lowercase with hyphens"),
+        solution: z.string().describe("Bo ops that solve it. arrange: the ops applied to the start stack, e.g. rot. define: the body of the op, without parentheses, e.g. 2 * 1 +"),
+        op: z.string().optional().describe("define only: the name of the op the player defines, lowercase with hyphens"),
         hints: z.array(z.string()).min(1).max(3).describe("1 to 3 texts, from a gentle nudge to a strong one, written for this puzzle"),
     };
 

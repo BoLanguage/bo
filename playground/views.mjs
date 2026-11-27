@@ -45,7 +45,7 @@ function inlineCode(text) {
 const ORIGIN_TITLES = {
     default: "the default stack",
     user: "defined by the program",
-    shadows: "a library word the program redefined",
+    shadows: "a library op the program redefined",
     library: "defined by the standard library",
     kernel: "a kernel primitive",
     empty: "empty",
@@ -216,7 +216,7 @@ export function nextPanel({ status, machine, fast }) {
     const next = machine?.next;
     if (status === "paused" && next) {
         return h("div", { class: "next" },
-            h("code", { class: "word" }, next.word),
+            h("code", { class: "op" }, next.op),
             next.literal
                 ? h("span", { class: "badge", title: `a ${next.literal} that the next step pushes` }, next.literal)
                 : originBadge(next.origin),
@@ -242,12 +242,12 @@ export function nextPanel({ status, machine, fast }) {
 export function promptPlaceholder({ status, machine }, idle) {
     if (status === "ready") return "Program loaded \u00b7 Type step, next, continue or stop, or any Bo to run here";
     if (status !== "paused") return idle;
-    const word = machine?.next?.word;
-    const item = word && (word.length > 24 ? `${word.slice(0, 23)}\u2026` : word);
+    const op = machine?.next?.op;
+    const item = op && (op.length > 24 ? `${op.slice(0, 23)}\u2026` : op);
     return `Paused${item ? ` before ${item}` : ""} \u00b7 Type step, next, continue or stop, or any Bo to run here`;
 }
 
-/** Nested programs being run, innermost first, with the position of the next word. */
+/** Nested programs being run, innermost first, with the position of the next op. */
 export function framesPanel(machine) {
     const frames = machine?.frames ?? [];
     if (!frames.length) return h("p", { class: "empty" }, "No program is running.");

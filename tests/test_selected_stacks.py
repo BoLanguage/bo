@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from python.bo.machine import Machine
-from python.bo.values import Word, canon, from_str
+from python.bo.values import Op, canon, from_str
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,8 +25,8 @@ WRAPPERS = {
     "^": "POW", "=": "EQUAL", "open": "OPEN", "close": "CLOSE",
     "read": "READ", "write": "WRITE", "catch": "CATCH", "throw": "THROW",
     "call": "CALL", "rethrow": "RETHROW",
-    "exit": "EXIT", "abort": "ABORT", "unittype": "UNITTYPE", "word": "WORD",
-    "text": "TEXT", "include": "INCLUDE", "included": "INCLUDED", "parse": "PARSE", "lexicon": "LEXICON",
+    "exit": "EXIT", "abort": "ABORT", "unittype": "UNITTYPE", "selector": "SELECTOR",
+    "name": "NAME", "include": "INCLUDE", "included": "INCLUDED", "parse": "PARSE", "lexicon": "LEXICON",
     "array": "ARRAY", "shape": "SHAPE", "rank": "RANK", "reshape": "RESHAPE",
     "chunk": "CHUNK", "concat": "CONCAT",
     "dot": "DOT", "mean": "MEAN",
@@ -106,13 +106,13 @@ class SelectedStackPrimitives(unittest.TestCase):
                          [8, [7, 8], 2, 8, 7])
         self.assertEqual(run("(MISSING) SNAPSHOT (MISSING) DEPTH"), [[], 0])
         self.assertEqual(run("7 (WORK) PUSH (WORK) UNIT (WORK) POP"), [[7]])
-        self.assertEqual(run("(A B) unit () unit"), [[[Word("A"), Word("B")]], [[]]])
-        self.assertEqual(run("(unit) POP"), [[[], Word("UNIT")]])
+        self.assertEqual(run("(A B) unit () unit"), [[[Op("A"), Op("B")]], [[]]])
+        self.assertEqual(run("(unit) POP"), [[[], Op("UNIT")]])
 
     def test_stack_key_predicates_and_presence(self):
         self.assertEqual(
-            run('"include/value.bo" require () isword (WORK) isword (42) isword '
-                "(WORK OTHER) isword 42 isword"),
+            run('"include/value.bo" require () isselector (WORK) isselector (42) isselector '
+                "(WORK OTHER) isselector 42 isselector"),
                          [1, 1, 0, 0, 0])
         self.assertEqual(
             run('"include/std.bo" require 42 isnumber () isnumber () islist (WORK) islist '
@@ -131,11 +131,11 @@ class SelectedStackPrimitives(unittest.TestCase):
         )
         self.assertEqual(
             run("(42 EXISTS) () catch")[-1][:2],
-            [[Word("Type-Error")], [Word("EXISTS")]],
+            [[Op("Type-Error")], [Op("EXISTS")]],
         )
         self.assertEqual(
             run("(42 LOCKED) () catch")[-1][:2],
-            [[Word("Type-Error")], [Word("LOCKED")]],
+            [[Op("Type-Error")], [Op("LOCKED")]],
         )
 
     def test_locked_stack_allows_reads_but_rejects_mutation(self):
@@ -150,13 +150,13 @@ class SelectedStackPrimitives(unittest.TestCase):
                       "OUTER", "MATMUL",
                       "OPEN", "CLOSE", "READ",
                       "WRITE", "INCLUDE", "INCLUDED", "CATCH", "THROW", "EXIT", "UNITTYPE",
-                      "WORD", "TEXT", "CLEAR")
+                      "SELECTOR", "NAME", "CLEAR")
         for operation in operations:
             with self.subTest(operation=operation):
                 data = run(f"1 (WORK) PUSH 2 (WORK) PUSH (WORK) LOCK "
                            f"((WORK) {operation}) () catch (WORK) SNAPSHOT (WORK) TOP (WORK) DEPTH")
-                self.assertEqual(data[0][0], [Word("Permission-Error")])
-                self.assertEqual(data[0][1], [Word(operation)])
+                self.assertEqual(data[0][0], [Op("Permission-Error")])
+                self.assertEqual(data[0][1], [Op(operation)])
                 self.assertEqual(data[1:], [[1, 2], 2, 2])
         self.assertEqual(run("1 (WORK) PUSH (WORK) LOCK (WORK) UNLOCK "
                              "(WORK) DROP (WORK) SNAPSHOT"), [[]])
@@ -169,9 +169,9 @@ class SelectedStackPrimitives(unittest.TestCase):
         for operation in ("TOP", "POP"):
             with self.subTest(operation=operation):
                 data = run(f"((MISSING) {operation}) () catch")
-                self.assertEqual(data[0], [Word("MISSING")])
-                self.assertEqual(data[1][0], [Word("Stack-Error")])
-                self.assertEqual(data[1][1], [Word(operation)])
+                self.assertEqual(data[0], [Op("MISSING")])
+                self.assertEqual(data[1][0], [Op("Stack-Error")])
+                self.assertEqual(data[1][1], [Op(operation)])
 
     def test_split(self):
         cases = (
@@ -179,7 +179,7 @@ class SelectedStackPrimitives(unittest.TestCase):
             ("(1 2 3)", 0, [], [1, 2, 3]),
             ("(1 2 3)", 2, [1, 2], [3]),
             ("(1 2 3)", 3, [1, 2, 3], []),
-            ("(A (B C) 3)", 2, [Word("A"), [Word("B"), Word("C")]], [3]),
+            ("(A (B C) 3)", 2, [Op("A"), [Op("B"), Op("C")]], [3]),
         )
         for source, count, left, right in cases:
             with self.subTest(source=source, count=count):
@@ -219,30 +219,30 @@ class SelectedStackPrimitives(unittest.TestCase):
                                  ("(1 (1) () LOOP) () catch", "Type-Error")):
                 machine.data.clear()
                 self.assertTrue(machine.execute(source))
-                self.assertEqual(machine.data[-1][0], [Word(kind)], source)
-                self.assertEqual(machine.data[-1][1], [Word("LOOP")], source)
+                self.assertEqual(machine.data[-1][0], [Op(kind)], source)
+                self.assertEqual(machine.data[-1][1], [Op("LOOP")], source)
 
-    def test_errors_identify_word_dispatch_and_selected_primitives(self):
+    def test_errors_identify_op_dispatch_and_selected_primitives(self):
         machine = Machine()
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertTrue(machine.include_file("include/core.bo"))
             self.assertTrue(machine.include_file("include/std.bo"))
             self.assertTrue(machine.execute("(1 2 ADD) () catch"))
             self.assertEqual(machine.data[:2], [1, 2])
-            self.assertEqual(machine.data[-1][0], [Word("Type-Error")])
-            self.assertEqual(machine.data[-1][1], [Word("ADD")])
+            self.assertEqual(machine.data[-1][0], [Op("Type-Error")])
+            self.assertEqual(machine.data[-1][1], [Op("ADD")])
             machine.data.clear()
             self.assertTrue(machine.execute("(IFTE) () catch"))
-            self.assertEqual(machine.data[-1][0], [Word("Stack-Error")])
-            self.assertEqual(machine.data[-1][1], [Word("IFTE")])
+            self.assertEqual(machine.data[-1][0], [Op("Stack-Error")])
+            self.assertEqual(machine.data[-1][1], [Op("IFTE")])
             machine.data.clear()
-            self.assertTrue(machine.execute("(WORD) () catch"))
-            self.assertEqual(machine.data[-1][0], [Word("Stack-Error")])
-            self.assertEqual(machine.data[-1][1], [Word("WORD")])
+            self.assertTrue(machine.execute("(SELECTOR) () catch"))
+            self.assertEqual(machine.data[-1][0], [Op("Stack-Error")])
+            self.assertEqual(machine.data[-1][1], [Op("SELECTOR")])
             machine.data.clear()
             self.assertTrue(machine.execute("(NOT-DEFINED) () catch"))
-            self.assertEqual(machine.data[-1][0], [Word("Existence-Error")])
-            self.assertEqual(machine.data[-1][1], [Word("WORD")])
+            self.assertEqual(machine.data[-1][0], [Op("Existence-Error")])
+            self.assertEqual(machine.data[-1][1], [Op("EXECUTE")])
 
     def test_lowercase_wrappers_select_the_default_stack(self):
         self.assertEqual(run("1 2 + 9 0.5 ^"), [3, 3])
@@ -252,18 +252,18 @@ class SelectedStackPrimitives(unittest.TestCase):
         self.assertEqual(machine.data, [])
         for name in WRAPPERS:
             with self.subTest(name=name):
-                self.assertNotIn(canon([Word(name)]), machine.stacks)
+                self.assertNotIn(canon([Op(name)]), machine.stacks)
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertTrue(machine.include_file("include/core.bo"))
-        self.assertNotIn(canon([Word("isword")]), machine.stacks)
+        self.assertNotIn(canon([Op("isselector")]), machine.stacks)
         for name, primitive in WRAPPERS.items():
             with self.subTest(name=name):
-                key = canon([Word(name)])
-                self.assertEqual(machine.stacks[key], [[[], Word(primitive)]])
+                key = canon([Op(name)])
+                self.assertEqual(machine.stacks[key], [[[], Op(primitive)]])
                 self.assertNotIn(key, machine.locked)
         self.assertEqual(run("(+) POP (::) POP"),
-                         [[[], Word("ADD")],
-                          [[], Word("RANGE")]])
+                         [[[], Op("ADD")],
+                          [[], Op("RANGE")]])
 
     def test_stack_primitives_work_without_a_library_and_are_locked(self):
         self.assertEqual(
@@ -272,7 +272,7 @@ class SelectedStackPrimitives(unittest.TestCase):
             [2, 7, 42],
         )
         data = run("(1 (DROP) PUSH) () () CATCH", default_library=False)
-        self.assertEqual(data[-1][0], [Word("Permission-Error")])
+        self.assertEqual(data[-1][0], [Op("Permission-Error")])
 
     def test_library_loading_does_not_replace_wrapper_redefinitions(self):
         machine = Machine()
@@ -282,7 +282,7 @@ class SelectedStackPrimitives(unittest.TestCase):
             self.assertTrue(machine.include_file("include/std.bo"))
             self.assertTrue(machine.execute("+ (+) POP 1 2 +"))
         self.assertEqual(machine.data, [99, [99], 3])
-        self.assertEqual(machine.stacks[canon([Word("+")])], [[[], Word("ADD")]])
+        self.assertEqual(machine.stacks[canon([Op("+")])], [[[], Op("ADD")]])
 
     def test_library_loading_does_not_restore_removed_wrappers(self):
         machine = Machine()
@@ -291,10 +291,10 @@ class SelectedStackPrimitives(unittest.TestCase):
             self.assertTrue(machine.execute("(^) POP drop"))
             self.assertTrue(machine.include_file("include/std.bo"))
             self.assertTrue(machine.execute("(^) () catch"))
-        self.assertEqual(machine.data[0][0], [Word("Existence-Error")])
-        self.assertEqual(machine.data[0][2], [[Word("^")]])
+        self.assertEqual(machine.data[0][0], [Op("Existence-Error")])
+        self.assertEqual(machine.data[0][2], [[Op("^")]])
 
-    def test_other_library_words_require_explicit_include(self):
+    def test_other_library_ops_require_explicit_include(self):
         machine = Machine()
         error_output = io.StringIO()
         with contextlib.redirect_stderr(error_output):

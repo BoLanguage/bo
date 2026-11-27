@@ -10,8 +10,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from python.bo.lower import lower_word_forms
-from python.bo.values import Word
+from python.bo.lower import lower_op_forms
+from python.bo.values import Op
 from bodoc import DERIVED_SOURCES, parse_derived
 from generate_adapters import native_names
 
@@ -32,42 +32,42 @@ def primitive_actions():
 def adapter_names(path):
     items = [
         item
-        for _, form in lower_word_forms(path.read_text(encoding="utf-8"))
+        for _, form in lower_op_forms(path.read_text(encoding="utf-8"))
         for item in form
     ]
     names = []
     for definition, selector, action in zip(items, items[1:], items[2:]):
-        if (action == Word("PUSH") and isinstance(definition, list)
+        if (action == Op("PUSH") and isinstance(definition, list)
                 and isinstance(selector, list) and len(selector) == 1
-                and isinstance(selector[0], Word)):
+                and isinstance(selector[0], Op)):
             names.append(selector[0].name)
     return names
 
 
-def library_words():
+def library_ops():
     names = adapter_names(CORE_LIBRARY)
     for path in DERIVED_SOURCES:
         names.extend(entry["name"] for entry in parse_derived(path))
     return list(dict.fromkeys(names))
 
 
-def word_pattern(words):
-    return rf'(?<![^\s()"])(?:{"|".join(re.escape(word) for word in words)})(?![^\s()"])'
+def op_pattern(ops):
+    return rf'(?<![^\s()"])(?:{"|".join(re.escape(op) for op in ops)})(?![^\s()"])'
 
 
 def qualified_action_pattern(actions):
     return rf'(?<=\.)(?:{"|".join(re.escape(action) for action in actions)})(?![^\s()"])'
 
 
-def is_qualified(word):
-    """A dotted word such as `Stack.dup`; words starting with a dot (`.`, `.5`-like) are not."""
-    return "." in word and not word.startswith(".")
+def is_qualified(op):
+    """A dotted op such as `Stack.dup`; ops starting with a dot (`.`, `.5`-like) are not."""
+    return "." in op and not op.startswith(".")
 
 
-def qualified_actions(words):
-    """Names that may follow a qualifier: the last segment of every word not starting with a dot."""
+def qualified_actions(ops):
+    """Names that may follow a qualifier: the last segment of every op not starting with a dot."""
     return list(dict.fromkeys(
-        word.rpartition(".")[2] for word in words if not word.startswith(".")
+        op.rpartition(".")[2] for op in ops if not op.startswith(".")
     ))
 
 
@@ -77,11 +77,11 @@ def updated_grammar():
     repository["primitive"]["match"] = (
         qualified_action_pattern(primitive_actions())
         + "|"
-        + word_pattern(primitive_names())
+        + op_pattern(primitive_names())
     )
-    adapters = library_words()
+    adapters = library_ops()
     repository["adapter"]["match"] = (
-        word_pattern([adapter for adapter in adapters if not is_qualified(adapter)])
+        op_pattern([adapter for adapter in adapters if not is_qualified(adapter)])
         + "|"
         + qualified_action_pattern(qualified_actions(adapters))
     )
@@ -102,7 +102,7 @@ def updated_jupyter_language():
         + typescript_strings(primitive_names())
         + "\n]);\n\n"
         "export const adapterNames = new Set<string>([\n"
-        + typescript_strings(library_words())
+        + typescript_strings(library_ops())
         + "\n]);\n"
     )
 

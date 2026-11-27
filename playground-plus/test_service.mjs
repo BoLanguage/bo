@@ -99,7 +99,7 @@ test("copying an existing puzzle, a built-in one or a guide example is refused, 
 test("a spec is built, validated and stored with its spec, title, tags and difficulty; a retry is a repeat", async () => {
     const { repository, service } = create({ now: () => 7000 });
     const spec = {
-        kind: "define", tags: ["definition", "arithmetic"], word: "thrice-minus-one",
+        kind: "define", tags: ["definition", "arithmetic"], op: "thrice-minus-one",
         goal: "Define `thrice-minus-one` so that it triples the number on top and then subtracts one.",
         inputs: [[0], [3], [10], [-4]], solution: "3 * 1 -", hints: ["Triple first, then subtract one."],
     };
@@ -236,7 +236,7 @@ test("the profile counts outcomes, by difficulty and by tag, and the history lis
     assert.equal(service.listPuzzles().find((p) => p.id === "a").plays, 4, "plays count every session");
 });
 
-test("the statistics: first plays only for the player, every attempt for an agent, words typed against the best known answer", async () => {
+test("the statistics: first plays only for the player, every attempt for an agent, tokens typed against the best known answer", async () => {
     const { repository, service } = create({ now: () => 10 * 86_400_000 });
     repository.addPuzzle({ id: "a", title: "A", goal: "g", source: "s", package: { tags: ["shuffle"], difficulty: 1, bestKnownLength: 2 } });
     repository.addPuzzle({ id: "b", title: "B", goal: "g", source: "s", package: { tags: ["list"], difficulty: 3, bestKnownLength: 1 } });
@@ -248,7 +248,7 @@ test("the statistics: first plays only for the player, every attempt for an agen
         ]);
         if (outcome) repository.endSession(id, outcome, start + 30_000);
     };
-    // the player: a solved in 5 words (best 2), then replayed (not counted); b abandoned
+    // the player: a solved in 5 tokens (best 2), then replayed (not counted); b abandoned
     play({ puzzleId: "a", start: 1_000_000, outcome: "solved", lines: ["swap dup", "rot guess", "hint"], hints: 1 });
     play({ puzzleId: "a", start: 2_000_000, outcome: "solved", lines: ["swap guess"] });
     play({ puzzleId: "b", start: 3_000_000, outcome: "abandoned", lines: ["1 2 +"] });
@@ -261,14 +261,14 @@ test("the statistics: first plays only for the player, every attempt for an agen
     const stats = service.getStatistics();
     assert.deepEqual([stats.you.played, stats.you.solved, stats.you.abandoned], [2, 1, 1], "the replay of a is not counted");
     assert.equal(stats.you.meanDifficulty, 2, "difficulties 1 and 3");
-    assert.equal(stats.you.meanWordsToSolve, 3, "swap dup, rot; guess and hint are not words that try an answer");
-    assert.equal(stats.you.meanLengthRatio, 1.5, "3 words against a best known answer of 2");
+    assert.equal(stats.you.meanTokensToSolve, 3, "swap dup, rot; guess and hint are not tokens that try an answer");
+    assert.equal(stats.you.meanLengthRatio, 1.5, "3 tokens against a best known answer of 2");
     assert.equal(stats.you.solveRate, 1, "solved over finished: the abandoned one is not finished");
     assert.deepEqual(Object.keys(stats.you.byDifficulty), ["1", "3"]);
     assert.equal(stats.you.byTag.list.played, 1);
 
     assert.deepEqual(stats.agents.map((a) => [a.model, a.played, a.solved]), [["gemma", 3, 2], ["qwen", 1, 0]], "every attempt of an agent counts, by model");
-    assert.equal(stats.agents[0].meanWordsToSolve, 2, "swap (1 word) and (1 +) (inc) PUSH (3 words)");
+    assert.equal(stats.agents[0].meanTokensToSolve, 2, "swap (1 token) and (1 +) (inc) PUSH (3 tokens)");
     assert.equal(stats.agents[0].meanLengthRatio, 1.8, "0.5 of the best known answer of a and 3 times that of b: 1.75, shown to one decimal");
     assert.deepEqual([stats.data.sessions, stats.data.promptLines, stats.data.replays, stats.data.puzzles], [3, 5, 1, 2], "the data panel counts the player's own history, replays included");
     assert.equal(stats.data.since, new Date(1_000_000).toISOString());
@@ -331,7 +331,7 @@ test("a waiting request shapes the brief and is answered by the puzzle that foll
 test("the guide is complete: its code blocks run, and its spec examples are valid puzzles", async () => {
     const { service } = create();
     const guide = service.getGuide();
-    for (const field of ["kind", "tags", "goal", "inputs", "solution", "word", "hints"]) assert.ok(guide.includes(`\`${field}\``), `the guide describes ${field}`);
+    for (const field of ["kind", "tags", "goal", "inputs", "solution", "op", "hints"]) assert.ok(guide.includes(`\`${field}\``), `the guide describes ${field}`);
     assert.doesNotMatch(guide, /;@puzzle|puzzle\.require|snapshot/, "the guide no longer teaches the file format");
     const blocks = [...guide.matchAll(/```bo\n([\s\S]*?)```/g)].map((m) => m[1]);
     assert.ok(blocks.length >= 2);
@@ -363,7 +363,7 @@ test("without a topic, a query searches every document and no query lists the to
     assert.match(topics, /^Topics: language \(\d+ KB\), library \(\d+ KB\), primitives \(\d+ KB\), examples \(\d+ KB\)\./);
     const swap = service.getReference(undefined, { query: "swap" });
     assert.match(swap, /^Entries mentioning "swap":/);
-    assert.match(swap, /=== library/, "the word is in the library document, which the caller did not need to name");
+    assert.match(swap, /=== library/, "the op is in the library document, which the caller did not need to name");
     assert.match(swap, /\| `swap` \|/);
     assert.ok(swap.length <= REFERENCE_LIMIT + 800);
     assert.match(service.getReference(undefined, { query: "rot" }), /\| `rot` \|/);

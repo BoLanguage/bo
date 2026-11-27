@@ -15,7 +15,7 @@ class LibraryDocTests(unittest.TestCase):
                 self.assertEqual(path.read_text(encoding="utf-8"), content,
                                  "run: python3 tools/bodoc.py")
 
-    def test_library_inventory_has_adapters_and_derived_words_but_hides_helpers(self):
+    def test_library_inventory_has_adapters_and_derived_ops_but_hides_helpers(self):
         library = bodoc.LIBRARY_OUT.read_text(encoding="utf-8")
         self.assertIn("# Standard library", library)
         self.assertIn("### Stack", library)
@@ -90,7 +90,7 @@ class LibraryDocTests(unittest.TestCase):
         from tempfile import TemporaryDirectory
 
         with TemporaryDirectory() as directory:
-            path = Path(directory) / "words.bo"
+            path = Path(directory) / "ops.bo"
             path.write_text(
                 ";public ( L -- n ) count values\n"
                 ";helper internal implementation detail\n"
@@ -98,7 +98,7 @@ class LibraryDocTests(unittest.TestCase):
             )
             self.assertEqual(
                 bodoc.parse_derived(path),
-                [{"name": "public", "group": "Words", "type": "derived", "effect": "L -- n",
+                [{"name": "public", "group": "Ops", "type": "derived", "effect": "L -- n",
                   "description": "count values"}],
             )
 

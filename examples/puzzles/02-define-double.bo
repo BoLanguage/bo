@@ -1,5 +1,5 @@
 ;@puzzle
-;@title Define a word
+;@title Define an op
 ;@goal Define `twicer` so that it doubles its input.
 ;@hints 1
 ;@tags quotation
@@ -8,7 +8,7 @@
 ;@right (dup +) (twicer) PUSH guess
 ;@wrong (3 *) (twicer) PUSH guess
 ;@description
-; A word definition is a quotation pushed onto its named stack.
+; An op definition is a quotation pushed onto its named stack.
 ; Create a quotation that multiplies its input by two, then push it onto `twicer`.
 ; Run `guess` to check it.
 ;@enddescription

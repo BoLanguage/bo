@@ -54,13 +54,13 @@ apply
 ```
 
 The first line pushes one list. `apply` unquotes its elements, which executes `+` leaving `3`.
-Words can also be kept in a list as data:
+Ops can also be kept in a list as data:
 
 ```bo
 (dup)
 ```
 
-This pushes the word `dup` inside a one-element list. It does not execute
+This pushes the op `dup` inside a one-element list. It does not execute
 `dup`.
 
 ## 3. Stack operations rearrange values
@@ -88,7 +88,7 @@ Python REPL, `ps` prints it; `clear` restores an empty stack.
 
 ## 4. Definitions are values on named stacks
 
-A Bo word names a stack. Executing the word normally runs the list on top of
+A Bo op names a stack. Executing the op normally runs the list on top of
 that stack. Define `double` by pushing a quotation onto the stack named
 `double`:
 
@@ -104,7 +104,7 @@ clear 5 double
 ```
 
 The result is `10`. `(2 *)` is the body, while `(double)` is a stack selector:
-a one-element list containing the word `double`. `PUSH` transfers the body
+a one-element list containing the op `double`. `PUSH` transfers the body
 from the default stack to that named stack.
 
 Definitions can be replaced:
@@ -154,7 +154,7 @@ Run it:
 5 fact
 ```
 
-The result is `120`. The word calls itself because `fact` is resolved when the
+The result is `120`. The op calls itself because `fact` is resolved when the
 body runs, rather than frozen when it is defined.
 
 ## 6. Stacks can hold data as well as code
@@ -186,7 +186,7 @@ number for a variable.
 
 ## 7. One complete interaction
 
-These lines define a tiny absolute-value word and show the result:
+These lines define a tiny absolute-value op and show the result:
 
 ```bo
 "include/std.bo" require
@@ -208,9 +208,9 @@ The final default stack contains `12 12`.
 
 ## What to read next
 
-- [Language](language.md) explains values, evaluation, words, errors and private words (`__name`) for helpers.
-- [Primitives](primitives.md) documents kernel operations and stack effects.
-- [Library](library.md) documents default-stack wrappers and derived words.
+- [Language](language.md) explains values, evaluation, ops, errors and private ops (`__name`) for helpers.
+- [Primitives](primitives.md) documents kernel primitives and stack effects.
+- [Library](library.md) documents default-stack wrappers and derived ops.
 - [Examples](examples.md) contains larger recursive, list-processing and concurrent programs.
 - [The playground](../playground/README.md) explains the editor, debugger, puzzles and stack visualizer.
 

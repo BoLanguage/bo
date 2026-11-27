@@ -11,10 +11,10 @@ static double bo_h_div(double x, double y);
 static double bo_h_idiv(double x, double y);
 static void swap_data(Stack *a, Stack *b);
 
-static Val word_unit(const char *name) { return list_of1(from_word(as_list(str_list(name)))); }
+static Val op_unit(const char *name) { return list_of1(from_op(as_list(str_list(name)))); }
 
 static int bo_err(Machine *m, const char *kind, const char *where, Val data) {
-    m->err_kind = word_unit(kind);
+    m->err_kind = op_unit(kind);
     m->err_where = where;
     m->err_data = data;
     return 1;
@@ -94,11 +94,11 @@ static Stack *stack_lookup(Machine *m, Val key, int create) {
     return found->exists || create ? found : NULL;
 }
 
-/* a stack named by one private word */
+/* a stack named by one private op */
 static int stack_is_private(const Stack *s) {
     if (!s->key || !is_list(s->key)) return 0;
     List *key = as_list(s->key);
-    return key->len == 1 && is_word(key->items[0]) && as_word(key->items[0])->owner;
+    return key->len == 1 && is_op(key->items[0]) && as_op(key->items[0])->owner;
 }
 
 /* ------------------------------------------------------------------ compiled code */
@@ -219,8 +219,8 @@ static void render(Buf *b, Val v) {
             render(b, l->items[i]);
         }
         buf_str(b, ")");
-    } else if (is_word(v)) {
-        codes_to_utf8(from_list(as_word(v)), b);
+    } else if (is_op(v)) {
+        codes_to_utf8(from_list(as_op(v)), b);
     } else {
         fmt_number(b, as_num(v));
     }
@@ -249,7 +249,7 @@ static void parallel_write(FILE *out, char tag, Val value) {
 
 static Val parallel_abort_error(Machine *m) {
     Val parts[5] = {
-        word_unit("Evaluation-Error"), word_unit("PARALLEL"),
+        op_unit("Evaluation-Error"), op_unit("PARALLEL"),
         list_from(NULL, 0), str_list(m->source), from_num(m->line)
     };
     return list_from(parts, 5);
@@ -264,10 +264,10 @@ static void parallel_child(Machine *m, Val item, Val quotation, FILE *out) {
 
     Val marker = list_of1(from_num(0));
     Val default_stack = list_from(NULL, 0);
-    Val apply_items[3] = {quotation, default_stack, from_word(as_list(str_list("APPLY")))};
+    Val apply_items[3] = {quotation, default_stack, from_op(as_list(str_list("APPLY")))};
     Val attempt = list_from(apply_items, 3);
     Val handler = list_of1(marker);
-    Val catch_items[4] = {attempt, handler, default_stack, from_word(as_list(str_list("CATCH")))};
+    Val catch_items[4] = {attempt, handler, default_stack, from_op(as_list(str_list("CATCH")))};
     Val catch_program = list_from(catch_items, 4);
     size_t root_mark = m->nroots;
     root_add(m, catch_program);
@@ -313,7 +313,7 @@ static int parallel_read(FILE *in, char *tag, Val *value) {
     }
     Forms forms = {0};
     LowerErr error;
-    int bad = lower_word_forms(text, text_len, 1, 0, &forms, &error);
+    int bad = lower_op_forms(text, text_len, 1, 0, &forms, &error);
     free(text);
     if (bad || forms.n != 1 || !is_list(forms.f[0].list) ||
         as_list(forms.f[0].list)->len != 1 ||
@@ -587,7 +587,7 @@ static void fail(Machine *m) {
         el = m->err_original;
         m->err_original = 0;
     } else {
-        Val parts[5] = {m->err_kind, word_unit(m->err_where ? m->err_where : "WORD"), m->err_data,
+        Val parts[5] = {m->err_kind, op_unit(m->err_where ? m->err_where : "EXECUTE"), m->err_data,
                         str_list(m->source), from_num(m->line)};
         el = list_from(parts, 5);
         spush(m->diagnostics, el);
@@ -704,37 +704,37 @@ static double floordiv(double x, double y);
 
 /* ------------------------------------------------------------------ compiler */
 
-static int hot_of(const Op *op) {
-    switch (op->kind) {
-    case OP_PUSH: return H_PUSH;
-    case OP_SPECIALIZED: return op->hot;
-    case OP_IFTE_GUARD: return H_NOP; /* hot code runs only at its compiled epoch */
-    case OP_JMP: return H_JMP;
-    case OP_BR: case OP_BRL: return H_BR;
-    case OP_LOOP_GUARD: return H_NOP;
+static int hot_of(const Instr *ins) {
+    switch (ins->kind) {
+    case I_PUSH: return H_PUSH;
+    case I_SPECIALIZED: return ins->hot;
+    case I_IFTE_GUARD: return H_NOP; /* hot code runs only at its compiled epoch */
+    case I_JMP: return H_JMP;
+    case I_BR: case I_BRL: return H_BR;
+    case I_LOOP_GUARD: return H_NOP;
     }
     return H_COLD;
 }
 
-typedef struct { Op *ops; int n, cap, src; } Cb;
+typedef struct { Instr *instrs; int n, cap, src; } Cb;
 
-static int cb_emit(Cb *b, Op op) {
+static int cb_emit(Cb *b, Instr ins) {
     if (b->n == b->cap) {
         b->cap = b->cap ? b->cap * 2 : 32;
-        b->ops = realloc(b->ops, (size_t)b->cap * sizeof(Op));
+        b->instrs = realloc(b->instrs, (size_t)b->cap * sizeof(Instr));
     }
-    op.src = b->src;
-    b->ops[b->n] = op;
+    ins.src = b->src;
+    b->instrs[b->n] = ins;
     return b->n++;
 }
 
 #define INLINE_MAX_OPS 4000
 #define INLINE_MAX_DEPTH 6
 
-static int pushed_list(Cb *b, int i) { return b->ops[i].kind == OP_PUSH && is_list(b->ops[i].v); }
+static int pushed_list(Cb *b, int i) { return b->instrs[i].kind == I_PUSH && is_list(b->instrs[i].v); }
 
 static int name_is(Val name, const char *text) {
-    List *codes = is_word(name) ? as_word(name) : is_list(name) ? as_list(name) : NULL;
+    List *codes = is_op(name) ? as_op(name) : is_list(name) ? as_list(name) : NULL;
     if (!codes || codes->len != strlen(text)) return 0;
     for (uint32_t i = 0; i < codes->len; i++)
         if (!is_int(codes->items[i]) || as_num(codes->items[i]) != (unsigned char)text[i])
@@ -742,7 +742,7 @@ static int name_is(Val name, const char *text) {
     return 1;
 }
 
-static const struct { const char *word, *primitive; int hot; } specializations[] = {
+static const struct { const char *op, *primitive; int hot; } specializations[] = {
     {"drop", "DROP", H_DROP}, {"pick", "PICK", H_COLD}, {"roll", "ROLL", H_COLD},
     {"ifte", "IFTE", H_COLD}, {"+", "ADD", H_ADD}, {"-", "SUB", H_SUB},
     {"*", "MUL", H_MUL}, {"/", "DIV", H_DIV}, {"//", "IDIV", H_IDIV},
@@ -751,19 +751,19 @@ static const struct { const char *word, *primitive; int hot; } specializations[]
 };
 
 static Stack *primitive_stack(Machine *m, const char *name) {
-    Val word = from_word(as_list(str_list(name)));
-    return stack_lookup(m, list_of1(word), 0);
+    Val op = from_op(as_list(str_list(name)));
+    return stack_lookup(m, list_of1(op), 0);
 }
 
 static int is_default_wrapper(Machine *m, Stack *st, Val name,
-                              const char *word, const char *primitive) {
-    if (!st || !st->len || !name_is(name, word) || !is_list(st->items[st->len - 1]))
+                              const char *op, const char *primitive) {
+    if (!st || !st->len || !name_is(name, op) || !is_list(st->items[st->len - 1]))
         return 0;
     List *definition = as_list(st->items[st->len - 1]);
     if (!definition->len || !is_list(definition->items[0]) ||
         as_list(definition->items[0])->len != 0)
         return 0;
-    int primitive_match = definition->len == 2 && is_word(definition->items[1]) &&
+    int primitive_match = definition->len == 2 && is_op(definition->items[1]) &&
                           name_is(definition->items[1], primitive);
     Stack *target = primitive_match ? primitive_stack(m, primitive) : NULL;
     return target && target->native && !target->len &&
@@ -773,7 +773,7 @@ static int is_default_wrapper(Machine *m, Stack *st, Val name,
 static int wrapper_specialization(Machine *m, Stack *st, Val name) {
     for (size_t i = 0; i < sizeof specializations / sizeof specializations[0]; i++) {
         if (specializations[i].hot != H_COLD &&
-            is_default_wrapper(m, st, name, specializations[i].word, specializations[i].primitive))
+            is_default_wrapper(m, st, name, specializations[i].op, specializations[i].primitive))
             return specializations[i].hot;
     }
     return H_COLD;
@@ -782,15 +782,15 @@ static int wrapper_specialization(Machine *m, Stack *st, Val name) {
 static int fold_literal_site(Machine *m, Cb *b, Stack *st, Val name,
                              int fence, int can) {
     int literal = b->n - 1;
-    if (!can || literal < fence || b->ops[literal].kind != OP_PUSH)
+    if (!can || literal < fence || b->instrs[literal].kind != I_PUSH)
         return 0;
-    Val value = b->ops[literal].v;
+    Val value = b->instrs[literal].v;
     int pick = is_default_wrapper(m, st, name, "pick", "PICK");
     int roll = is_default_wrapper(m, st, name, "roll", "ROLL");
     if ((pick || roll) && is_int(value) && as_num(value) >= 0 && as_num(value) < 64) {
         int hot = pick ? H_PICKK : H_ROLLK;
         b->n = literal;
-        cb_emit(b, (Op){.kind = OP_SPECIALIZED, .hot = hot, .st = st, .v = name,
+        cb_emit(b, (Instr){.kind = I_SPECIALIZED, .hot = hot, .st = st, .v = name,
                         .a = (int)as_num(value) + 1});
         return 1;
     }
@@ -799,32 +799,32 @@ static int fold_literal_site(Machine *m, Cb *b, Stack *st, Val name,
 
 /* Inline literal default-stack branches and recognize direct kernel wrappers. */
 static void compile_list(Machine *m, Cb *b, List *l, int depth) {
-    int fence = b->n; /* ops before this index belong to an enclosing structure */
-    int can = m->optimize_ops && depth < INLINE_MAX_DEPTH;
+    int fence = b->n; /* instructions before this index belong to an enclosing structure */
+    int can = m->optimize_instrs && depth < INLINE_MAX_DEPTH;
     for (uint32_t i = 0; i < l->len; i++) {
         if (depth == 0) b->src = (int)i;
         Val v = l->items[i];
-        if (is_word(v)) {
+        if (is_op(v)) {
             Val key = list_of1(v);
             Stack *st = stack_lookup(m, key, 0);
             int n = b->n;
             if (can && i >= 3 && n < INLINE_MAX_OPS && n - fence >= 3 &&
                 is_default_wrapper(m, st, v, "ifte", "IFTE") &&
                 pushed_list(b, n - 3) && pushed_list(b, n - 2) && pushed_list(b, n - 1) &&
-                b->ops[n - 3].v == l->items[i - 3] &&
-                b->ops[n - 2].v == l->items[i - 2] &&
-                b->ops[n - 1].v == l->items[i - 1]) {
-                Val c = b->ops[n - 3].v, t = b->ops[n - 2].v, e = b->ops[n - 1].v;
+                b->instrs[n - 3].v == l->items[i - 3] &&
+                b->instrs[n - 2].v == l->items[i - 2] &&
+                b->instrs[n - 1].v == l->items[i - 1]) {
+                Val c = b->instrs[n - 3].v, t = b->instrs[n - 2].v, e = b->instrs[n - 1].v;
                 b->n -= 3;
-                int guard = cb_emit(b, (Op){.kind = OP_IFTE_GUARD, .st = st,
+                int guard = cb_emit(b, (Instr){.kind = I_IFTE_GUARD, .st = st,
                                             .v = from_list(l), .a = (int)i});
                 compile_list(m, b, as_list(c), depth + 1);
-                int br = cb_emit(b, (Op){.kind = OP_BR});
+                int br = cb_emit(b, (Instr){.kind = I_BR});
                 compile_list(m, b, as_list(t), depth + 1);
-                int jmp = cb_emit(b, (Op){.kind = OP_JMP});
-                b->ops[br].a = b->n;
+                int jmp = cb_emit(b, (Instr){.kind = I_JMP});
+                b->instrs[br].a = b->n;
                 compile_list(m, b, as_list(e), depth + 1);
-                b->ops[guard].b = b->ops[jmp].a = b->ops[br].b = b->n;
+                b->instrs[guard].b = b->instrs[jmp].a = b->instrs[br].b = b->n;
                 fence = b->n;
                 continue;
             }
@@ -832,85 +832,85 @@ static void compile_list(Machine *m, Cb *b, List *l, int depth) {
             if (can && i >= 2 && n < INLINE_MAX_OPS && n - fence >= 2 &&
                 is_default_wrapper(m, st, v, "loop", "LOOP") &&
                 pushed_list(b, n - 2) && pushed_list(b, n - 1) &&
-                b->ops[n - 2].v == l->items[i - 2] &&
-                b->ops[n - 1].v == l->items[i - 1]) {
-                Val c = b->ops[n - 2].v, body = b->ops[n - 1].v;
+                b->instrs[n - 2].v == l->items[i - 2] &&
+                b->instrs[n - 1].v == l->items[i - 1]) {
+                Val c = b->instrs[n - 2].v, body = b->instrs[n - 1].v;
                 b->n -= 2;
-                int guard = cb_emit(b, (Op){.kind = OP_LOOP_GUARD, .st = st,
+                int guard = cb_emit(b, (Instr){.kind = I_LOOP_GUARD, .st = st,
                                             .v = from_list(l), .a = (int)i});
                 int top = b->n;
                 compile_list(m, b, as_list(c), depth + 1);
-                int br = cb_emit(b, (Op){.kind = OP_BRL});
+                int br = cb_emit(b, (Instr){.kind = I_BRL});
                 compile_list(m, b, as_list(body), depth + 1);
-                cb_emit(b, (Op){.kind = OP_JMP, .a = top});
-                b->ops[guard].b = b->ops[br].a = b->ops[br].b = b->n;
+                cb_emit(b, (Instr){.kind = I_JMP, .a = top});
+                b->instrs[guard].b = b->instrs[br].a = b->instrs[br].b = b->n;
                 fence = b->n;
                 continue;
             }
             if (fold_literal_site(m, b, st, v, fence, can)) continue;
-            cb_emit(b, (Op){.kind = OP_SITE, .st = st, .v = v});
+            cb_emit(b, (Instr){.kind = I_SITE, .st = st, .v = v});
             continue;
         }
-        cb_emit(b, (Op){.kind = OP_PUSH, .v = v});
+        cb_emit(b, (Instr){.kind = I_PUSH, .v = v});
     }
 }
 
-/* nothing runs after op i in this code, following the forward jumps that end a branch */
+/* nothing runs after instruction i in this code, following the forward jumps that end a branch */
 static int is_tail(Code *c, int i) {
     int j = i + 1;
-    while (j < c->n && c->ops[j].kind == OP_JMP && c->ops[j].a > j) j = c->ops[j].a;
+    while (j < c->n && c->instrs[j].kind == I_JMP && c->instrs[j].a > j) j = c->instrs[j].a;
     return j >= c->n;
 }
 
 static Code *build_code(Machine *m, List *l) {
     Cb b = {0};
     compile_list(m, &b, l, 0);
-    size_t bytes = sizeof(Code) + ((size_t)b.n + 1) * sizeof(Op); /* one spare op: the end sentinel */
+    size_t bytes = sizeof(Code) + ((size_t)b.n + 1) * sizeof(Instr); /* one spare instruction: the end sentinel */
     Code *c = malloc(bytes);
     heap_alloc += bytes;
-    memcpy(c->ops, b.ops, (size_t)b.n * sizeof(Op));
-    free(b.ops);
-    c->ops[b.n] = (Op){.kind = OP_END};
+    memcpy(c->instrs, b.instrs, (size_t)b.n * sizeof(Instr));
+    free(b.instrs);
+    c->instrs[b.n] = (Instr){.kind = I_END};
     c->n = b.n;
     c->keep = 0;
     c->prev = NULL;
     c->epoch = m->epoch;
     for (int i = 0; i < c->n; i++) {
-        Op *op = &c->ops[i];
-        if (op->kind == OP_SPECIALIZED) {
-            op->tail = is_tail(c, i);
+        Instr *ins = &c->instrs[i];
+        if (ins->kind == I_SPECIALIZED) {
+            ins->tail = is_tail(c, i);
             continue;
         }
-        if (op->kind != OP_SITE) continue;
-        op->tail = is_tail(c, i);
-        int specialization = m->optimize_ops ? wrapper_specialization(m, op->st, op->v) : H_COLD;
-        if (m->optimize_ops && specialization == H_COLD && op->st && op->st->native &&
-            !op->st->len && !strcmp(op->st->native->name, "REC"))
+        if (ins->kind != I_SITE) continue;
+        ins->tail = is_tail(c, i);
+        int specialization = m->optimize_instrs ? wrapper_specialization(m, ins->st, ins->v) : H_COLD;
+        if (m->optimize_instrs && specialization == H_COLD && ins->st && ins->st->native &&
+            !ins->st->len && !strcmp(ins->st->native->name, "REC"))
             specialization = H_REC;
         /* only a REC with nothing after it can be a jump: it replaces its own frame */
-        if ((specialization == H_REC || specialization == H_REC0) && !op->tail)
+        if ((specialization == H_REC || specialization == H_REC0) && !ins->tail)
             specialization = H_COLD;
         if (specialization != H_COLD) {
-            op->kind = OP_SPECIALIZED;
-            op->hot = specialization;
+            ins->kind = I_SPECIALIZED;
+            ins->hot = specialization;
         }
     }
     for (int i = 0; i <= c->n; i++)
         /* a stepper that stops at literals must see them: they leave the register loop */
-        c->ops[i].hot = m->step_cold && c->ops[i].kind == OP_PUSH ? H_COLD : hot_of(&c->ops[i]);
+        c->instrs[i].hot = m->step_cold && c->instrs[i].kind == I_PUSH ? H_COLD : hot_of(&c->instrs[i]);
     return c;
 }
 
 /* a call site run the ordinary way: execute the top definition, or the kernel routine */
-static int site_slow(Machine *m, Op *op) {
-    Stack *s = op->st;
-    if (!s) s = stack_lookup(m, list_of1(op->v), 0);
+static int site_slow(Machine *m, Instr *ins) {
+    Stack *s = ins->st;
+    if (!s) s = stack_lookup(m, list_of1(ins->v), 0);
     if (s && s->len) {
         Val top = s->items[s->len - 1];
         if (is_list(top)) {
             trim(m);
             Frame *f = push_code(m, top);
-            if (f) f->b = op->v; /* the frame remembers the word that called it, for the backtrace */
+            if (f) f->b = ins->v; /* the frame remembers the op that called it, for the backtrace */
         } else {
             data_push(m, top);
         }
@@ -919,7 +919,7 @@ static int site_slow(Machine *m, Op *op) {
     if (s && s->native) {
         return call_native(m, s->native);
     }
-    return bo_err1(m, "Existence-Error", "WORD", list_of1(op->v));
+    return bo_err1(m, "Existence-Error", "EXECUTE", list_of1(ins->v));
 }
 
 static int do_branch(Machine *m, Val then, Val otherwise) {
@@ -933,17 +933,17 @@ static int do_branch(Machine *m, Val then, Val otherwise) {
     return 0;
 }
 
-static int debug_counts(Machine *m, Op *op);
+static int debug_counts(Machine *m, Instr *ins);
 
-/* Does the stepper pause before op (the one at index i of frame f)? If so the frame is left
-   to resume at it; if the op is a step that may run, it is paid for. */
-static inline int step_gate(Machine *m, Frame *f, size_t i, Op *op) {
-    if (!m->stepping || m->base != m->step_base || !debug_counts(m, op)) return 0;
+/* Does the stepper pause before instruction ins (index i of frame f)? If so the frame is left
+   to resume at it; if the instruction is a step that may run, it is paid for. */
+static inline int step_gate(Machine *m, Frame *f, size_t i, Instr *ins) {
+    if (!m->stepping || m->base != m->step_base || !debug_counts(m, ins)) return 0;
     if (m->step_budget <= 0) { f->idx = i; m->paused = 1; return 1; }
     m->step_budget--;
     m->step_arm = 0;
     /* a tail call leaves no frame of its caller: what it runs is deeper than that */
-    if ((m->step_mode == STEP_OVER || m->step_mode == STEP_WORDS_OVER) && op->tail && m->ctl_len)
+    if ((m->step_mode == STEP_OVER || m->step_mode == STEP_OPS_OVER) && ins->tail && m->ctl_len)
         m->step_depth = m->ctl_len - 1;
     return 0;
 }
@@ -961,12 +961,12 @@ static void run_loop(Machine *m) {
             /* A frame keeps running its compiled version; stale specialized sites use normal calls. */
             int stale = c->epoch != m->epoch;
             for (;;) {
-                Op *op;
+                Instr *ins;
                 /* Hot part: literals, jumps and compiler specializations run on the data stack held
                    in locals. Anything else (or any failed check) leaves through "cold" with
                    the stack written back, and the ordinary code below deals with it. */
                 if (!stale) {
-                    size_t need = 2 * n + 4; /* most an op sequence without a backward jump can push */
+                    size_t need = 2 * n + 4; /* most an instruction sequence without a backward jump can push */
                     if (d->cap - d->len < need) stack_reserve(d, need);
                     Val *it = d->items;
                     size_t len = d->len;
@@ -974,28 +974,28 @@ static void run_loop(Machine *m) {
                         &&L_COLD, &&L_PUSH, &&L_NOP, &&L_JMP, &&L_BR, &&L_DROP, &&L_ADD,
                         &&L_SUB, &&L_MUL, &&L_EQ, &&L_DIV, &&L_IDIV, &&L_PICKK, &&L_ROLLK,
                         &&L_REC, &&L_REC0};
-#define NEXT() do { op = &c->ops[i]; goto *T[op->hot]; } while (0)
+#define NEXT() do { ins = &c->instrs[i]; goto *T[ins->hot]; } while (0)
 #define NUM2 (len >= 2 && is_num(it[len - 2]) && is_num(it[len - 1]))
 #define XY double x = as_num(it[len - 2]), y = as_num(it[len - 1])
 #define SETT(t) do { it[len - 2] = from_num(t); len--; i++; NEXT(); } while (0)
 #define NEED(k) if (len < (k)) goto L_COLD
 #define ARITH(lbl, expr) lbl: { if (!NUM2) goto L_COLD; XY; double r = (expr); if (!isfinite(r)) goto L_COLD; SETT(r); }
                     NEXT();
-                L_PUSH: it[len++] = op->v; i++; NEXT();
+                L_PUSH: it[len++] = ins->v; i++; NEXT();
                 L_NOP: i++; NEXT();
                 L_JMP:
-                    if ((size_t)op->a <= i) {
+                    if ((size_t)ins->a <= i) {
                         d->len = len;
-                        if (heap_alloc > heap_gc_at) { f->idx = (size_t)op->a; goto next; }
+                        if (heap_alloc > heap_gc_at) { f->idx = (size_t)ins->a; goto next; }
                         if (d->cap - len < need) stack_reserve(d, need);
                         it = d->items;
                     }
-                    i = (size_t)op->a;
+                    i = (size_t)ins->a;
                     NEXT();
                 L_BR: {
                     if (!len || !is_num(it[len - 1])) goto L_COLD;
                     double t = as_num(it[--len]);
-                    i = t > 0 ? i + 1 : (size_t)op->a;
+                    i = t > 0 ? i + 1 : (size_t)ins->a;
                     NEXT();
                 }
                 L_DROP: NEED(1); len--; i++; NEXT();
@@ -1012,11 +1012,11 @@ static void run_loop(Machine *m) {
                 DIVOP(L_DIV, bo_h_div)
                 DIVOP(L_IDIV, bo_h_idiv)
                 L_PICKK: {
-                    size_t k = (size_t)op->a - 1;
+                    size_t k = (size_t)ins->a - 1;
                     NEED(k + 1); it[len] = it[len - 1 - k]; len++; i++; NEXT();
                 }
                 L_ROLLK: {
-                    size_t k = (size_t)op->a - 1;
+                    size_t k = (size_t)ins->a - 1;
                     NEED(k + 1);
                     Val t = it[len - 1 - k];
                     memmove(&it[len - 1 - k], &it[len - k], k * sizeof(Val));
@@ -1041,67 +1041,67 @@ static void run_loop(Machine *m) {
                     d->len = len;
                 }
                 if (i >= n) { m->ctl_len--; goto next; }
-                op = &c->ops[i];
-                switch (op->kind) {
-                case OP_PUSH:
-                    if (step_gate(m, f, i, op)) return;
-                    spush(d, op->v); i++; continue;
-                case OP_IFTE_GUARD:
-                    if (is_default_wrapper(m, op->st, as_list(op->v)->items[op->a],
+                ins = &c->instrs[i];
+                switch (ins->kind) {
+                case I_PUSH:
+                    if (step_gate(m, f, i, ins)) return;
+                    spush(d, ins->v); i++; continue;
+                case I_IFTE_GUARD:
+                    if (is_default_wrapper(m, ins->st, as_list(ins->v)->items[ins->a],
                                            "ifte", "IFTE")) { i++; continue; }
                     {
                         /* A stale frame must call the replacement with the original operands. */
-                        List *source = as_list(op->v);
-                        spush(d, source->items[op->a - 3]);
-                        spush(d, source->items[op->a - 2]);
-                        spush(d, source->items[op->a - 1]);
-                        f->idx = (size_t)op->b;
-                        Op site = *op;
-                        site.v = source->items[op->a];
+                        List *source = as_list(ins->v);
+                        spush(d, source->items[ins->a - 3]);
+                        spush(d, source->items[ins->a - 2]);
+                        spush(d, source->items[ins->a - 1]);
+                        f->idx = (size_t)ins->b;
+                        Instr site = *ins;
+                        site.v = source->items[ins->a];
                         rc = site_slow(m, &site);
                         if (rc) goto done;
                         goto next;
                     }
-                case OP_LOOP_GUARD:
-                    if (is_default_wrapper(m, op->st, as_list(op->v)->items[op->a],
+                case I_LOOP_GUARD:
+                    if (is_default_wrapper(m, ins->st, as_list(ins->v)->items[ins->a],
                                            "loop", "LOOP")) { i++; continue; }
                     {
-                        List *source = as_list(op->v);
-                        spush(d, source->items[op->a - 2]);
-                        spush(d, source->items[op->a - 1]);
-                        f->idx = (size_t)op->b;
-                        Op site = *op;
-                        site.v = source->items[op->a];
+                        List *source = as_list(ins->v);
+                        spush(d, source->items[ins->a - 2]);
+                        spush(d, source->items[ins->a - 1]);
+                        f->idx = (size_t)ins->b;
+                        Instr site = *ins;
+                        site.v = source->items[ins->a];
                         rc = site_slow(m, &site);
                         if (rc) goto done;
                         goto next;
                     }
-                case OP_JMP:
-                    if ((size_t)op->a <= i && heap_alloc > heap_gc_at) { f->idx = (size_t)op->a; goto next; }
-                    i = (size_t)op->a;
+                case I_JMP:
+                    if ((size_t)ins->a <= i && heap_alloc > heap_gc_at) { f->idx = (size_t)ins->a; goto next; }
+                    i = (size_t)ins->a;
                     continue;
-                case OP_BR: case OP_BRL: {
-                    const char *where = op->kind == OP_BRL ? "LOOP" : "IFTE";
-                    if (!d->len) { f->idx = (size_t)op->b; rc = bo_err0(m, "Stack-Error", where); goto done; }
+                case I_BR: case I_BRL: {
+                    const char *where = ins->kind == I_BRL ? "LOOP" : "IFTE";
+                    if (!d->len) { f->idx = (size_t)ins->b; rc = bo_err0(m, "Stack-Error", where); goto done; }
                     Val truth = d->items[--d->len];
-                    if (is_num(truth)) { i = as_num(truth) > 0 ? i + 1 : (size_t)op->a; continue; }
-                    f->idx = (size_t)op->b;
+                    if (is_num(truth)) { i = as_num(truth) > 0 ? i + 1 : (size_t)ins->a; continue; }
+                    f->idx = (size_t)ins->b;
                     spush(d, truth);
                     rc = bo_err1(m, "Type-Error", where, truth);
                     goto done;
                 }
-                case OP_SPECIALIZED:
-                    if (op->a) spush(d, from_num((double)(op->a - 1)));
+                case I_SPECIALIZED:
+                    if (ins->a) spush(d, from_num((double)(ins->a - 1)));
                     break;
                 default: break;
                 }
-                if (step_gate(m, f, i, op)) return;
+                if (step_gate(m, f, i, ins)) return;
                 size_t depth = m->ctl_len;
-                f->idx = op->tail ? n : i + 1;
-                rc = site_slow(m, op);
+                f->idx = ins->tail ? n : i + 1;
+                rc = site_slow(m, ins);
                 if (rc) goto done;
                 if (m->paused) return; /* a BREAKPOINT paused the program: its frames stay */
-                if (op->tail || m->ctl_len != depth) goto next;
+                if (ins->tail || m->ctl_len != depth) goto next;
                 i++;
                 stale = c->epoch != m->epoch;
             }
@@ -1177,7 +1177,7 @@ void machine_run(Machine *m, Val lst) {
 
 /* The elements written on one source line run as one program, so that a literal
    ( cond ) ( body ) loop or ( c ) ( t ) ( e ) IFTE on that line is compiled to jumps. List
-   literals written on lines of their own (the vertical style) join the program of the word
+   literals written on lines of their own (the vertical style) join the program of the op
    that follows them. Errors report the line of the first form that is not a list literal. */
 static int is_literal(Forms *forms, size_t i) {
     List *l = as_list(forms->f[i].list);
@@ -1194,7 +1194,7 @@ static void run_forms(Machine *m, Forms *forms, const char *source) {
     int only_literals = 0; /* every form of the group so far is a list literal */
     for (size_t i = 0; i < forms->n; i++) {
         int lit = is_literal(forms, i);
-        if (m->optimize_ops && i && (forms->f[i].line == forms->f[i - 1].line ||
+        if (m->optimize_instrs && i && (forms->f[i].line == forms->f[i - 1].line ||
                             (only_literals && is_literal(forms, i - 1)))) {
             only_literals = only_literals && lit;
             continue;
@@ -1254,9 +1254,9 @@ static int get_ref(Machine *m, Val ref, int create, Stack **s, int *is_default) 
         return 0;
     }
     Val text;
-    int rc = word_to_text(ref, &text);
-    if (rc == WORD_TYPE_ERROR) return bo_err1(m, "Type-Error", NULL, ref);
-    if (rc == WORD_REPRESENTATION_ERROR) return bo_err1(m, "Representation-Error", NULL, ref);
+    int rc = selector_to_name(ref, &text);
+    if (rc == NAME_TYPE_ERROR) return bo_err1(m, "Type-Error", NULL, ref);
+    if (rc == NAME_REPRESENTATION_ERROR) return bo_err1(m, "Representation-Error", NULL, ref);
     *is_default = 0;
     *s = stack_lookup(m, ref, create);
     return 0;
@@ -1345,8 +1345,8 @@ static int n_locked(Machine *m, Val *a) {
 
 /* The names of two stacks, as code points, in order. */
 static int stack_name_cmp(const void *x, const void *y) {
-    const List *a = as_word(as_list((*(Stack *const *)x)->key)->items[0]);
-    const List *b = as_word(as_list((*(Stack *const *)y)->key)->items[0]);
+    const List *a = as_op(as_list((*(Stack *const *)x)->key)->items[0]);
+    const List *b = as_op(as_list((*(Stack *const *)y)->key)->items[0]);
     uint32_t n = a->len < b->len ? a->len : b->len;
     for (uint32_t i = 0; i < n; i++) {
         double p = as_num(a->items[i]), q = as_num(b->items[i]);
@@ -1468,7 +1468,7 @@ static int n_unconsl(Machine *m, Val *a) { return uncons(m, a, 0); }
 static int n_unconsr(Machine *m, Val *a) { return uncons(m, a, 1); }
 
 static int n_type(Machine *m, Val *a) {
-    push_num(m, is_list(a[0]) ? 1 : is_word(a[0]) ? 2 : 0);
+    push_num(m, is_list(a[0]) ? 1 : is_op(a[0]) ? 2 : 0);
     return 0;
 }
 
@@ -1507,18 +1507,27 @@ static int n_utype(Machine *m, Val *a) {
     return 0;
 }
 
-static int n_text_word(Machine *m, Val *a) {
+/* the empty name and the default-stack selector are both (), so () converts to itself either way */
+static int n_selector(Machine *m, Val *a) {
+    if (is_list(a[0]) && !as_list(a[0])->len) {
+        data_push(m, a[0]);
+        return 0;
+    }
     Val unit;
-    int rc = text_to_word(a[0], &unit);
-    if (rc) return bo_err1(m, rc == WORD_TYPE_ERROR ? "Type-Error" : "Representation-Error", NULL, a[0]);
+    int rc = name_to_selector(a[0], &unit);
+    if (rc) return bo_err1(m, rc == NAME_TYPE_ERROR ? "Type-Error" : "Representation-Error", NULL, a[0]);
     data_push(m, unit);
     return 0;
 }
 
-static int n_word_text(Machine *m, Val *a) {
+static int n_name(Machine *m, Val *a) {
+    if (is_list(a[0]) && !as_list(a[0])->len) {
+        data_push(m, a[0]);
+        return 0;
+    }
     Val text;
-    int rc = word_to_text(a[0], &text);
-    if (rc) return bo_err1(m, rc == WORD_TYPE_ERROR ? "Type-Error" : "Representation-Error", NULL, a[0]);
+    int rc = selector_to_name(a[0], &text);
+    if (rc) return bo_err1(m, rc == NAME_TYPE_ERROR ? "Type-Error" : "Representation-Error", NULL, a[0]);
     data_push(m, text);
     return 0;
 }
@@ -1552,14 +1561,14 @@ static int n_apply(Machine *m, Val *a) {
     return 0;
 }
 
-/* a LAMBDA label is a word unit, or () for the anonymous one; it names no stack */
+/* a LAMBDA label is an op unit, or () for the anonymous one; it names no stack */
 static int label_check(Machine *m, Val ref) {
     if (!is_list(ref)) return bo_err1(m, "Type-Error", NULL, ref);
     if (as_list(ref)->len == 0) return 0;
     Val text;
-    int rc = word_to_text(ref, &text);
-    if (rc == WORD_TYPE_ERROR) return bo_err1(m, "Type-Error", NULL, ref);
-    if (rc == WORD_REPRESENTATION_ERROR) return bo_err1(m, "Representation-Error", NULL, ref);
+    int rc = selector_to_name(ref, &text);
+    if (rc == NAME_TYPE_ERROR) return bo_err1(m, "Type-Error", NULL, ref);
+    if (rc == NAME_REPRESENTATION_ERROR) return bo_err1(m, "Representation-Error", NULL, ref);
     return 0;
 }
 
@@ -1642,9 +1651,9 @@ static int n_call(Machine *m, Val *a) {
     return 0;
 }
 
-static int error_word_unit(Val value) {
+static int error_op_unit(Val value) {
     Val text;
-    return word_to_text(value, &text) == WORD_OK;
+    return selector_to_name(value, &text) == NAME_OK;
 }
 
 static int valid_error_text(Val value) {
@@ -1663,8 +1672,8 @@ static int n_rethrow(Machine *m, Val *a) {
     Val error = a[0];
     if (!is_list(error)) return bo_err1(m, "Type-Error", NULL, error);
     List *l = as_list(error);
-    if (l->len != 5 || !error_word_unit(l->items[0]) ||
-        !error_word_unit(l->items[1]) || !is_list(l->items[2]) ||
+    if (l->len != 5 || !error_op_unit(l->items[0]) ||
+        !error_op_unit(l->items[1]) || !is_list(l->items[2]) ||
         !valid_error_text(l->items[3]) || !is_int(l->items[4]))
         return bo_err1(m, "Type-Error", NULL, error);
     m->err_original = error;
@@ -2112,7 +2121,7 @@ static int n_tmatmul(Machine *m, Val *a) {
     return 0;
 }
 
-/* native binary operations a word may stand for (see word_operation) */
+/* native binary operations an op may stand for (see op_operation) */
 enum { B_NONE = -1, B_ADD, B_SUB, B_MUL, B_DIV, B_IDIV, B_POW };
 
 static int broadcast_shape(Machine *m, Val *a, TensorParts *left, TensorParts *right,
@@ -2155,15 +2164,15 @@ static Val broadcast_element(TensorParts *tensor, List *shape, const uint32_t *c
     return tensor->data->items[offset];
 }
 
-/* The native binary operation a word runs on a pair of numbers, or B_NONE: the word must
+/* The native binary operation an op runs on a pair of numbers, or B_NONE: the op must
    currently be a default-stack wrapper (() ADD), (() SUB), ... of an unmodified primitive. */
-static int word_operation(Machine *m, Val word) {
+static int op_operation(Machine *m, Val op) {
     static const char *const names[] = {"ADD", "SUB", "MUL", "DIV", "IDIV", "POW"};
-    Stack *st = stack_lookup(m, list_of1(word), 0);
+    Stack *st = stack_lookup(m, list_of1(op), 0);
     if (!st || !st->len || !is_list(st->items[st->len - 1])) return B_NONE;
     List *definition = as_list(st->items[st->len - 1]);
     if (definition->len != 2 || !is_list(definition->items[0]) ||
-        as_list(definition->items[0])->len != 0 || !is_word(definition->items[1]))
+        as_list(definition->items[0])->len != 0 || !is_op(definition->items[1]))
         return B_NONE;
     for (int i = 0; i < 6; i++) {
         if (!name_is(definition->items[1], names[i])) continue;
@@ -2175,7 +2184,7 @@ static int word_operation(Machine *m, Val word) {
 }
 
 /* 0 and *out set, or 1 when the primitive would raise an error */
-static int word_binary(int operation, double x, double y, double *out) {
+static int op_binary(int operation, double x, double y, double *out) {
     double value;
     switch (operation) {
     case B_ADD: value = x + y; break;
@@ -2190,16 +2199,16 @@ static int word_binary(int operation, double x, double y, double *out) {
     return 0;
 }
 
-static void word_restore(Stack *d, Val saved) {
+static void op_restore(Stack *d, Val saved) {
     List *items = as_list(saved);
     d->len = 0;
     for (uint32_t i = 0; i < items->len; i++) spush(d, items->items[i]);
 }
 
-/* Runs `program` (the operation word under CATCH) on the selected stack with the pair on top.
-   0 and *out set; 1 with an error pending: the word's own error, or a Stack-Error/Type-Error
+/* Runs `program` (the op of the operation under CATCH) on the selected stack with the pair on top.
+   0 and *out set; 1 with an error pending: the op's own error, or a Stack-Error/Type-Error
    when it does not leave exactly one number. The stack is restored on failure. */
-static int word_call(Machine *m, Val program, Val marker, Val saved, Val x, Val y,
+static int op_call(Machine *m, Val program, Val marker, Val saved, Val x, Val y,
                           double *out) {
     Stack *d = &m->data;
     size_t base = as_list(saved)->len;
@@ -2208,12 +2217,12 @@ static int word_call(Machine *m, Val program, Val marker, Val saved, Val x, Val 
     machine_run(m, program);
     if (d->len > base && d->items[d->len - 1] == marker) {
         m->err_original = d->items[d->len - 2];
-        word_restore(d, saved);
+        op_restore(d, saved);
         return 1;
     }
     if (d->len != base + 1 || !is_num(d->items[d->len - 1])) {
         const char *kind = d->len == base + 1 ? "Type-Error" : "Stack-Error";
-        word_restore(d, saved);
+        op_restore(d, saved);
         return bo_err(m, kind, NULL, list_of2(x, y));
     }
     *out = as_num(d->items[--d->len]);
@@ -2221,9 +2230,9 @@ static int word_call(Machine *m, Val program, Val marker, Val saved, Val x, Val 
 }
 
 static int n_broadcast(Machine *m, Val *a) {
-    if (!is_list(a[2]) || as_list(a[2])->len != 1 || !is_word(as_list(a[2])->items[0]))
+    if (!is_list(a[2]) || as_list(a[2])->len != 1 || !is_op(as_list(a[2])->items[0]))
         return tensor_error(m, "Type-Error", a, 3);
-    Val word = as_list(a[2])->items[0];
+    Val op = as_list(a[2])->items[0];
     TensorParts left_parts, right_parts;
     TensorParts *left = is_num(a[0]) ? NULL : &left_parts;
     TensorParts *right = is_num(a[1]) ? NULL : &right_parts;
@@ -2245,20 +2254,20 @@ static int n_broadcast(Machine *m, Val *a) {
     }
     List *data = list_new(len);
 
-    /* the word runs nested, so everything held in C must stay reachable */
+    /* the op runs nested, so everything held in C must stay reachable */
     size_t root_mark = m->nroots;
     for (int i = 0; i < 3; i++) root_add(m, a[i]);
     root_add(m, from_list(shape));
     root_add(m, from_list(data));
     Val marker = list_of1(from_num(0));
-    Val catch_items[4] = {list_of1(word), list_of1(marker), list_from(NULL, 0),
-                          from_word(as_list(str_list("CATCH")))};
+    Val catch_items[4] = {list_of1(op), list_of1(marker), list_from(NULL, 0),
+                          from_op(as_list(str_list("CATCH")))};
     Val program = list_from(catch_items, 4);
     Val saved = list_from(m->data.items, (uint32_t)m->data.len);
     root_add(m, program);
     root_add(m, saved);
 
-    int operation = word_operation(m, word);
+    int operation = op_operation(m, op);
     double result = 0;
     for (int pass = 0; pass < 2; pass++) {
         int fell_back = 0;
@@ -2272,14 +2281,14 @@ static int n_broadcast(Machine *m, Val *a) {
             Val x = left ? broadcast_element(left, shape, coordinates) : a[0];
             Val y = right ? broadcast_element(right, shape, coordinates) : a[1];
             if (operation != B_NONE) {
-                if (word_binary(operation, as_num(x), as_num(y), &result)) {
-                    /* run the word itself so that the failure is the one it raises */
+                if (op_binary(operation, as_num(x), as_num(y), &result)) {
+                    /* run the op itself so that the failure is the one it raises */
                     operation = B_NONE;
                     fell_back = 1;
                     break;
                 }
             } else {
-                int rc = word_call(m, program, marker, saved, x, y, &result);
+                int rc = op_call(m, program, marker, saved, x, y, &result);
                 if (rc) {
                     free(coordinates);
                     m->nroots = root_mark;
@@ -2298,11 +2307,11 @@ static int n_broadcast(Machine *m, Val *a) {
 }
 
 /* A, B, C ... T axis U REDUCE: folds each slice of T along `axis` (or all of T for `()`)
-   from left to right with the word of unit U, starting from the slice's first element. */
+   from left to right with the op of unit U, starting from the slice's first element. */
 static int n_reduce(Machine *m, Val *a) {
-    if (!is_list(a[2]) || as_list(a[2])->len != 1 || !is_word(as_list(a[2])->items[0]))
+    if (!is_list(a[2]) || as_list(a[2])->len != 1 || !is_op(as_list(a[2])->items[0]))
         return tensor_error(m, "Type-Error", a, 3);
-    Val word = as_list(a[2])->items[0];
+    Val op = as_list(a[2])->items[0];
     TensorParts tensor;
     int rc = tensor_parts(a[0], &tensor);
     if (rc) return tensor_error(m, tensor_kind(rc), a, 3);
@@ -2334,19 +2343,19 @@ static int n_reduce(Machine *m, Val *a) {
     if (count && !dimension) return tensor_error(m, "Domain-Error", a, 3);
     List *data = list_new((uint32_t)count);
 
-    /* the word runs nested, so everything held in C must stay reachable */
+    /* the op runs nested, so everything held in C must stay reachable */
     size_t root_mark = m->nroots;
     for (int i = 0; i < 3; i++) root_add(m, a[i]);
     root_add(m, from_list(data));
     Val marker = list_of1(from_num(0));
-    Val catch_items[4] = {list_of1(word), list_of1(marker), list_from(NULL, 0),
-                          from_word(as_list(str_list("CATCH")))};
+    Val catch_items[4] = {list_of1(op), list_of1(marker), list_from(NULL, 0),
+                          from_op(as_list(str_list("CATCH")))};
     Val program = list_from(catch_items, 4);
     Val saved = list_from(m->data.items, (uint32_t)m->data.len);
     root_add(m, program);
     root_add(m, saved);
 
-    int operation = word_operation(m, word);
+    int operation = op_operation(m, op);
     for (int pass = 0; pass < 2; pass++) {
         int fell_back = 0;
         for (uint64_t outer_index = 0; outer_index < outer && !fell_back; outer_index++) {
@@ -2357,14 +2366,14 @@ static int n_reduce(Machine *m, Val *a) {
                     Val element = tensor.data->items[
                         ((uint64_t)outer_index * dimension + index) * width + inner_index];
                     if (operation != B_NONE) {
-                        if (word_binary(operation, result, as_num(element), &result)) {
-                            /* run the word itself so that the failure is the one it raises */
+                        if (op_binary(operation, result, as_num(element), &result)) {
+                            /* run the op itself so that the failure is the one it raises */
                             operation = B_NONE;
                             fell_back = 1;
                             break;
                         }
                     } else {
-                        int rc = word_call(m, program, marker, saved, from_num(result), element,
+                        int rc = op_call(m, program, marker, saved, from_num(result), element,
                                            &result);
                         if (rc) {
                             m->nroots = root_mark;
@@ -2572,8 +2581,8 @@ static char *read_file(const char *path, size_t *len) {
 }
 
 /* The id of the source file at `path`: it stays the same for as long as the machine lives, and
-   tags what the file's load pushes and locks. It is also the owner of the private words (`__name`)
-   the file writes, unless private words are switched off. */
+   tags what the file's load pushes and locks. It is also the owner of the private ops (`__name`)
+   the file writes, unless private ops are switched off. */
 static uint32_t file_id(Machine *m, const char *path) {
     char *resolved = resolve_path(path);
     for (size_t i = 0; i < m->nowners; i++)
@@ -2641,12 +2650,12 @@ static void finish_load(Machine *m, uint32_t file, int failed) {
         }
 }
 
-/* A file that is loaded again starts from scratch: the private words of its earlier load go. */
+/* A file that is loaded again starts from scratch: the private ops of its earlier load go. */
 static void discard_private_stacks(Machine *m, uint32_t owner) {
     if (!owner) return;
     for (size_t b = 0; b < m->tcap; b++)
         for (Stack *s = m->table[b]; s; s = s->chain)
-            if (s->exists && stack_is_private(s) && as_word(as_list(s->key)->items[0])->owner == owner) {
+            if (s->exists && stack_is_private(s) && as_op(as_list(s->key)->items[0])->owner == owner) {
                 s->len = 0;
                 s->owners_len = 0;
                 s->exists = 0;
@@ -2707,8 +2716,8 @@ static int n_include(Machine *m, Val *a) {
     Forms forms;
     LowerErr le;
     uint32_t file = file_id(m, path);
-    uint32_t owner = m->private_words ? file : 0;
-    int bad = lower_word_forms(text, len, 1, owner, &forms, &le);
+    uint32_t owner = m->private_ops ? file : 0;
+    int bad = lower_op_forms(text, len, 1, owner, &forms, &le);
     if (bad) {
         free(forms.f); free(text); free(path);
         Val d[2] = {str_list(le.msg), from_num(le.line)};
@@ -2761,7 +2770,7 @@ static int n_parse(Machine *m, Val *a) {
     }
     Forms forms;
     LowerErr le;
-    int bad = lower_word_forms(b.s, b.n, 1, 0, &forms, &le);
+    int bad = lower_op_forms(b.s, b.n, 1, 0, &forms, &le);
     free(b.s);
     if (bad) {
         free(forms.f);
@@ -2784,8 +2793,8 @@ static int n_parse(Machine *m, Val *a) {
 static int n_throw(Machine *m, Val *a) {
     if (!is_list(a[0])) return bo_err1(m, "Type-Error", NULL, a[0]);
     Val name;
-    int rc = word_to_text(a[1], &name);
-    if (rc) return bo_err1(m, rc == WORD_TYPE_ERROR ? "Type-Error" : "Representation-Error", NULL, a[1]);
+    int rc = selector_to_name(a[1], &name);
+    if (rc) return bo_err1(m, rc == NAME_TYPE_ERROR ? "Type-Error" : "Representation-Error", NULL, a[1]);
     m->err_kind = a[1];
     m->err_where = "THROW";
     m->err_data = a[0];
@@ -2834,7 +2843,7 @@ static int n_next(Machine *m, Val *a) { (void)a; return resume_request(m, RESUME
 static int n_continue(Machine *m, Val *a) { (void)a; return resume_request(m, RESUME_CONTINUE, "CONTINUE"); }
 static int n_stop(Machine *m, Val *a) { (void)a; return resume_request(m, RESUME_STOP, "STOP"); }
 
-/* The code frames of the control stack, innermost first, as (NAME LIST INDEX): the word that
+/* The code frames of the control stack, innermost first, as (NAME LIST INDEX): the op that
    called the frame (a unit, or () if none did), the list it runs, and the number of its items
    that already ran. */
 static int n_backtrace(Machine *m, Val *a) {
@@ -2847,7 +2856,7 @@ static int n_backtrace(Machine *m, Val *a) {
         Frame *f = &m->ctl[i];
         if (f->kind != FR_CODE) continue;
         List *program = as_list(f->a);
-        size_t done = f->idx < (size_t)f->code->n ? (size_t)f->code->ops[f->idx].src : program->len;
+        size_t done = f->idx < (size_t)f->code->n ? (size_t)f->code->instrs[f->idx].src : program->len;
         Val parts[3] = {f->b ? list_of1(f->b) : list_from(NULL, 0), f->a, from_num((double)done)};
         frames[k++] = list_from(parts, 3);
     }
@@ -2888,10 +2897,10 @@ static const Native NATIVES[] = {
     {"CONTINUE", 0, 0, n_continue}, {"STOP", 0, 0, n_stop}, {"BACKTRACE", 0, 0, n_backtrace},
 };
 
-static const Native WORD_NATIVES[] = {
+static const Native OP_NATIVES[] = {
     {"CONSL", 2, 0, n_unit_consl}, {"CONSR", 2, 0, n_unit_consr},
     {"UNCONSL", 1, 0, n_unit_unconsl}, {"UNCONSR", 1, 0, n_unit_unconsr},
-    {"UNITTYPE", 1, 0, n_utype}, {"WORD", 1, 0, n_text_word}, {"TEXT", 1, 0, n_word_text},
+    {"UNITTYPE", 1, 0, n_utype}, {"SELECTOR", 1, 0, n_selector}, {"NAME", 1, 0, n_name},
 };
 
 /* ------------------------------------------------------------------ top level */
@@ -2907,28 +2916,28 @@ void machine_init(Machine *m) {
     m->streams[2] = (Stream){stderr, 0};
     m->nstreams = 3;
     for (size_t i = 0; i < sizeof NATIVES / sizeof NATIVES[0]; i++) {
-        Val word = from_word(as_list(str_list(NATIVES[i].name)));
-        Stack *word_stack = stack_lookup(m, list_of1(word), 1);
-        word_stack->native = &NATIVES[i];
-        word_stack->locked = 1;
+        Val op = from_op(as_list(str_list(NATIVES[i].name)));
+        Stack *op_stack = stack_lookup(m, list_of1(op), 1);
+        op_stack->native = &NATIVES[i];
+        op_stack->locked = 1;
     }
-    for (size_t i = 0; i < sizeof WORD_NATIVES / sizeof WORD_NATIVES[0]; i++) {
-        Val word = from_word(as_list(str_list(WORD_NATIVES[i].name)));
-        Stack *s = stack_lookup(m, list_of1(word), 1);
-        s->native = &WORD_NATIVES[i];
+    for (size_t i = 0; i < sizeof OP_NATIVES / sizeof OP_NATIVES[0]; i++) {
+        Val op = from_op(as_list(str_list(OP_NATIVES[i].name)));
+        Stack *s = stack_lookup(m, list_of1(op), 1);
+        s->native = &OP_NATIVES[i];
         s->locked = 1;
     }
     for (size_t i = 0; i < sizeof specializations / sizeof specializations[0]; i++) {
-        Val word = from_word(as_list(str_list(specializations[i].word)));
-        Val primitive = from_word(as_list(str_list(specializations[i].primitive)));
-        stack_lookup(m, list_of1(word), 2)->invalidates_code = 1;
+        Val op = from_op(as_list(str_list(specializations[i].op)));
+        Val primitive = from_op(as_list(str_list(specializations[i].primitive)));
+        stack_lookup(m, list_of1(op), 2)->invalidates_code = 1;
         stack_lookup(m, list_of1(primitive), 2)->invalidates_code = 1;
     }
-    m->exception = stack_lookup(m, list_of1(from_word(as_list(str_list("EXCEPTION")))), 2);
-    m->diagnostics = stack_lookup(m, list_of1(from_word(as_list(str_list("DIAGNOSTICS")))), 1);
+    m->exception = stack_lookup(m, list_of1(from_op(as_list(str_list("EXCEPTION")))), 2);
+    m->diagnostics = stack_lookup(m, list_of1(from_op(as_list(str_list("DIAGNOSTICS")))), 1);
     m->diagnostics->locked = 1;
-    m->optimize_ops = !getenv("BO_NO_OP_OPTIMIZATIONS");
-    m->private_words = !getenv("BO_NO_PRIVATE");
+    m->optimize_instrs = !getenv("BO_NO_OP_OPTIMIZATIONS");
+    m->private_ops = !getenv("BO_NO_PRIVATE");
     m->epoch++;
 }
 
@@ -2959,8 +2968,8 @@ static int execute_text(Machine *m, const char *text, size_t len, const char *so
     Forms forms;
     LowerErr le;
     uint32_t file_tag = file ? file_id(m, source) : 0;
-    uint32_t owner = m->private_words ? file_tag : 0;
-    int bad = lower_word_forms(text, len, first_line, owner, &forms, &le);
+    uint32_t owner = m->private_ops ? file_tag : 0;
+    int bad = lower_op_forms(text, len, first_line, owner, &forms, &le);
     if (bad) {
         free(forms.f);
         m->source = source;
@@ -2997,7 +3006,7 @@ int execute(Machine *m, const char *text, size_t len, const char *source, int fi
     return execute_text(m, text, len, source, first_line, 0);
 }
 
-/* the text of a source file: its `__` words are private to it */
+/* the text of a source file: its `__` ops are private to it */
 int execute_file(Machine *m, const char *text, size_t len, const char *source) {
     return execute_text(m, text, len, source, 1, 1);
 }
@@ -3043,9 +3052,9 @@ static void dump_val(FILE *out, Val v) {
             dump_val(out, l->items[i]);
         }
         fputc(')', out);
-    } else if (is_word(v)) {
+    } else if (is_op(v)) {
         Buf name = {0};
-        codes_to_utf8(from_list(as_word(v)), &name);
+        codes_to_utf8(from_list(as_op(v)), &name);
         if (name.s) fputs(name.s, out);
         free(name.s);
     } else {

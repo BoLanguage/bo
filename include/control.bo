@@ -1,0 +1,41 @@
+"stack.bo" require
+"logic.bo" require
+
+;dip ( .. x q -- .. x ) run q with x set aside, then put x back on top (also after an error in q)
+
+    (
+    swap (__dip) PUSH
+    () (apply) (rethrow) ((__dip) POP)
+    call
+    )
+    (dip)
+PUSH
+
+;keep ( .. x q -- .. x ) run q on x, then put back a copy of x on top
+
+    (over swap dip)
+    (keep)
+PUSH
+
+;bi ( .. x p q -- .. ) run p on x, then q on another copy of x
+
+    ((keep) dip apply)
+    (bi)
+PUSH
+
+;times ( .. q n -- .. ) run q n times (not at all if n is not positive); q sees the stack below its arguments
+
+    (
+    (__times) PUSH (__timesq) PUSH
+    ()
+        (
+            ((__times) TOP 0 >)
+            ((__times) POP 1 - (__times) PUSH (__timesq) TOP apply)
+        loop
+        )
+    (rethrow)
+    ((__times) POP drop (__timesq) POP drop)
+    call
+    )
+    (times)
+PUSH

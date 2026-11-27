@@ -135,7 +135,7 @@ test("a model that solves it is recorded as an agent session, step by step, like
     const stats = service.getStatistics();
     assert.equal(stats.you.played, 1, "the person's own statistics do not include the agent");
     assert.deepEqual(stats.agents.map((a) => [a.model, a.played, a.solved, a.solveRate]), [["solver", 1, 1, 1]]);
-    assert.equal(stats.agents[0].meanWordsToSolve, 1);
+    assert.equal(stats.agents[0].meanTokensToSolve, 1);
     assert.equal(repository.listPuzzles()[0].played, true);
 });
 

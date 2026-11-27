@@ -185,32 +185,32 @@ functions `validatePuzzle` / `submitPuzzle`).
 | `tags` | 1 to 3 from the closed list; the first is the main one |
 | `goal` | what to do, 10 to 300 characters, `backticks` for code |
 | `inputs` | a list of stacks (bottom first) of whole numbers or lists of whole numbers (\|n\| up to 1,000,000) |
-| `solution` | the Bo words that solve it; the expected values are what it produces |
-| `word` | `define` only: the name the player defines |
+| `solution` | the Bo ops that solve it; the expected values are what it produces |
+| `op` | `define` only: the name of the op the player defines |
 | `hints` | 1 to 3 texts, gentlest first |
 
 Written by the compiler: the title (`<Main tag> #<n> · <agent>`, where the agent is the model name or the
 client's name and `n` the puzzle's number in the player's list), the difficulty (an estimate from the number
-of words in the solution, one more for a conditional or iteration word), `;@hints`, the check, the reveal
+of tokens in the solution, one more for a conditional or iteration op), `;@hints`, the check, the reveal
 text, the sample wrong answers, and the description (the start and target stacks, or two example calls).
 
 - **`arrange`**: `inputs` has exactly one stack, pushed at the start. The solution is run on it and what it
   leaves is the target, checked with `puzzle.eq`. The solution must change the stack and leave something.
 - **`define`**: 3 to 8 inputs. The validator, for each input, clears the stack, pushes the input, calls the
-  word and compares the whole stack with what the solution left, with `puzzle.eq`; a case that differs
-  leaves a record on `puzzle.mismatch`. One free hint is added saying how to define a word. The compiler
-  refuses inputs that do not tell a wrong word from the right one: all different, not all unchanged (an empty
-  definition would pass) and not all giving the same result (a word ignoring its input would pass); the file
-  also carries those two as `;@wrong` samples, which the harness checks again. A word name that already
+  op and compares the whole stack with what the solution left, with `puzzle.eq`; a case that differs
+  leaves a record on `puzzle.mismatch`. One free hint is added saying how to define an op. The compiler
+  refuses inputs that do not tell a wrong op from the right one: all different, not all unchanged (an empty
+  definition would pass) and not all giving the same result (an op ignoring its input would pass); the file
+  also carries those two as `;@wrong` samples, which the harness checks again. An op name that already
   exists in Bo is refused.
 - **Placeholders**, registered in `KINDS` but not offered in the tool's schema: `predict` (say what a program
   leaves), `fix` (repair a definition), `golf` (shortest definition), `named-stack`.
 
 Problems with a spec are reported in its own terms (`PROBLEM inputs[0] must be ...`), all at once. After a
 good validation the report shows what the solution produced, so an agent notices when it is not what it
-meant. A spec can warn (a hint containing the solution, a goal that does not mention the word, a tag the
+meant. A spec can warn (a hint containing the solution, a goal that does not mention the op, a tag the
 solution does not obviously use). Novelty works on specs too: the same goal, or the same kind, inputs,
-solution and word as a guide example or stored puzzle, is refused. A retry of an identical spec is
+solution and op name as a guide example or stored puzzle, is refused. A retry of an identical spec is
 recognised, because the spec is kept in the puzzle's package.
 
 Values are whole numbers and lists of them only, so that expected results are exact (no floating point) and
@@ -219,9 +219,9 @@ print as literals. Strings and deeper lists could be added later.
 ## Harness checks
 
 Implemented in `harness.mjs` (`validatePuzzle`), with the command
-`node playground-plus/validate.mjs [--json] [--budget WORDS] FILE...` (exit status 1 if invalid). It runs on
+`node playground-plus/validate.mjs [--json] [--budget OPS] FILE...` (exit status 1 if invalid). It runs on
 the real machine in WebAssembly (an in-memory file system, so the puzzle's code cannot reach the host), and
-every run is stepped under a word budget (`bo.debug.run(limit)`, 200,000 by default), which also stops loops
+every run is stepped under an op budget (`bo.debug.run(limit)`, 200,000 by default), which also stops loops
 inside validators (`call`, `map`). A check is an `error` (fails the puzzle) or a `warning` (advice). The
 result is `{ok, id, puzzle, checks[], metrics}`.
 
@@ -249,7 +249,7 @@ result is `{ok, id, puzzle, checks[], metrics}`.
    puzzle" will otherwise hand back a guide example reworded, which is valid but not new.
 
 `metrics.bestKnownLength` is the fewest top-level tokens among the solution and right lines, not counting a
-final `guess` (`tokens.mjs`: a word, number, string or whole list counts once). It is a best-known length, not
+final `guess` (`tokens.mjs`: an op, number, string or whole list counts once). It is a best-known length, not
 an optimum. The report is structured and carries the machine's own error messages, so a failing agent can fix
 and resubmit.
 
@@ -363,7 +363,7 @@ Tools (all narrow; there is no SQL, file or shell access):
 - `get_user_profile`: totals, results by difficulty and by tag (solve rate, median seconds, hints, guesses),
   recent puzzles (the person's first plays). `get_session_history(limit)`: the newest sessions.
 - `list_puzzles`: existing puzzles (title, goal, tags, difficulty, plays; never answers).
-- `validate_puzzle(kind, tags, goal, inputs, solution, word?, hints)`: builds the puzzle from the spec and
+- `validate_puzzle(kind, tags, goal, inputs, solution, op?, hints)`: builds the puzzle from the spec and
   reports (problems, what the solution produced, the harness checks); nothing is stored. `submit_puzzle(...)`:
   the same fields; validates and, if valid, stores it (the same spec is stored once, and the client's name is
   kept as provenance and in the title). The tool schema carries the enums (kinds that are offered, tags).
@@ -418,7 +418,7 @@ therefore cannot inflate or skew the statistics, and a first attempt that was ab
   structured data, not parsed from output text.
 - **What is not recorded:** anything done in the editor (its contents, runs, steps, output). Those events are
   not stored at all, and since opening the editor during a recorded puzzle ends the session as revealed, there
-  is normally nothing to record. The puzzle's own stacks (solution, messages, library words) are not recorded
+  is normally nothing to record. The puzzle's own stacks (solution, messages, library ops) are not recorded
   either. The API refuses anything beyond documented fields and sizes.
 - **Counting unit:** typed top-level tokens, literals included (not machine steps), counted by `tokens.mjs`
   from the stored prompt lines.
@@ -430,7 +430,7 @@ therefore cannot inflate or skew the statistics, and a first attempt that was ab
   puzzle's runtime (`puzzle.validator`) is gone from the machine, the session ends as `abandoned`. That
   includes `exit` (the page then starts fresh), "Reset everything", a restart of a stuck machine, and, if they
   happen to occur, an editor run, step, restart, or emptying the program's stacks (those events themselves are
-  not stored). Actions that leave the puzzle in place change nothing: the Bo word `clear`, a stack's "empty"
+  not stored). Actions that leave the puzzle in place change nothing: the Bo op `clear`, a stack's "empty"
   icon, `abort` in the debugger, errors, and wrong guesses.
 - Hints are counted in the play state, with timestamps from the events. `revealed` counts as a failure.
 
@@ -443,9 +443,9 @@ The **My profile** button (next to "New puzzle") opens a dialog built from `GET 
 (`service.getStatistics()`):
 
 - **You** (first plays only): puzzles played, solved, revealed and abandoned, the solve rate among finished
-  puzzles, mean difficulty, median time to solve, hints per solved puzzle, words typed to solve and the ratio
-  to the shortest answer known for that puzzle, plus breakdowns by difficulty and by topic. "Words" are the
-  top-level tokens typed (`guess`, `hint` and `reveal` excluded).
+  puzzles, mean difficulty, median time to solve, hints per solved puzzle, tokens typed to solve and the ratio
+  to the shortest answer known for that puzzle, plus breakdowns by difficulty and by topic. Tokens are
+  counted at the top level, numbers included (`guess`, `hint` and `reveal` excluded).
 - **Agents**: one row per model (the session's `client`), every attempt counted, with the same measures.
   They come from "Watch an agent play". For an agent, running out of time or turns counts as a failure in the
   solve rate; for a person, walking away from a puzzle does not.
@@ -599,16 +599,16 @@ Lessons, each of which changed the system:
   a run that nearly fills it. A thinking model can fill that window with reasoning and answer nothing, so
   `qwen3` models run with thinking off (`modelTraits`).
 - **Feedback decides how fast a model converges.** Models ignore a repeated message, so the server says when
-  the same puzzle is validated twice. Failures are explained: a word that does not exist (`if`, `then`)
+  the same puzzle is validated twice. Failures are explained: an op that does not exist (`if`, `then`)
   points to `ifte` and to `get_bo_reference`; `ifte` errors show the order of its three quotations; a failure
   on every input is reported once; "the inputs do not tell wrong from right" shows what the solution gave,
   which is how a model notices that its solution (`0 -`) is not the negation it meant.
 - **Where a model is weakest.** The 9B model fails on conditionals (`ifte` order), on `map` (callbacks get a
   unit), and on telling a stack with several numbers from a stack holding a list. The brief therefore gives
-  the Bo words the idea probably needs (`words`), a new player gets only level 1 topics, and the guide
+  the Bo ops the idea probably needs (`ops`), a new player gets only level 1 topics, and the guide
   explains `ifte`, recursion by name and the list case.
 - **Accepted is not good.** A puzzle can be valid and still dull: with the brief's level 1 ideas, many are a
-  single word (`swap`, `over`, `+`). That suits a new player and is not a defect, but difficulty and variety
+  single op (`swap`, `over`, `+`). That suits a new player and is not a defect, but difficulty and variety
   need real play data.
 
 Not run: devstral:24b, qwen3-coder:30b and gpt-oss:20b on specs (outside the 10 to 16 GB target or too slow
@@ -626,8 +626,8 @@ here).
   system. The agent player refuses the lines that name `puzzle.` or `reveal`.
 - **Operation constraints cannot be enforced** by a validator, which only sees the final state (it cannot tell
   `rot` from `clear 3 2 1`). In the PG, puzzles are either submit-style (the validator checks a submitted
-  program's words, as puzzle 09 does) or rely on the player's honesty, and puzzles 07 and 08 say so. An
-  allowed-word gate on prompt input (it could use `tokens.mjs`) is not built.
+  program's ops, as puzzle 09 does) or rely on the player's honesty, and puzzles 07 and 08 say so. An
+  allowed-op gate on prompt input (it could use `tokens.mjs`) is not built.
 - **Local safety.** The server binds to loopback, checks Host and Origin, serves a whitelist, and the page
   renders puzzle text as plain text, with paired backticks for code.
 - **Specs are small.** Whole numbers and lists of them, two kinds. The placeholders (`predict`, `fix`, `golf`,

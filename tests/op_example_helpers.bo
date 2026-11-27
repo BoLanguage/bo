@@ -20,8 +20,8 @@ filter say
 17 (a b) (TAG) tagkey PUSH
 (a b) (TAG) tagkey get say
 (a b) (TAG) tagkey (a b) (TAG) tagkey = say
-7 "X" word PUSH X say
+7 "X" selector PUSH X say
 
-    ("not a name" word)
-    (unconsl apply text emits nl)
+    ("not a name" selector)
+    (unconsl apply name emits nl)
 catch drop

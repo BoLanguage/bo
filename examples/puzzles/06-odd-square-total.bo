@@ -7,7 +7,7 @@
 ;@solution ((apply 2 mod 1 =) filter (apply dup * unit) map 0 (apply +) foldl) (odd-square-total) PUSH guess
 ;@wrong ((apply 2 mod 1 =) filter 0 (apply +) foldl) (odd-square-total) PUSH guess
 ;@description
-; Combine a `filter`, a `map`, and a left fold into one word.
+; Combine a `filter`, a `map`, and a left fold into one op.
 ; `foldl` receives an initial accumulator, then a callback for each unit value.
 ; As usual, run `guess` to check the solution.
 ;@enddescription

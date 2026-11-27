@@ -42,7 +42,7 @@ static int read_entry(Machine *m, int tty, char **buf, size_t *len, size_t *cap)
         *len += k;
         Forms f;
         LowerErr le;
-        int bad = lower_word_forms(*buf, *len, 1, 0, &f, &le);
+        int bad = lower_op_forms(*buf, *len, 1, 0, &f, &le);
         free(f.f);
         if (!bad || !le.incomplete) return 1;
     }
@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
     m->resume_host = debug;
     m->home = find_home(argv[0]);
     for (i = 1; i < argc; i++)
-        if (strcmp(argv[i], "--no-private") == 0) m->private_words = 0;
+        if (strcmp(argv[i], "--no-private") == 0) m->private_ops = 0;
     if (!bare) {
         char *core = NULL;
         if (m->home) {

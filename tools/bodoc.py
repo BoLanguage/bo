@@ -76,8 +76,8 @@ def inventory():
         entry for path in DERIVED_SOURCES for entry in parse_derived(path)
     ]
     core_derived = [
-        {key: word[key] for key in ("name", "group", "type", "effect", "description")}
-        for word in CORE_DERIVED
+        {key: op[key] for key in ("name", "group", "type", "effect", "description")}
+        for op in CORE_DERIVED
     ]
     library = adapters + core_derived + derived
     for entries, label in ((primitives, "primitive"), (library, "library")):

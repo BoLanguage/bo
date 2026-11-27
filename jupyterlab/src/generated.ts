@@ -73,8 +73,8 @@ export const primitiveActions = new Set<string>([
   "STOP",
   "BACKTRACE",
   "UNITTYPE",
-  "WORD",
-  "TEXT"
+  "SELECTOR",
+  "NAME"
 ]);
 
 export const primitiveNames = new Set<string>([
@@ -150,8 +150,8 @@ export const primitiveNames = new Set<string>([
   "STOP",
   "BACKTRACE",
   "UNITTYPE",
-  "WORD",
-  "TEXT"
+  "SELECTOR",
+  "NAME"
 ]);
 
 export const adapterNames = new Set<string>([
@@ -222,15 +222,21 @@ export const adapterNames = new Set<string>([
   "read",
   "write",
   "=",
-  "text",
+  "name",
+  "selector",
   "type",
   "unittype",
-  "word",
   "any",
   "all",
   "flip",
   "flipud",
   "fliplr",
+  "table",
+  "showmatrix",
+  "dip",
+  "keep",
+  "bi",
+  "times",
   "watch",
   "where",
   "@if",
@@ -245,6 +251,8 @@ export const adapterNames = new Set<string>([
   "emits",
   "spaces",
   "emit",
+  "say",
+  "says",
   "?",
   "ps",
   "null",
@@ -269,6 +277,13 @@ export const adapterNames = new Set<string>([
   "endswith",
   "contains",
   "reverse",
+  "sum",
+  "product",
+  "sortby",
+  "sort",
+  "rotate",
+  "dedup",
+  "partition",
   "true",
   "false",
   "bool",
@@ -299,6 +314,7 @@ export const adapterNames = new Set<string>([
   "ceil",
   "trunc",
   "round",
+  "sqrt",
   "nop",
   "dup",
   "over",
@@ -323,9 +339,11 @@ export const adapterNames = new Set<string>([
   "nl",
   "puts",
   "gets",
+  "strsplit",
+  "strjoin",
   "isnumber",
   "islist",
   "isunit",
   "isinteger",
-  "isword"
+  "isselector"
 ]);

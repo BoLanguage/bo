@@ -82,6 +82,7 @@ PUSH
 PUSH
 
 ;text words : the list of the words of text
+;(the library does this with: text () strsplit)
     (
     null 
         (OUT) 

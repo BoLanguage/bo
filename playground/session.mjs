@@ -43,7 +43,7 @@ export function createSession(onOutput) {
             return need().debug.load(code, options);
         },
         /** Resolves to the status after running `n` steps in `mode`. */
-        async debugStep(n = 1, mode = "words") {
+        async debugStep(n = 1, mode = "ops") {
             return need().debug.step(n, mode);
         },
         async debugRun(limit) {

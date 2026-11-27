@@ -59,13 +59,13 @@ async function main() {
         [30, "constant.language.bo", "entity.name.type.error.bo"],
         [42, "source.bo", "entity.name.type.error.bo"],
     ]);
-    check("drop Stack.DROP Math.ADD Math.POW Value.WORD Value.TEXT", null, [
+    check("drop Stack.DROP Math.ADD Math.POW Value.SELECTOR Value.NAME", null, [
         [0, "keyword.control.bo", "entity.name.function.instructions.bo"],
         [11, "entity.name.function.instructions.bo", "keyword.control.bo"],
         [21, "entity.name.function.instructions.bo", "keyword.control.bo"],
         [30, "entity.name.function.instructions.bo", "keyword.control.bo"],
         [40, "entity.name.function.instructions.bo", "keyword.control.bo"],
-        [51, "entity.name.function.instructions.bo", "keyword.control.bo"],
+        [55, "entity.name.function.instructions.bo", "keyword.control.bo"],
     ]);
     check("DROP PUSH map dup", null, [
         [0, "entity.name.function.instructions.bo", "keyword.control.bo"],

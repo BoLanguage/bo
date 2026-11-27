@@ -23,11 +23,11 @@ test("the prompt says what the next step is while a program is paused", () => {
     const idle = "Type some Bo";
     assert.equal(promptPlaceholder({ status: "idle", machine: null }, idle), idle);
     assert.equal(promptPlaceholder({ status: "done", machine: { next: null } }, idle), idle);
-    assert.equal(promptPlaceholder({ status: "paused", machine: { next: { word: "+" } } }, idle),
+    assert.equal(promptPlaceholder({ status: "paused", machine: { next: { op: "+" } } }, idle),
         "Paused before + \u00b7 Type step, next, continue or stop, or any Bo to run here");
     assert.equal(promptPlaceholder({ status: "paused", machine: { next: null } }, idle),
         "Paused \u00b7 Type step, next, continue or stop, or any Bo to run here");
-    const long = promptPlaceholder({ status: "paused", machine: { next: { word: "(a very long list of many elements)" } } }, idle);
+    const long = promptPlaceholder({ status: "paused", machine: { next: { op: "(a very long list of many elements)" } } }, idle);
     assert.ok(long.startsWith("Paused before (a very long list of ma\u2026 \u00b7 Type"), long);
     assert.match(promptPlaceholder({ status: "ready", machine: null }, idle), /^Program loaded/);
 });

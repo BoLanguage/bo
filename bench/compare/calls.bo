@@ -1,6 +1,6 @@
 "../../include/std.bo" () INCLUDE
 
-;Five million calls through a pair of named words
+;Five million calls through a pair of named ops
 (1 +) (STEP) PUSH
 (STEP STEP) (TWICE) PUSH
 0 (dup 5000000 <) (TWICE) loop emit nl

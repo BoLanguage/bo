@@ -49,7 +49,7 @@ PUSH
 
 "square then +1 of 7: " emits 7 square+1 apply say
 
-;split2: split using lambda/rec (no helper word) [variant of include/list.bo/split, illustrative example only]
+;split2: split using lambda/rec (no helper op) [variant of include/list.bo/split, illustrative example only]
 
     (
     () -rot
@@ -74,7 +74,7 @@ PUSH
     (split2)
 PUSH
 
-;split3: split using own stack manipulation (no helper word) [variant of include/list.bo/split, illustrative example only]
+;split3: split using own stack manipulation (no helper op) [variant of include/list.bo/split, illustrative example only]
 
     (
         (dup 0 =)

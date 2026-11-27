@@ -62,24 +62,24 @@ def add_tests():
 add_tests()
 
 
-class WordPythonExamples(unittest.TestCase):
+class OpPythonExamples(unittest.TestCase):
     def test_examples(self):
         for name in programs():
             with self.subTest(example=name):
                 with open(os.path.join(EXPECTED, name + ".out"), encoding="utf-8") as file:
                     expected = file.read()
-                result = run([sys.executable, "-m", "tests.word_example_runner"], name)
+                result = run([sys.executable, "-m", "tests.op_example_runner"], name)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stderr, "")
                 self.assertEqual(result.stdout, expected)
 
-    def test_helpers_preserve_words_and_encoded_keys(self):
-        check_helpers(self, [sys.executable, "-m", "tests.word_example_runner"])
+    def test_helpers_preserve_ops_and_encoded_keys(self):
+        check_helpers(self, [sys.executable, "-m", "tests.op_example_runner"])
 
 
 def check_helpers(test, command, env=None):
     result = subprocess.run(
-        command + [os.path.join(ROOT, "tests", "word_example_helpers.bo")],
+        command + [os.path.join(ROOT, "tests", "op_example_helpers.bo")],
         cwd=ROOT, capture_output=True, text=True, timeout=30, env=env,
     )
     test.assertEqual(result.returncode, 0, result.stderr)
@@ -88,16 +88,16 @@ def check_helpers(test, command, env=None):
 
 
 @unittest.skipUnless(shutil.which("cc"), "C compiler not available")
-class WordCExamples(unittest.TestCase):
+class OpCExamples(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temp = tempfile.TemporaryDirectory()
-        cls.binary = os.path.join(cls.temp.name, "bo-word-examples")
-        sources = ["machine.c", "heap.c", "units.c", "words.c", "lower.c", "lineedit.c"]
+        cls.binary = os.path.join(cls.temp.name, "bo-op-examples")
+        sources = ["machine.c", "heap.c", "units.c", "names.c", "lower.c", "lineedit.c"]
         build = subprocess.run(
             ["cc", "-O2", "-g", "-Wall", "-Wextra", "-std=gnu11",
              "-I", os.path.join(ROOT, "c"),
-             os.path.join(ROOT, "tests", "c_word_example_runner.c"),
+             os.path.join(ROOT, "tests", "c_op_example_runner.c"),
              *(os.path.join(ROOT, "c", source) for source in sources),
              "-lm", "-o", cls.binary], capture_output=True, text=True,
         )
@@ -129,7 +129,7 @@ class WordCExamples(unittest.TestCase):
                     self.assertEqual(result.stderr, "", name)
                     self.assertEqual(result.stdout, expected, name)
 
-    def test_helpers_preserve_words_and_encoded_keys(self):
+    def test_helpers_preserve_ops_and_encoded_keys(self):
         for mode, variable in (("generic-ops", "BO_NO_OP_OPTIMIZATIONS"),
                                ("specialized-ops", None)):
             with self.subTest(mode=mode):

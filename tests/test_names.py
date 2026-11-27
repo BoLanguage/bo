@@ -1,17 +1,17 @@
 import unittest
 
-from python.bo.lower import LoweringError, lower_word_forms, valid_word_name
+from python.bo.lower import LoweringError, lower_op_forms, valid_op_name
 from python.bo.render import render
 from python.bo.units import cons_unit, uncons_unit
-from python.bo.values import BoError, Word, from_str
-from python.bo.words import text_to_word, unit_type, word_to_text
+from python.bo.values import BoError, Op, from_str
+from python.bo.names import name_to_selector, unit_type, selector_to_name
 
 
-class WordConversions(unittest.TestCase):
+class OpConversions(unittest.TestCase):
     def test_unit_type_does_not_evaluate_its_element(self):
         self.assertEqual(unit_type([42]), 0)
         self.assertEqual(unit_type([[1, 2]]), 1)
-        self.assertEqual(unit_type([Word("OP")]), 2)
+        self.assertEqual(unit_type([Op("OP")]), 2)
         for unit in ([], [1, 2], 42):
             with self.subTest(unit=unit), self.assertRaises(BoError) as error:
                 unit_type(unit)
@@ -22,70 +22,70 @@ class WordConversions(unittest.TestCase):
                      "١٢٣", "１２３", "1١", "١.2", "1e٢"):
             with self.subTest(name=name):
                 text = from_str(name)
-                unit = [Word(name)]
-                self.assertEqual(text_to_word(text), unit)
-                self.assertEqual(word_to_text(unit), text)
-                self.assertTrue(valid_word_name(name))
+                unit = [Op(name)]
+                self.assertEqual(name_to_selector(text), unit)
+                self.assertEqual(selector_to_name(unit), text)
+                self.assertTrue(valid_op_name(name))
 
-    def test_at_renders_as_an_ordinary_word(self):
-        self.assertEqual(render(Word("@")), "@")
-        rendered = render([Word("@")])
+    def test_at_renders_as_an_ordinary_op(self):
+        self.assertEqual(render(Op("@")), "@")
+        rendered = render([Op("@")])
         self.assertEqual(rendered, "(@)")
-        self.assertEqual(lower_word_forms(rendered)[0][1], [[Word("@")]])
+        self.assertEqual(lower_op_forms(rendered)[0][1], [[Op("@")]])
 
     def test_invalid_names_raise_representation_error(self):
         for name in ("", "a b", "a\nb", "a;b", "(OP)", '"OP"', "123", "1.5", "1e999",
                      "\0", "\ud800"):
             with self.subTest(name=repr(name)), self.assertRaises(BoError) as error:
-                text_to_word(from_str(name))
+                name_to_selector(from_str(name))
             self.assertEqual(error.exception.kind, "Representation-Error")
 
     def test_out_of_range_code_points_raise_representation_error(self):
         for text in ([-1], [0x110000]):
             with self.subTest(text=text), self.assertRaises(BoError) as error:
-                text_to_word(text)
+                name_to_selector(text)
             self.assertEqual(error.exception.kind, "Representation-Error")
 
-    def test_invalid_internal_word_cannot_be_converted(self):
-        for word in (Word("a b"), Word("123")):
-            with self.subTest(word=word), self.assertRaises(BoError) as error:
-                word_to_text([word])
+    def test_invalid_internal_op_cannot_be_converted(self):
+        for op in (Op("a b"), Op("123")):
+            with self.subTest(op=op), self.assertRaises(BoError) as error:
+                selector_to_name([op])
             self.assertEqual(error.exception.kind, "Representation-Error")
 
-    def test_non_text_and_non_word_units_raise_type_error(self):
+    def test_non_text_and_non_op_units_raise_type_error(self):
         for text in (42, [65, []], [65.5]):
             with self.subTest(text=text), self.assertRaises(BoError) as error:
-                text_to_word(text)
+                name_to_selector(text)
             self.assertEqual(error.exception.kind, "Type-Error")
-        for unit in (Word("OP"), [], [1], [Word("OP"), Word("OP")], [[Word("OP")]]):
+        for unit in (Op("OP"), [], [1], [Op("OP"), Op("OP")], [[Op("OP")]]):
             with self.subTest(unit=unit), self.assertRaises(BoError) as error:
-                word_to_text(unit)
+                selector_to_name(unit)
             self.assertEqual(error.exception.kind, "Type-Error")
 
 
-class WordLowering(unittest.TestCase):
-    def test_words_are_single_elements_and_strings_remain_text(self):
-        forms = lower_word_forms('(OP 1 2) "OP" OP @ $')
+class OpLowering(unittest.TestCase):
+    def test_ops_are_single_elements_and_strings_remain_text(self):
+        forms = lower_op_forms('(OP 1 2) "OP" OP @ $')
         self.assertEqual(
             [item for _, items in forms for item in items],
-            [[Word("OP"), 1, 2], [79, 80], Word("OP"), Word("@"), Word("$")],
+            [[Op("OP"), 1, 2], [79, 80], Op("OP"), Op("@"), Op("$")],
         )
 
-    def test_nested_lists_preserve_words_and_source_lines(self):
+    def test_nested_lists_preserve_ops_and_source_lines(self):
         self.assertEqual(
-            lower_word_forms('\n((A "x") 3)\nπ'),
-            [(2, [[[Word("A"), [120]], 3]]), (3, [Word("π")])],
+            lower_op_forms('\n((A "x") 3)\nπ'),
+            [(2, [[[Op("A"), [120]], 3]]), (3, [Op("π")])],
         )
 
     def test_invalid_source_names_and_numbers_are_rejected(self):
         for source in ("\0", "\ud800", "1e999"):
             with self.subTest(source=repr(source)), self.assertRaises(LoweringError):
-                lower_word_forms(source)
+                lower_op_forms(source)
 
 
 class UnitListOperations(unittest.TestCase):
     def test_round_trip_at_both_ends(self):
-        for element in (42, [1, 2], Word("OP")):
+        for element in (42, [1, 2], Op("OP")):
             for right in (False, True):
                 with self.subTest(element=element, right=right):
                     rest = [3, 4]

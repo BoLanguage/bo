@@ -32,22 +32,22 @@ static int valid_name(List *name) {
     return !numeric;
 }
 
-int text_to_word(Val text, Val *unit) {
-    if (!is_list(text)) return WORD_TYPE_ERROR;
+int name_to_selector(Val text, Val *selector) {
+    if (!is_list(text)) return NAME_TYPE_ERROR;
     List *name = as_list(text);
     for (uint32_t i = 0; i < name->len; i++)
-        if (!is_int(name->items[i])) return WORD_TYPE_ERROR;
-    if (!valid_name(name)) return WORD_REPRESENTATION_ERROR;
-    /* a name that came from a private word keeps no owner: only the reader makes private words */
+        if (!is_int(name->items[i])) return NAME_TYPE_ERROR;
+    if (!valid_name(name)) return NAME_REPRESENTATION_ERROR;
+    /* a name that came from a private op keeps no owner: only the reader makes private ops */
     if (name->owner) name = as_list(list_from(name->items, name->len));
-    *unit = list_of1(from_word(name));
-    return WORD_OK;
+    *selector = list_of1(from_op(name));
+    return NAME_OK;
 }
 
-int word_to_text(Val unit, Val *text) {
-    Val word;
-    if (unit_element(unit, &word) || !is_word(word)) return WORD_TYPE_ERROR;
-    if (!valid_name(as_word(word))) return WORD_REPRESENTATION_ERROR;
-    *text = from_list(as_word(word));
-    return WORD_OK;
+int selector_to_name(Val selector, Val *text) {
+    Val op;
+    if (unit_element(selector, &op) || !is_op(op)) return NAME_TYPE_ERROR;
+    if (!valid_name(as_op(op))) return NAME_REPRESENTATION_ERROR;
+    *text = from_list(as_op(op));
+    return NAME_OK;
 }

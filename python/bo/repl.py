@@ -73,7 +73,7 @@ def main(argv=None):
             paths.append(argument)
     machine = Machine()
     if no_private:
-        machine.private_words = False
+        machine.private_ops = False
     if not bare and not machine.include_file(machine.home / "include" / "core.bo"):
         return 1
     if not paths:

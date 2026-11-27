@@ -70,7 +70,7 @@ to say every AOT attempt lost.
 
 ## Semantics and measurement constraints
 
-- A Bo word is dynamically resolved through its named stack. Its current top
+- A Bo op is dynamically resolved through its named stack. Its current top
   can be a quotation, number, or empty, and primitive fallback or an error can
   apply. Redefinitions can happen during execution.
 - Quotations are first-class values. Programs can construct, inspect, compare,
@@ -161,7 +161,7 @@ allowed direct calls to bound generated quotations, and capped native nesting
 at 32. For 500,000 iterations it measured 0.2851s versus 0.2579s compiled ops
 for calls, 0.3394s versus 0.3030s for nested quotation, and 0.3490s versus
 0.3511s for a direct chain. It supported only literal
-`(quotation) (WORD) PUSH` definitions, used runtime helpers, and did not
+`(quotation) (OP) PUSH` definitions, used runtime helpers, and did not
 solve unrestricted native tail recursion or all safepoints.
 
 Reproduce current variants with `python3 bench/aot/model.py` and
@@ -212,7 +212,7 @@ Command: `python3 -m bench.aot.programs --repeat 7`.
 ### 6. Linkable per-element execution templates
 
 `BO_LINKED_EXPERIMENT` copied execution records alongside list elements. A
-record invokes a shared C-compiled literal or dynamic-word template; ordinary
+record invokes a shared C-compiled literal or dynamic-op template; ordinary
 quotation contents remain available. No special `loop` implementation or
 machine-code patching was added. The Collatz preflight traced 215,063
 executions of a **copied** `mod` operation in the constructed inner body.
@@ -233,9 +233,9 @@ Command: `python3 -m bench.aot.linked --repeat 7 --memory`.
 ### 7. Reusable complete fragments
 
 `BO_LINKED_FRAGMENTS` generates C-compiled straight-line templates for
-word/literal shapes found in the supplied source. Copied records retain
+op/literal shapes found in the supplied source. Copied records retain
 quotation origin and position. A complete contiguous reassembly can run the
-shared fragment; partial spans fall back to per-element execution. Word calls
+shared fragment; partial spans fall back to per-element execution. Op calls
 remain dynamic; no loop-specific rule or executable-memory patching is used.
 The prototype still calls a helper per element and yields to the scheduler for
 many dynamic calls. It scans generated shapes during preparation and is not
@@ -350,9 +350,9 @@ The backend is 691 lines in this snapshot, not an estimate of all related
 maintenance costs. Compiled-operation specialization also has guards, epoch
 and redefinition handling; it is not a free or independent interpreter.
 
-The C word-value suite exercises the explicit no-JIT, compiled-ops and native
+The C op-value suite exercises the explicit no-JIT, compiled-ops and native
 modes, including forced GC and error behavior. The examples, CLI, numeric,
-selected-stack and word-execution suites also passed in three environment runs
+selected-stack and op-execution suites also passed in three environment runs
 (68 tests each); several tests explicitly set their own mode and thus not
 every test in each run is exclusive to that environment. The comparison
 runner's error preflights and benchmark outputs passed in each mode.
@@ -374,7 +374,7 @@ semantic and maintenance impact, before proposing deletion.
 
 `python3 bench/compare/native_heavy.py --repeat 7 --long-count 100000` built
 the C harness with the normal `-O2` flags and compared all three modes.
-The harness uses the CLI's word-value initialization and loads `std.bo`.
+The harness uses the CLI's op-value initialization and loads `std.bo`.
 It creates and roots one quotation, then calls `machine_run` in a C loop,
 resetting and checking the data stack every iteration. Its execution timer
 includes the loop, checks, operation compilation and native compilation, but
@@ -411,9 +411,9 @@ different process startup conditions prevent a precise crossover or isolated
 compilation-cost estimate. The arithmetic preflight recorded 9,999,951 native
 entries and the same number of `not_native` call exits at `+`, with no native
 completions. This is not a native-heavy arithmetic workload: in the current
-word-value execution path those calls do not become inline native arithmetic.
+op-value execution path those calls do not become inline native arithmetic.
 
-The additional end-to-end Bo program repeatedly calls a 100-branch word and
+The additional end-to-end Bo program repeatedly calls a 100-branch op and
 drops its 100 outputs in the library `loop`; its 10,000-iteration
 whole-process medians were 0.139599s no JIT, 0.083190s compiled ops and
 0.091838s native. Compiled/native ranges overlap (0.065478–0.085261s and

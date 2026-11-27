@@ -24,10 +24,10 @@
         <div class="toolbar" role="toolbar" aria-label="Debugger controls">
           <button id="step" title="Execute the next step (F10)">Step</button>
           <select id="mode" aria-label="Step size" title="What one step is">
-            <option value="words">word</option>
-            <option value="over">word, over calls</option>
+            <option value="ops">op</option>
+            <option value="over">op, over calls</option>
             <option value="lines">line</option>
-            <option value="user">line + user words</option>
+            <option value="user">line + user ops</option>
           </select>
           <button id="run" class="primary" title="Run to the end (Ctrl+Enter)">Run<svg class="bolt" viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="currentColor"/></svg></button>
           <button id="stop" title="Pause a running program" disabled>Stop</button>
@@ -39,7 +39,7 @@
         <div class="editor-foot"><button id="editor-clear" class="link" type="button" title="Empty the editor">Clear</button></div>
         <h2>Next</h2>
         <div id="next"></div>
-        <h2>Running <span class="subtle" title="A word called last in a list replaces its caller (a tail call), so fewer levels show than the source nests">innermost first</span></h2>
+        <h2>Running <span class="subtle" title="An op called last in a list replaces its caller (a tail call), so fewer levels show than the source nests">innermost first</span></h2>
         <div id="frames"></div>
       </div>
     </div>

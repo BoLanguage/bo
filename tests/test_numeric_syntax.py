@@ -4,19 +4,19 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from python.bo.lower import lower_word_forms, valid_word_name
-from python.bo.values import Word
+from python.bo.lower import lower_op_forms, valid_op_name
+from python.bo.values import Op
 
 ROOT = Path(__file__).resolve().parent.parent
 C_BIN = ROOT / "c" / "bo"
 
 
 class NumericSyntax(unittest.TestCase):
-    def test_unicode_digits_are_word_names(self):
+    def test_unicode_digits_are_op_names(self):
         for token in ("١٢٣", "１２３", "1١", "١.2", "1e٢"):
             with self.subTest(token=token):
-                self.assertEqual(lower_word_forms(token)[0][1], [Word(token)])
-                self.assertTrue(valid_word_name(token))
+                self.assertEqual(lower_op_forms(token)[0][1], [Op(token)])
+                self.assertTrue(valid_op_name(token))
 
     @unittest.skipUnless(C_BIN.exists(), "c/bo is not built")
     def test_c_execution_modes_recognize_unicode_names(self):

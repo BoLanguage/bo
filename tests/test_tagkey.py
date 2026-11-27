@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from python.bo.machine import Machine
-from python.bo.values import Word, from_str
+from python.bo.values import Op, from_str
 from tests.diff_c import dump
 
 
@@ -27,7 +27,7 @@ def uint(value):
 
 
 def serialize(value):
-    if isinstance(value, Word):
+    if isinstance(value, Op):
         return b"W" + b"".join(uint(ord(char)) for char in value.name) + b"\0"
     if isinstance(value, list):
         return b"L" + b"".join(serialize(item) for item in value) + b"E"
@@ -40,7 +40,7 @@ def serialize(value):
 
 def expected_key(value, tag):
     payload = base64.urlsafe_b64encode(serialize(value)).decode("ascii").rstrip("=")
-    return [Word(f"{tag}.{payload}")]
+    return [Op(f"{tag}.{payload}")]
 
 
 class TagKeys(unittest.TestCase):
@@ -70,18 +70,18 @@ class TagKeys(unittest.TestCase):
         return machine.data
 
     def test_base64url_helper_is_private(self):
-        # the encoder is a private word of dict.bo; tagkey's output is checked against the
+        # the encoder is a private op of dict.bo; tagkey's output is checked against the
         # reference base64url encoder below
-        result = self.run_program("(() \"f\" __key-b64-0) () catch unconsl apply text")
+        result = self.run_program("(() \"f\" __key-b64-0) () catch unconsl apply name")
         self.assertEqual(result[-1], from_str("Existence-Error"))
 
     def test_structural_values_and_tags(self):
         cases = [
             ("()", [], "T"),
             ('"hello, world!\\n"', from_str("hello, world!\n"), "My.Dictionary"),
-            ("(0 1 (a (b C) ()) 1114112 -1)", [0, 1, [Word("a"), [Word("b"), Word("C")], []], 1114112, -1], "T"),
+            ("(0 1 (a (b C) ()) 1114112 -1)", [0, 1, [Op("a"), [Op("b"), Op("C")], []], 1114112, -1], "T"),
             ("(97 98 99)", [97, 98, 99], "T"),
-            ("(abc)", [Word("abc")], "T"),
+            ("(abc)", [Op("abc")], "T"),
             ("(())", [[]], "T"),
             ("(0)", [0], "T"),
             ("40", 40, "-"),
@@ -122,7 +122,9 @@ class TagKeys(unittest.TestCase):
             with self.subTest(tag=tag):
                 data = self.run_program(f"(42 {tag} tagkey) () catch")
                 self.assertEqual(data[0], 42)
-                self.assertEqual(data[-1][:2], [[Word("Type-Error")], [Word("TEXT")]])
+                # () is a valid argument of NAME (the default-stack selector), so tagkey rejects it itself
+                where = "THROW" if tag == "()" else "NAME"
+                self.assertEqual(data[-1][:2], [[Op("Type-Error")], [Op(where)]])
 
 
 if __name__ == "__main__":

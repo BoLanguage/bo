@@ -77,7 +77,7 @@ PUSH
 "round trip:     " emits 987654321 7 tostring 7 parse say
 
 ;Roman numerals. The remaining value and the output are kept in named stacks used as variables
-;the table is a word that pushes a list of (value text) pairs.
+;the table is an op that pushes a list of (value text) pairs.
 
     (
         (

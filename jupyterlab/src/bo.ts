@@ -20,12 +20,12 @@ function isDelimiter(character: string | undefined): boolean {
 }
 
 
-function readWord(stream: StringStream): string {
-  let word = '';
+function readToken(stream: StringStream): string {
+  let token = '';
   while (!stream.eol() && !isDelimiter(stream.peek())) {
-    word += stream.next() ?? '';
+    token += stream.next() ?? '';
   }
-  return word;
+  return token;
 }
 
 
@@ -53,7 +53,7 @@ const boLanguage = StreamLanguage.define<BoState>({
         stream.next();
         return 'punctuation';
       }
-      const action = readWord(stream);
+      const action = readToken(stream);
       state.qualifiedAction = false;
       const qualified = state.qualifier === null ? null : `${state.qualifier}.${action}`;
       state.qualifier = null;
@@ -77,19 +77,19 @@ const boLanguage = StreamLanguage.define<BoState>({
       stream.next();
       return 'punctuation';
     }
-    const word = readWord(stream);
-    if (word.startsWith('__')) {
+    const token = readToken(stream);
+    if (token.startsWith('__')) {
       return 'variableName.special';
     }
-    if (word && stream.peek() === '.') {
-      state.qualifier = word;
+    if (token && stream.peek() === '.') {
+      state.qualifier = token;
       state.qualifiedAction = true;
       return 'typeName';
     }
-    if (number.test(word)) {
+    if (number.test(token)) {
       return 'number';
     }
-    return adapterNames.has(word) || primitiveNames.has(word) ? 'keyword' : 'variableName';
+    return adapterNames.has(token) || primitiveNames.has(token) ? 'keyword' : 'variableName';
   }
 });
 

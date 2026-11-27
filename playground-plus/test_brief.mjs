@@ -100,12 +100,12 @@ test("the goals to avoid are the newest ones, and the brief reads as plain text"
     assert.doesNotMatch(formatBrief({ ...brief, avoid: [] }), /do not repeat/);
 });
 
-test("the words an idea needs are in the brief, and the brief for a new player is at its level", () => {
+test("the ops an idea needs are in the brief, and the brief for a new player is at its level", () => {
     for (const [tag, ideas] of Object.entries(IDEAS))
-        for (const entry of ideas) assert.ok(Array.isArray(entry.words) && entry.words.length >= 1, `${tag}: ${entry.idea}`);
+        for (const entry of ideas) assert.ok(Array.isArray(entry.ops) && entry.ops.length >= 1, `${tag}: ${entry.idea}`);
     const brief = makeBrief({ profile: newPlayer, puzzles: [], random: first });
-    assert.ok(brief.words.length >= 1);
-    assert.match(formatBrief(brief), new RegExp(`- Bo words the solution will probably use: ${brief.words.map((w) => w.replace(/[-+*/^]/g, "\\$&")).join(" ")} `));
+    assert.ok(brief.ops.length >= 1);
+    assert.match(formatBrief(brief), new RegExp(`- Bo ops the solution will probably use: ${brief.ops.map((w) => w.replace(/[-+*/^]/g, "\\$&")).join(" ")} `));
     for (let i = 0; i < 40; i++) assert.equal(IDEAS[makeBrief({ profile: newPlayer, puzzles: [] }).tag].some((e) => e.difficulty === 1), true, "a new player gets a topic that has a level 1 idea");
 });
 

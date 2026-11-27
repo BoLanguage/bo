@@ -10,7 +10,7 @@ const budgetAt = args.indexOf("--budget");
 const budget = budgetAt >= 0 ? Number(args[budgetAt + 1]) : DEFAULT_BUDGET;
 const paths = args.filter((arg, i) => !arg.startsWith("--") && !(budgetAt >= 0 && i === budgetAt + 1));
 if (!paths.length || !Number.isInteger(budget) || budget <= 0) {
-    console.error("usage: node playground-plus/validate.mjs [--json] [--budget WORDS] FILE...");
+    console.error("usage: node playground-plus/validate.mjs [--json] [--budget OPS] FILE...");
     process.exit(2);
 }
 

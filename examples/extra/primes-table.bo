@@ -1,0 +1,17 @@
+"include/std.bo" require
+"examples/lib.bo" require
+
+;Primes without division, after Uiua:  range,2 40   deshapebyselftable*   keepnotbymember
+;a number is prime when it does not appear in the table of products of the numbers.
+
+    (2 40 range)
+    (numbers)
+PUSH
+
+;the multiplication table of the numbers; its flat data is the "deshaped" table
+    (numbers dup len unit array dup (*) table 1 nth apply)
+    (products)
+PUSH
+
+products (__table) set
+numbers ((__table) get in not) filter say

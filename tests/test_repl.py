@@ -8,12 +8,12 @@ from python.bo.repl import repl
 
 
 class ReplInputTests(unittest.TestCase):
-    def test_word_source_and_multiline_input(self):
+    def test_op_source_and_multiline_input(self):
         machine = Machine()
         self.assertTrue(machine.include_file("include/core.bo"))
         self.assertTrue(machine.include_file("include/std.bo"))
         prompts = []
-        inputs = iter(["(1", "2 +) apply", '"OP" word', ""])
+        inputs = iter(["(1", "2 +) apply", '"OP" selector', ""])
 
         def reader(prompt):
             prompts.append(prompt)
@@ -26,8 +26,8 @@ class ReplInputTests(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()), \
              contextlib.redirect_stderr(io.StringIO()):
             repl(machine)
-        from python.bo.values import Word
-        self.assertEqual(machine.data, [3, [Word("OP")]])
+        from python.bo.values import Op
+        self.assertEqual(machine.data, [3, [Op("OP")]])
         self.assertEqual(prompts, ["| ", "  ", "| ", "| "])
 
 

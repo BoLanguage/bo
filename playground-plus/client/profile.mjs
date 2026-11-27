@@ -47,7 +47,7 @@ export function overviewTiles(stats, { subject = "puzzles" } = {}) {
         { label: "mean difficulty (1 to 5)", value: formatNumber(stats.meanDifficulty) },
         { label: "median time to solve", value: formatSeconds(stats.medianSolveSeconds) },
         { label: "hints per solved puzzle", value: formatNumber(stats.averageHintsOnSolved) },
-        { label: "words typed to solve", value: formatNumber(stats.meanWordsToSolve), note: stats.meanLengthRatio === null || stats.meanLengthRatio === undefined ? "" : `${stats.meanLengthRatio}× the shortest known answer` },
+        { label: "tokens typed to solve", value: formatNumber(stats.meanTokensToSolve), note: stats.meanLengthRatio === null || stats.meanLengthRatio === undefined ? "" : `${stats.meanLengthRatio}× the shortest known answer` },
     ];
 }
 
@@ -56,9 +56,9 @@ export function breakdownRows(groups) {
     return Object.entries(groups).map(([label, s]) => [label, formatNumber(s.played ?? s.sessions), formatNumber(s.solved), formatRate(s.solveRate), formatSeconds(s.medianSolveSeconds)]);
 }
 
-/** Rows for the agents table: `[model, attempts, solved, solve rate, median time, words typed]`. */
+/** Rows for the agents table: `[model, attempts, solved, solve rate, median time, tokens typed]`. */
 export function agentRows(agents) {
-    return agents.map((a) => [a.model, formatNumber(a.played), formatNumber(a.solved), formatRate(a.solveRate), formatSeconds(a.medianSolveSeconds), formatNumber(a.meanWordsToSolve)]);
+    return agents.map((a) => [a.model, formatNumber(a.played), formatNumber(a.solved), formatRate(a.solveRate), formatSeconds(a.medianSolveSeconds), formatNumber(a.meanTokensToSolve)]);
 }
 
 const element = (doc, tag, props = {}, ...children) => {
@@ -98,7 +98,7 @@ export function profileBody(doc, profile, actions) {
 
     body.append(element(doc, "h3", {}, "Agents"));
     if (agents.length) {
-        body.append(table(doc, ["model", "attempts", "solved", "solve rate", "median time", "words typed"], agentRows(agents)),
+        body.append(table(doc, ["model", "attempts", "solved", "solve rate", "median time", "tokens typed"], agentRows(agents)),
             element(doc, "p", { class: "plus-note" }, "Every attempt of an agent counts, since it does not learn from the last one."));
     } else body.append(element(doc, "p", { class: "plus-note" }, "No agent has played yet."));
 

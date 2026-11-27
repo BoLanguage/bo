@@ -7,11 +7,11 @@ grammar and JupyterLab token data are current.
 
 Run `make vsix` (or `make all`) from the repository root to package the extension as `vscode/bolang-<VERSION>.vsix`, whose version comes from the `VERSION` file; install it manually, for example with `code --install-extension vscode/bolang-<VERSION>.vsix`.
 
-Syntax highlighting for [Bo](https://github.com/BoLanguage/bo) (`.bo` files): semicolon comments, strings, numbers, conversion words `WORD` and `TEXT`, parentheses, definition words (`PUSH`, `LOCK`, ...), and control words (`ifte`, `loop`, `catch`, ...). Colors depend on the active theme.
+Syntax highlighting for [Bo](https://github.com/BoLanguage/bo) (`.bo` files): semicolon comments, strings, numbers, conversion primitives `SELECTOR` and `NAME`, parentheses, definition primitives (`PUSH`, `LOCK`, ...), and control ops (`ifte`, `loop`, `catch`, ...). Colors depend on the active theme.
 
-A string spanning several lines is highlighted as a comment, since that is what it is in practice. A list comment must fit on one line; it may contain nested parentheses and strings. Parentheses inside comments have the comment scope and are excluded from VS Code's built-in bracket-pair coloring; the `drop` word is highlighted separately as a control word.
+A string spanning several lines is highlighted as a comment, since that is what it is in practice. A list comment must fit on one line; it may contain nested parentheses and strings. Parentheses inside comments have the comment scope and are excluded from VS Code's built-in bracket-pair coloring; the `drop` op is highlighted separately as a control op.
 
-Colors are not defined by the extension but by your color theme: the grammar (`vscode/syntaxes/bo.tmLanguage.json`) labels tokens with scopes such as `constant.numeric.bo`, `comment.line.bo`, `entity.name.type.error.bo` (the kernel's error kinds written as units, such as `(Type-Error)`), `keyword.control.bo`, `keyword.other.definition.bo`, `support.function.bo` (private words starting with `__`, see private words in the language guide), `string.quoted.double.bo`, and `punctuation.section.list.bo`. Dots remain ordinary word characters. To change a color without touching the extension, add to your VS Code `settings.json`:
+Colors are not defined by the extension but by your color theme: the grammar (`vscode/syntaxes/bo.tmLanguage.json`) labels tokens with scopes such as `constant.numeric.bo`, `comment.line.bo`, `entity.name.type.error.bo` (the kernel's error kinds written as units, such as `(Type-Error)`), `keyword.control.bo`, `keyword.other.definition.bo`, `support.function.bo` (private ops starting with `__`, see private ops in the language guide), `string.quoted.double.bo`, and `punctuation.section.list.bo`. Dots remain ordinary op-name characters. To change a color without touching the extension, add to your VS Code `settings.json`:
 
 ```
 "editor.tokenColorCustomizations": {

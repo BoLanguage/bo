@@ -13,12 +13,12 @@ import unittest
 from pathlib import Path
 
 from python.bo.machine import Machine
-from python.bo.values import Word
+from python.bo.values import Op
 
 ROOT = Path(__file__).resolve().parent.parent
 BINARY = ROOT / "c" / "bo"
 DEFAULT_LIBRARY_PREFIX = '"include/core.bo" () INCLUDE "include/std.bo" () INCLUDE '
-WORD_CASES = [
+OP_CASES = [
     '(OP 2 3) unconsl consl',
     '"include/std.bo" require "include/stream.bo" require "include/io.bo" require 1 2 +',
     '"include/std.bo" require "include/stream.bo" include (stdin) DEPTH (stdout) DEPTH (stderr) DEPTH stdout (stdout) LOCKED',
@@ -33,13 +33,13 @@ WORD_CASES = [
     '("include/stream.bo" () INCLUDE) () catch',
     '"include/stream.bo" included "examples/lib.bo" included "examples/lib.bo" require "examples/lib.bo" included "examples/lib.bo" include "examples/lib.bo" included',
     '(1 2 OP) unconsr consr',
-    '"OP" word text (OP) text word',
+    '"OP" selector name (OP) name selector () name "" selector (()) name () catch',
     '(42) unittype ((1 2)) unittype (OP) unittype',
     '(OP (A B) 3) () map',
     '(1 2 3) (apply 1 + unit) map',
     '(1 2 3) 0 (apply +) foldl',
     '((1 2) (OP)) (3) append',
-    '("bad name" word) () catch',
+    '("bad name" selector) () catch',
     '"1 2 +" parse "x (y) 3.5 \\"q\\" ; c" parse "" parse',
     '"1 2 +" eval "2 3 *" eval',
     '("(1 2" parse) () catch',
@@ -63,7 +63,7 @@ WORD_CASES = [
     '(((1 2) (2)) (1 2) 5 <-) () catch',
     '(DROP) UNLOCK (DROP) DELETE (DROP) EXISTS (DROP) LOCKED 1 2 () DROP',
     '(ADD) UNLOCK 5 (ADD) PUSH (ADD) DELETE (ADD) EXISTS (ADD) DEPTH 1 2 () ADD',
-    '(DROP) UNLOCK (DROP) DELETE () LEXICON (apply text "DROP" =) filter',
+    '(DROP) UNLOCK (DROP) DELETE () LEXICON (apply name "DROP" =) filter',
     '(0 -1 ^) () catch',
     '(-8 0.5 ^) () catch',
     '(10 1000 ^) () catch',
@@ -135,7 +135,7 @@ WORD_CASES = [
     '(1 2 3) (3) array 10 (+) . (drop drop 7) (+) PUSH (1 2 3) (3) array 10 (+) . (+) POP drop '
     '(1 2 3) (3) array 10 (+) .',
     '(1 2 3) (3) array (BWORK) PUSH 2 (BWORK) PUSH (-) (BWORK) PUSH (BWORK) BROADCAST (BWORK) POP',
-    '((1 2) (2) array 1 (UNDEFINED-WORD) .) () catch',
+    '((1 2) (2) array 1 (UNDEFINED-OP) .) () catch',
     '((1 2) (2) array 1 (dup) .) () catch',
     '(drop drop) (nothing) PUSH ((1 2) (2) array 1 (nothing) .) () catch',
     '(drop drop ()) (listy) PUSH ((1 2) (2) array 1 (listy) .) () catch',
@@ -166,7 +166,7 @@ WORD_CASES = [
     '(drop drop) (nothing) PUSH ((1 2 3) (3) array () (nothing) ..) () catch',
     '(drop drop ()) (listy) PUSH ((1 2 3) (3) array () (listy) ..) () catch',
     '(drop drop drop 0) (eat) PUSH 100 200 ((1 2 3) (3) array () (eat) ..) () catch',
-    '((1 2 3) (3) array () (UNDEFINED-WORD) ..) () catch',
+    '((1 2 3) (3) array () (UNDEFINED-OP) ..) () catch',
     '((1e308 1e308) (2) array () (+) ..) () catch',
     '(((1 2) (2)) () (+ -) ..) () catch',
     '((1 2) (2) array () (+) .. 1 (+) ..) () catch',
@@ -196,16 +196,22 @@ WORD_CASES = [
     '((1) 2 (3)) (2 (3)) endswith (1 2 3) (1 3) endswith',
     '"hello world" "o w" contains "hello world" "xyz" contains "abc" "" contains "" "a" contains '
     '"abc" "abc" contains "abc" "abcd" contains (1 (2 3) 4) ((2 3) 4) contains (1 2 3) (3 2) contains',
-    '1 (zz-b) PUSH 2 (zz-a) PUSH 3 (zz-c) PUSH (zz-c) CLEAR () LEXICON (apply text "zz-" startswith) filter',
-    '1 (zz-B) PUSH 1 (zz-_) PUSH 1 (zz-a) PUSH 1 (zz-aa) PUSH () LEXICON (apply text "zz-" startswith) filter',
-    '7 1 (zz-q) PUSH (zz-box) LEXICON (zz-box) POP (apply text "zz-" startswith) filter',
-    '1 (zz-x) PUSH 2 (zz-y) PUSH 3 (other) PUSH () LEXICON (apply text "zz-" startswith) filter (apply CLEAR) foreach '
+    '1 2 (10 +) dip 5 (dup *) keep 6 (2 *) (3 +) bi 10 1 (2 (3 +) dip) dip 0 ((1 +) 3 times) 4 times '
+    '(5 (() (Boom) throw) dip) () catch 0 ((0 0 /) 3 times) () catch',
+    '(1 2 3 4) sum () product (5 3 9 1 3 7) sort ((1 x) (0 y) (1 z)) (1 nth apply swap 1 nth apply swap <=) sortby '
+    '(1 2 3 4) -1 rotate (1 2 1 (3) x (3) x) dedup "  to be\tor\\n" () strsplit (0 1 2 0 3) (apply 0 >) partition '
+    '16 sqrt (-1 sqrt) () catch (1 2) (2) array (1 2 3) (3) array (-) table',
+    '"a,,b," "," strsplit "a--b" "--" strsplit "" "," strsplit ("to" "be") ", " strjoin () "," strjoin',
+    '1 (zz-b) PUSH 2 (zz-a) PUSH 3 (zz-c) PUSH (zz-c) CLEAR () LEXICON (apply name "zz-" startswith) filter',
+    '1 (zz-B) PUSH 1 (zz-_) PUSH 1 (zz-a) PUSH 1 (zz-aa) PUSH () LEXICON (apply name "zz-" startswith) filter',
+    '7 1 (zz-q) PUSH (zz-box) LEXICON (zz-box) POP (apply name "zz-" startswith) filter',
+    '1 (zz-x) PUSH 2 (zz-y) PUSH 3 (other) PUSH () LEXICON (apply name "zz-" startswith) filter (apply CLEAR) foreach '
     '(zz-x) DEPTH (zz-y) DEPTH (other) DEPTH',
     '5 ((dup 0 =) (drop 1) (dup 1 - (f) REC *) ifte) (f) LAMBDA 5 ((dup 0 =) (drop 1) (dup 1 - rec *) ifte) lambda',
     '((f) REC) () catch (() ((f) REC) (g) LAMBDA) () catch',
     '(5 (x) LAMBDA) () catch (() (1) LAMBDA) () catch (() "ab" LAMBDA) () catch (() ((x y)) LAMBDA) () catch '
     '((1 2) REC) () catch (() 5 REC) () catch',
-    '((UNDEFINED-WORD) (a) LAMBDA) () catch ((a) REC) () catch (3 (a) LAMBDA) () catch',
+    '((UNDEFINED-OP) (a) LAMBDA) () catch ((a) REC) () catch (3 (a) LAMBDA) () catch',
     '3 ((dup 0 =) (drop) (dup (zz-seen) PUSH 1 - (((a) REC) apply) (b) LAMBDA) ifte) (a) LAMBDA (zz-seen) SNAPSHOT',
     '3 ((dup 0 =) (drop) (dup (zz-seen) PUSH 1 - (rec) apply) ifte) lambda '
     '2 ((dup 0 =) (drop) (dup (zz-seen) PUSH 1 - (((x) REC) apply) (y) LAMBDA) ifte) (x) LAMBDA (zz-seen) SNAPSHOT',
@@ -213,8 +219,8 @@ WORD_CASES = [
     '"tests/private_basic.bo" () INCLUDE (__square) EXISTS (__fact) EXISTS 3 sq1 3 fsq',
     '"tests/private_basic.bo" () INCLUDE "tests/private_basic.bo" () INCLUDE 3 sq1 () LEXICON len',
     '"tests/private_basic.bo" () INCLUDE (sq1) TOP unconsl (__square) = swap drop',
-    '"tests/private_basic.bo" () INCLUDE (sq1) TOP unconsl text swap drop (__square) text =',
-    '"tests/private_basic.bo" () INCLUDE (sq1) TOP unconsl text word swap drop (sq1) TOP unconsl drop =',
+    '"tests/private_basic.bo" () INCLUDE (sq1) TOP unconsl name swap drop (__square) name =',
+    '"tests/private_basic.bo" () INCLUDE (sq1) TOP unconsl name selector swap drop (sq1) TOP unconsl drop =',
     '"tests/private_basic.bo" () INCLUDE (2 __square) () catch (__square) TOP',
     '"tests/private_basic.bo" () INCLUDE (2 __square) apply',
     '(1 +) (__inc) PUSH 2 __inc (__inc) EXISTS',
@@ -237,7 +243,7 @@ WORD_CASES = [
     '0 (dup 3 <) (1 + rec) loop',
     '0 ((dup 3 <) (1 + (dup 0 >) (rec drop 0) loop) () ifte) lambda 0 ((dup 3 <) (1 + (dup 0 >) (rec drop 0) () LOOP) () ifte) lambda',
     '4 (((dup 0 >) (1 - rec) () ifte) lambda) () catch 0 (dup 3 <) (1 + (zz-seen) PUSH) loop (zz-seen) SNAPSHOT',
-    '(0 (dup 3 <) (dup 2 = (UNDEFINED-WORD) () ifte 1 +) loop) () catch',
+    '(0 (dup 3 <) (dup 2 = (UNDEFINED-OP) () ifte 1 +) loop) () catch',
     '0 (dup 3 <) (1 + (() (dup 2 =) (loop) () ifte) drop) loop',
     '(2 (dup 0 >) (1 -) loop) (go) PUSH go 3 go (go) EXISTS',
     '(0 (dup 3 <) (1 +) loop) (zz-a) PUSH zz-a (0 (dup 5 <) (1 +) ((dup 3 <) (2 +) loop)) (loop) PUSH zz-a (loop) POP',
@@ -263,7 +269,7 @@ WORD_CASES = [
 
 
 def dump(value):
-    if isinstance(value, Word):
+    if isinstance(value, Op):
         return value.name
     if isinstance(value, list):
         return "(" + " ".join(dump(x) for x in value) + ")"
@@ -319,7 +325,7 @@ def c_run(code):
 def main():
     subprocess.run(["make", "-s", "-C", str(ROOT / "c")], check=True)
     snippets = list(dict.fromkeys(collect() + [
-        DEFAULT_LIBRARY_PREFIX + code for code in WORD_CASES
+        DEFAULT_LIBRARY_PREFIX + code for code in OP_CASES
     ]))
     failures = 0
     for code in snippets:

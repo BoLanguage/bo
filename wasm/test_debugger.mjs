@@ -24,7 +24,7 @@ test("library stacks are hidden and only counted", async () => {
     const state = bo.state();
     assert.equal(state.status, "idle");
     assert.deepEqual(state.stacks.map((s) => s.origin), ["default"]);
-    assert.equal(state.counts.library, 219);
+    assert.equal(state.counts.library, 242);
     assert.ok(state.counts.kernel > 50);
 });
 
@@ -47,7 +47,7 @@ test("including the library again does not make it look like user code", async (
     assert.deepEqual(bo.state().stacks.map((s) => s.origin), ["default"]);
 });
 
-test("a private word of a loaded file works there and is out of reach and out of sight elsewhere", async () => {
+test("a private op of a loaded file works there and is out of reach and out of sight elsewhere", async () => {
     const { bo } = await create({ autoload: "" });
     bo.writeFile("private.bo", "(1 () ADD) (__zz-inc) PUSH\n(__zz-inc) (zz-twice) PUSH\n");
     assert.equal(bo.include("private.bo"), true);
@@ -67,20 +67,20 @@ test("markBaseline treats later definitions as library", async () => {
     assert.equal(bo.stack("twice").origin, "library");
 });
 
-test("stepping pauses before each word and executes it on the next step", async () => {
+test("stepping pauses before each op and executes it on the next step", async () => {
     const { bo } = await create();
     assert.equal(bo.debug.load("(1 +) (succ) PUSH\n10 succ"), true);
     assert.equal(bo.state().status, "ready");
     assert.equal(bo.debug.step(0), "paused");
     let state = bo.state();
-    assert.equal(state.next.word, "PUSH");
+    assert.equal(state.next.op, "PUSH");
     assert.equal(state.next.origin, "kernel");
     assert.equal(state.next.native, "PUSH");
     assert.equal(state.steps, 0);
     assert.equal(bo.debug.step(1), "paused");
     state = bo.state();
     assert.equal(state.line, 2);
-    assert.equal(state.next.word, "succ");
+    assert.equal(state.next.op, "succ");
     assert.equal(state.next.origin, "user");
     assert.equal(state.next.definition, "(1 +)");
     assert.deepEqual(defaultStack(bo), ["10"]);
@@ -89,7 +89,7 @@ test("stepping pauses before each word and executes it on the next step", async 
     assert.equal(bo.state().status, "done");
 });
 
-test("step modes count words, lines or user words", async () => {
+test("step modes count ops, lines or user ops", async () => {
     const program = "(1 +) (inc) PUSH\n(5 inc inc) apply\n";
     const count = async (mode) => {
         const { bo } = await create();
@@ -105,10 +105,10 @@ test("step modes count words, lines or user words", async () => {
     };
     assert.equal(await count("lines"), 2);
     assert.equal(await count("user"), 4);
-    assert.ok((await count("words")) > 8);
+    assert.ok((await count("ops")) > 8);
 });
 
-test("a line is one program: lines mode pauses once per line, not per word", async () => {
+test("a line is one program: lines mode pauses once per line, not per op", async () => {
     const { bo } = await create();
     bo.debug.load("5 dup dup\n6 dup\n7");
     assert.equal(bo.debug.step(0, "lines"), "paused");
@@ -132,7 +132,7 @@ test("clearStacks empties the program's stacks and restores library stacks it ch
     assert.equal(bo.stack("map").depth, 1, "the library definition is back");
     assert.equal(bo.stack("map").origin, "library");
     assert.equal(bo.stack("L").depth, 0);
-    assert.equal(bo.eval("5 inc"), false, "the program's own words are gone");
+    assert.equal(bo.eval("5 inc"), false, "the program's own ops are gone");
 });
 
 test("clearStacks also empties DIAGNOSTICS and unlocks the program's own locked stacks", async () => {
@@ -197,7 +197,7 @@ test("a breakpoint pauses a debugged program and does nothing in a plain eval", 
     assert.equal(bo.debug.run(), "paused");
     assert.equal(bo.state().breakpoint, true);
     assert.deepEqual(defaultStack(bo), ["1", "2", "3"]);
-    // eval runs at the pause point; the words only record what to do, and resume() does it
+    // eval runs at the pause point; the commands only record what to do, and resume() does it
     assert.equal(bo.eval("10 +"), true);
     assert.deepEqual(defaultStack(bo), ["1", "2", "13"]);
     assert.equal(bo.debug.resume(), null);
@@ -208,13 +208,13 @@ test("a breakpoint pauses a debugged program and does nothing in a plain eval", 
     assert.match(defaultStack(bo).at(-1), /Debug-Error/);
 });
 
-test("a fast load runs freely to a breakpoint, then steps by words", async () => {
+test("a fast load runs freely to a breakpoint, then steps by ops", async () => {
     const { bo } = await create();
     assert.equal(bo.debug.load("(1 @ 2 +) apply 7", { fast: true }), true);
     assert.equal(bo.debug.step(0, "free"), "paused");
     assert.equal(bo.state().breakpoint, true);
     assert.deepEqual(defaultStack(bo), ["1"]);
-    assert.equal(bo.debug.step(1), "paused", "the word + runs, and the pause is before the ADD inside it");
+    assert.equal(bo.debug.step(1), "paused", "the op + runs, and the pause is before the ADD inside it");
     assert.equal(bo.state().breakpoint, false);
     assert.equal(bo.debug.run(), "done");
     assert.deepEqual(defaultStack(bo), ["3", "7"]);
@@ -224,22 +224,22 @@ test("after a breakpoint the next item is reported, a literal too, also at the e
     const { bo } = await create();
     assert.equal(bo.debug.load("(1 @ 2 +) apply 7\n3 @\n4 5 +", { fast: true }), true);
     assert.equal(bo.debug.step(0, "free"), "paused");
-    assert.deepEqual([bo.state().next.word, bo.state().next.origin, bo.state().next.literal], ["2", "literal", "number"]);
+    assert.deepEqual([bo.state().next.op, bo.state().next.origin, bo.state().next.literal], ["2", "literal", "number"]);
     assert.equal(bo.debug.step(0, "free"), "paused");
-    assert.deepEqual([bo.state().next.word, bo.state().next.literal], ["4", "number"], "the first item of the next line");
+    assert.deepEqual([bo.state().next.op, bo.state().next.literal], ["4", "number"], "the first item of the next line");
     assert.equal(bo.debug.step(0, "free"), "done");
     assert.equal(bo.state().next, null);
 });
 
-test('the mode "over" steps words and skips what they call', async () => {
+test('the mode "over" steps ops and skips what they call', async () => {
     const { bo } = await create();
     assert.equal(bo.debug.load("(1 +) (inc) PUSH\n5 inc inc"), true);
     assert.equal(bo.debug.step(0, "over"), "paused");
-    assert.equal(bo.state().next.word, "PUSH");
+    assert.equal(bo.state().next.op, "PUSH");
     assert.equal(bo.debug.step(1, "over"), "paused"); // PUSH runs; the next line starts
-    assert.equal(bo.state().next.word, "inc");
+    assert.equal(bo.state().next.op, "inc");
     assert.equal(bo.debug.step(1, "over"), "paused"); // the first inc, and all that it calls, is one step
-    assert.equal(bo.state().next.word, "inc");
+    assert.equal(bo.state().next.op, "inc");
     assert.deepEqual(defaultStack(bo), ["6"]);
     assert.equal(bo.debug.step(1, "over"), "done");
     assert.deepEqual(defaultStack(bo), ["7"]);
@@ -274,7 +274,7 @@ test("nested includes and parallel runs are stepped over", async () => {
     const { bo } = await create({ autoload: "include/core.bo" });
     bo.debug.load('"include/std.bo" () INCLUDE\n(1 2 3) (dup *) parallel');
     assert.equal(bo.debug.step(0), "paused");
-    assert.equal(bo.state().next.word, "INCLUDE");
+    assert.equal(bo.state().next.op, "INCLUDE");
     bo.debug.step(1);
     assert.equal(bo.state().line, 2);
     assert.equal(bo.debug.run(), "done");

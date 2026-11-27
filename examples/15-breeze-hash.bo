@@ -5,10 +5,10 @@
 ; only numbers and lists of numbers.
 ; The # operator was used to turn numbers into code to be executed.
 
-(word apply) (#) PUSH
+(selector apply) (#) PUSH
 
 ; To push values onto the stack requires a prior meta-programming 
-; op (used in disguise below): "word" # (i.e., "word" word apply)
+; op (used in disguise below): "selector" # (i.e., "selector" selector apply)
 
 ; With this definition, the language can run on numbers, lists 
 ; (empty or containing numbers), and the sole special operator #, 
@@ -22,7 +22,7 @@
     (114 101 113 117 105 114 101) 
 #
 
-; Using the definition of # we execute the word ps as follows.
+; Using the definition of # we execute the op ps as follows.
 ; Remember that a string is just a list of numbers.
 ; For example, the string "ps" is represented as the list (112 115)
 
@@ -44,7 +44,7 @@
     #
     ) 
     (115 117 99 99) 
-    (119 111 114 100) 
+    (115 101 108 101 99 116 111 114) 
 # 
     (80 85 83 72) 
 #

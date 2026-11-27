@@ -28,17 +28,17 @@ class OperationSpecializations(unittest.TestCase):
     def test_specialized_execution_matches_generic(self):
         prefix = '"include/std.bo" () INCLUDE '
         cases = []
-        for word, primitive in (
+        for op, primitive in (
             ("drop", "DROP"), ("+", "ADD"), ("-", "SUB"), ("*", "MUL"),
             ("/", "DIV"), ("//", "IDIV"), ("=", "EQUAL"), ("pick", "PICK"),
             ("roll", "ROLL"),
         ):
-            operands = "4 0" if word in ("pick", "roll") else "4 2"
+            operands = "4 0" if op in ("pick", "roll") else "4 2"
             cases.extend((
-                f"({operands} {word}) (CHECK) PUSH CHECK",
-                f"((99) ({word}) PUSH) (CHANGE) PUSH (CHANGE {operands} {word}) (CHECK) PUSH CHECK",
+                f"({operands} {op}) (CHECK) PUSH CHECK",
+                f"((99) ({op}) PUSH) (CHANGE) PUSH (CHANGE {operands} {op}) (CHECK) PUSH CHECK",
                 f"(({primitive}) UNLOCK (99) ({primitive}) PUSH) (CHANGE) PUSH "
-                f"(CHANGE {operands} {word}) (CHECK) PUSH CHECK",
+                f"(CHANGE {operands} {op}) (CHECK) PUSH CHECK",
             ))
         for source in (
             "(drop) () catch", "(1 +) () catch", '(1 "x" +) () catch',

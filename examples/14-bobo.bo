@@ -1,7 +1,7 @@
 "../include/std.bo" require
 
 ;Bobo, the Bo mascot (a blue-footed booby), drawn as text.
-;It defines two words, bobo (the big picture) and bobo.mini (a 5-line one), and shows the big one.
+;It defines two ops, bobo (the big picture) and bobo.mini (a 5-line one), and shows the big one.
 ;Another program can include this file and call either whenever it likes.
 ;
 ;The big picture is run-length encoded: each (n k) is a run of n copies of

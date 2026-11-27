@@ -22,25 +22,25 @@ release schedule.
   substantial overhead; performance depends on workload size and the cost of
   moving data to and from workers. See the [benchmark notes](benchmarks.md).
 - **Asynchronous tasks**. Explore `ASYNC`/`AWAIT` after defining how tasks
-  access stacks and word definitions, report errors, and handle cancellation.
+  access stacks and op definitions, report errors, and handle cancellation.
 - **Profiler**. Consider a simple profiler for Bo.
-- **Filesystem operations**. Simple FS integration words (e.g., `cwd`, `cd`, `mkdir`, `rmdir`,
-  `cp`, `mv`, `rm`), as well as words to handle absolute/relative paths and compose
+- **Filesystem operations**. Simple FS integration ops (e.g., `cwd`, `cd`, `mkdir`, `rmdir`,
+  `cp`, `mv`, `rm`), as well as ops to handle absolute/relative paths and compose
   file/directory names. A general `system` operation remains an alternative to evaluate,
   with portability and execution semantics to resolve.
 - **Modules and namespaces (low priority)**. Revisit whether a real module
   system would provide enough benefit over Bo's current convention of plain
-  words in one shared namespace. This is exploratory, not a commitment to implement one;
+  ops in one shared namespace. This is exploratory, not a commitment to implement one;
   see [open questions](open-questions.md).
-- **Time-related words**. Add words to deal with time (e.g., a `TIME` primitive
-  than pushes a timestamp, and derived words such as `tic`/`toc` and `timeit`).
+- **Time-related ops**. Add ops to deal with time (e.g., a `TIME` primitive
+  than pushes a timestamp, and derived ops such as `tic`/`toc` and `timeit`).
 - **Pause execution**. Add a primitive `PAUSE` to pause execution and return to 
   toplevel, plus a `RESUME` primitive to resume execution. These should also control 
   the playground switch between Run and Step in the Editor.
   Notably, these primitives would be "degenerate" like `ABORT` (i.e., they would require 
   a stack-selector but don't use it). So, the corresponding default-stack adapters 
   `pause` and `resume` would behave exactly as the primitives, similar to the `abort` wrapper.  
-- **Debugging**. - Add words for simple debugging features. 
+- **Debugging**. - Add ops for simple debugging features. 
 
 
 ### Playground

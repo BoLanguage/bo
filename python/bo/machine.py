@@ -11,14 +11,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from .lower import LoweringError, lower_word_forms
+from .lower import LoweringError, lower_op_forms
 from .render import render
 from .units import cons_unit, uncons_unit
-from .words import text_to_word, unit_type, word_to_text
+from .names import name_to_selector, selector_to_name, unit_type
 from .values import (
     BoError,
     BoRethrow,
-    Word,
+    Op,
     canon,
     norm,
     from_str,
@@ -27,16 +27,16 @@ from .values import (
     to_str,
 )
 
-WORD_EXCEPTION_KEY = canon([Word("EXCEPTION")])
-WORD_DIAGNOSTICS_KEY = canon([Word("DIAGNOSTICS")])
+OP_EXCEPTION_KEY = canon([Op("EXCEPTION")])
+OP_DIAGNOSTICS_KEY = canon([Op("DIAGNOSTICS")])
 
 
 def _owned_by(key, owner):
-    """Whether `key` names the stack of a private word of file `owner`."""
+    """Whether `key` names the stack of a private op of file `owner`."""
     if not (key[0] == "l" and len(key[1]) == 1):
         return False
     item = key[1][0]
-    return item[0] == "w" and len(item) == 3 and item[2] == owner
+    return item[0] == "o" and len(item) == 3 and item[2] == owner
 
 
 class _CatchFrame:
@@ -110,19 +110,19 @@ def _parallel_apply(item, program):
     worker.source, worker.line = base.source, base.line
     worker.included = set(base.included)
     worker.owners = dict(base.owners)
-    worker.private_words = base.private_words
+    worker.private_ops = base.private_ops
     worker._include_roots = list(base._include_roots)
     worker.data = [item]
 
     marker = object()
-    attempt = [program, [], Word("APPLY")]
+    attempt = [program, [], Op("APPLY")]
     handler = [marker]
     try:
-        worker.run([attempt, handler, [], Word("CATCH")])
+        worker.run([attempt, handler, [], Op("CATCH")])
     except (AbortSignal, SystemExit):
         error = [
-            [Word("Evaluation-Error")],
-            [Word("PARALLEL")],
+            [Op("Evaluation-Error")],
+            [Op("PARALLEL")],
             [],
             from_str(worker.source),
             worker.line,
@@ -138,7 +138,7 @@ class Machine:
         self.data = []
         self.stacks = {}
         self.locked = set()
-        self.word_natives = {}
+        self.op_natives = {}
         self.control = []
         self._suspended = []
         self.streams = {}
@@ -147,12 +147,12 @@ class Machine:
         self.line = 1
         self.handling = False
         self._selected = None
-        self._lower = lower_word_forms
-        self._exception_key = WORD_EXCEPTION_KEY
-        self.stacks[WORD_DIAGNOSTICS_KEY] = []
-        self.locked.add(WORD_DIAGNOSTICS_KEY)
+        self._lower = lower_op_forms
+        self._exception_key = OP_EXCEPTION_KEY
+        self.stacks[OP_DIAGNOSTICS_KEY] = []
+        self.locked.add(OP_DIAGNOSTICS_KEY)
         self.included = set()
-        self.owners = {}  # resolved path of a source file -> its id (the owner of its private words)
+        self.owners = {}  # resolved path of a source file -> its id (the owner of its private ops)
         # What a file's load leaves, so that loading it again can take it out first (see _wipe_file)
         self.cur_file = 0  # id of the file whose load is running, 0 when none
         self._owners = {}  # stack key -> file id of each item the loads pushed (a prefix of the stack)
@@ -160,7 +160,7 @@ class Machine:
         self._locked_by = {}  # stack key -> id of the file whose load locked it
         self._unlocked_for = {}  # stack key -> id of the file whose reload unlocked it
         self._loading = []  # resolved paths of the files being loaded, outermost first
-        self.private_words = not os.environ.get("BO_NO_PRIVATE")
+        self.private_ops = not os.environ.get("BO_NO_PRIVATE")
         self._include_roots = []
         # the directory that holds include/: the last place a relative include path is looked up
         self.home = Path(os.environ.get("BO_HOME") or Path(__file__).resolve().parents[2])
@@ -185,27 +185,27 @@ class Machine:
             self._suspended.pop()
 
     def _compile(self, lst):
-        """Compile words to named call sites and retain other values as literals."""
-        ops = []
+        """Compile ops to named call sites and retain other values as literals."""
+        instrs = []
         for element in lst:
             kind = type(element)
-            if kind is Word:
+            if kind is Op:
                 key = canon([element])
-                ops.append(_Site(element, key, self.word_natives.get(key)))
+                instrs.append(_Site(element, key, self.op_natives.get(key)))
             else:
-                ops.append(element)
-        return ops
+                instrs.append(element)
+        return instrs
 
     def _code(self, lst):
         """Compiled form of a list, cached by identity (lists are never mutated in place)."""
         entry = self._codes.get(id(lst))
         if entry is not None and entry[0] is lst:
             return entry[1]
-        ops = self._compile(lst)
+        instrs = self._compile(lst)
         if len(self._codes) >= CODE_CACHE_LIMIT:
             self._codes.clear()
-        self._codes[id(lst)] = (lst, ops)
-        return ops
+        self._codes[id(lst)] = (lst, instrs)
+        return instrs
 
     def _key(self, name):
         """Stack key of a name list, cached by identity."""
@@ -250,22 +250,22 @@ class Machine:
                 ctl.pop()
                 top()
                 continue
-            ops, i = top[0], top[1]
-            if i >= len(ops):
+            instrs, i = top[0], top[1]
+            if i >= len(instrs):
                 ctl.pop()
                 continue
             top[1] = i + 1
-            op = ops[i]
-            if type(op) is _Site:
-                stack = self.stacks.get(op.key, [])
+            instr = instrs[i]
+            if type(instr) is _Site:
+                stack = self.stacks.get(instr.key, [])
                 if stack:
-                    self._enter(stack[-1], op.name)
-                elif op.native is not None:
-                    self._call_native(*op.native)
+                    self._enter(stack[-1], instr.name)
+                elif instr.native is not None:
+                    self._call_native(*instr.native)
                 else:
-                    raise BoError("Existence-Error", [[op.name]], "WORD")
+                    raise BoError("Existence-Error", [[instr.name]], "EXECUTE")
             else:
-                data.append(op)
+                data.append(instr)
 
     def _trim(self):
         """Drop exhausted frames so that tail calls do not grow the control stack."""
@@ -278,8 +278,8 @@ class Machine:
                 break
 
     def _frame(self, lst, name=None):
-        """A control-stack frame: the compiled ops, the index of the next one, the list and the
-        word whose call started it (the last two are what BACKTRACE reports)."""
+        """A control-stack frame: the compiled instructions, the index of the next one, the list and the
+        op whose call started it (the last two are what BACKTRACE reports)."""
         return [self._code(lst), 0, lst, name]
 
     def _enter(self, element, name=None):
@@ -346,13 +346,13 @@ class Machine:
 
     def _fail(self, error):
         error_list = [
-            [Word(error.kind)],
-            [Word(error.where or "WORD")],
+            [Op(error.kind)],
+            [Op(error.where or "EXECUTE")],
             list(error.data),
             from_str(self.source),
             self.line,
         ]
-        self.stacks[WORD_DIAGNOSTICS_KEY].append(error_list)
+        self.stacks[OP_DIAGNOSTICS_KEY].append(error_list)
         self._dispatch_error(error_list)
 
     def _dispatch_error(self, error_list):
@@ -409,11 +409,11 @@ class Machine:
     # ----------------------------------------------------------------- loading
 
     def _lower_file(self, text, source, first_line=1):
-        """Lower the text of a file, whose `__` words are private to it.
+        """Lower the text of a file, whose `__` ops are private to it.
 
-        A file that is loaded again starts from scratch: the private words of its earlier load go.
+        A file that is loaded again starts from scratch: the private ops of its earlier load go.
         """
-        if not self.private_words:
+        if not self.private_ops:
             return self._lower(text, first_line)
         owner = self._file_id(source)
         forms = self._lower(text, first_line, owner)
@@ -471,7 +471,7 @@ class Machine:
     def execute(self, text, source="stdin", first_line=1, file=False):
         """Run source text at top level. Returns False if an error aborted it.
 
-        `file` marks the text of a source file, whose `__` words are private to it.
+        `file` marks the text of a source file, whose `__` ops are private to it.
         """
         try:
             forms = (self._lower_file(text, source, first_line) if file
@@ -511,7 +511,7 @@ class Machine:
 
     def execute_result(self, text, source="stdin", first_line=1):
         """Run source text and retain the error value emitted by a failed execution."""
-        diagnostics = self.stacks[WORD_DIAGNOSTICS_KEY]
+        diagnostics = self.stacks[OP_DIAGNOSTICS_KEY]
         previous = len(diagnostics)
         success = self.execute(text, source, first_line)
         error = diagnostics[-1] if not success and len(diagnostics) > previous else None
@@ -533,7 +533,7 @@ class Machine:
         if not (isinstance(key, tuple) and len(key) == 2 and key[0] == "l" and len(key[1]) == 1):
             return None
         item = key[1][0]
-        if isinstance(item, tuple) and len(item) == 2 and item[0] == "w":
+        if isinstance(item, tuple) and len(item) == 2 and item[0] == "o":
             return item[1]
         return None
 
@@ -645,21 +645,22 @@ class Machine:
             "STOP": (0, self.n_resume),
             "BACKTRACE": (0, self.n_backtrace),
         }
-        word_table = dict(table)
-        word_table.update({
+        op_table = dict(table)
+        op_table.update({
             "CONSL": (2, lambda lst, unit: [cons_unit(lst, unit)]),
             "CONSR": (2, lambda lst, unit: [cons_unit(lst, unit, right=True)]),
             "UNCONSL": (1, lambda lst: list(uncons_unit(lst))),
             "UNCONSR": (1, lambda lst: list(uncons_unit(lst, right=True))),
             "UNITTYPE": (1, lambda unit: [unit_type(unit)]),
-            "WORD": (1, lambda text: [text_to_word(text)]),
-            "TEXT": (1, lambda unit: [word_to_text(unit)]),
+            # the empty name and the default-stack selector are both (), so () converts to itself
+            "SELECTOR": (1, lambda name: [name if name == [] else name_to_selector(name)]),
+            "NAME": (1, lambda selector: [selector if selector == [] else selector_to_name(selector)]),
         })
-        for name, entry in word_table.items():
+        for name, entry in op_table.items():
             arity, fn = entry[:2]
             transfer = entry[2] if len(entry) == 3 else False
-            key = canon([Word(name)])
-            self.word_natives[key] = (name, arity, fn, transfer)
+            key = canon([Op(name)])
+            self.op_natives[key] = (name, arity, fn, transfer)
             self.locked.add(key)
     def _ref(self, ref, create=False):
         """Resolve a stack reference: returns (list, key); key is None for the default stack."""
@@ -667,7 +668,7 @@ class Machine:
             raise BoError("Type-Error", [ref])
         if not ref:
             return self.data, None
-        word_to_text(ref)
+        selector_to_name(ref)
         key = self._key(ref)
         if create:
             stack = self.stacks.get(key)
@@ -722,16 +723,16 @@ class Machine:
 
     def n_exists(self, ref):
         _, key = self._ref(ref)
-        return [1 if key is None or key in self.stacks or key in self.word_natives else 0]
+        return [1 if key is None or key in self.stacks or key in self.op_natives else 0]
 
     def n_locked(self, ref):
         _, key = self._ref(ref)
         return [1 if key is not None and key in self.locked else 0]
 
     def n_lexicon(self):
-        keys = set(self.stacks) | set(self.word_natives)
+        keys = set(self.stacks) | set(self.op_natives)
         names = sorted(name for key in keys if (name := self._stack_name(key)) is not None)
-        return [[[Word(name)] for name in names]]
+        return [[[Op(name)] for name in names]]
 
     def n_delete(self):
         # the data stack cannot be deleted; a locked stack, primitives included, was refused by the call
@@ -786,10 +787,10 @@ class Machine:
         return [rest, lst[end]]
 
     def n_type(self, value):
-        """0 number, 1 list, 2 word."""
+        """0 number, 1 list, 2 op."""
         if isinstance(value, list):
             return [1]
-        if isinstance(value, Word):
+        if isinstance(value, Op):
             return [2]
         return [0]
 
@@ -805,12 +806,12 @@ class Machine:
         self._enter(lst)
 
     def _label(self, ref):
-        """The identity of a LAMBDA label: a word unit, or () for anonymous recursion."""
+        """The identity of a LAMBDA label: an op unit, or () for anonymous recursion."""
         if not isinstance(ref, list):
             raise BoError("Type-Error", [ref])
         if not ref:
             return None
-        word_to_text(ref)
+        selector_to_name(ref)
         return self._key(ref)
 
     def n_lambda(self, program, selector):
@@ -905,16 +906,16 @@ class Machine:
         results = []
         for succeeded, result in outcomes:
             if not succeeded:
-                self.stacks[WORD_DIAGNOSTICS_KEY].append(result)
+                self.stacks[OP_DIAGNOSTICS_KEY].append(result)
                 raise BoRethrow(result)
             results.append(result)
         return [results]
 
-    def _arith(self, a, b, op):
+    def _arith(self, a, b, fn):
         if not (is_plain_number(a) and is_plain_number(b)):
             raise BoError("Type-Error", [a, b])
         try:
-            result = op(a, b)
+            result = fn(a, b)
         except (ValueError, ZeroDivisionError):
             raise BoError("Domain-Error", [a, b])
         except OverflowError:
@@ -1038,9 +1039,9 @@ class Machine:
 
     def n_reduce(self, tensor, axis, unit):
         operands = [tensor, axis, unit]
-        if not (isinstance(unit, list) and len(unit) == 1 and type(unit[0]) is Word):
+        if not (isinstance(unit, list) and len(unit) == 1 and type(unit[0]) is Op):
             raise BoError("Type-Error", operands)
-        word = unit[0]
+        op = unit[0]
         data, shape = self._tensor(tensor, operands)
         all_axes = axis == []
         if not all_axes and not is_int(axis):
@@ -1059,7 +1060,7 @@ class Machine:
                    for index in range(dimension)]
                   for outer_index in range(outer) for inner_index in range(width)]
 
-        operation = self._word_operation(word)
+        operation = self._op_operation(op)
         values = None
         if operation is not None:
             try:
@@ -1073,14 +1074,14 @@ class Machine:
                 values = None
         if values is None:
             marker = object()
-            program = [[word], [marker], [], Word("CATCH")]
+            program = [[op], [marker], [], Op("CATCH")]
             saved = list(self.data)
             try:
                 values = []
                 for items in slices:
                     result = items[0]
                     for value in items[1:]:
-                        result = self._word_call(program, marker, saved, result, value)
+                        result = self._op_call(program, marker, saved, result, value)
                     values.append(result)
             except BoRethrow:
                 self.data.extend(operands)
@@ -1242,25 +1243,25 @@ class Machine:
             offset = offset * dimension + coordinate
         return data[offset]
 
-    def _word_operation(self, word):
-        """The binary primitive a word currently runs on a pair of numbers, or None.
+    def _op_operation(self, op):
+        """The binary primitive an op currently runs on a pair of numbers, or None.
 
-        The word must be a default-stack wrapper `(() ADD)`, `(() SUB)`, ... of an unmodified
-        primitive; any other word runs through the machine, with the same observable result."""
-        stack = self.stacks.get(canon([word]))
+        The op must be a default-stack wrapper `(() ADD)`, `(() SUB)`, ... of an unmodified
+        primitive; any other op runs through the machine, with the same observable result."""
+        stack = self.stacks.get(canon([op]))
         if not stack or type(stack[-1]) is not list:
             return None
         definition = stack[-1]
-        if (len(definition) != 2 or definition[0] != [] or type(definition[1]) is not Word):
+        if (len(definition) != 2 or definition[0] != [] or type(definition[1]) is not Op):
             return None
         operation = _BROADCAST_OPERATIONS.get(definition[1].name)
         target = canon([definition[1]])
-        if operation is None or self.stacks.get(target) or target not in self.word_natives:
+        if operation is None or self.stacks.get(target) or target not in self.op_natives:
             return None
         return operation
 
-    def _word_call(self, program, marker, saved, x, y):
-        """Run the operation word on the selected stack with the pair on top; it must leave
+    def _op_call(self, program, marker, saved, x, y):
+        """Run the op of the operation on the selected stack with the pair on top; it must leave
         exactly one number. The stack is restored when it fails."""
         data = self.data
         base = len(saved)
@@ -1278,9 +1279,9 @@ class Machine:
 
     def n_broadcast(self, left, right, unit):
         operands = [left, right, unit]
-        if not (isinstance(unit, list) and len(unit) == 1 and type(unit[0]) is Word):
+        if not (isinstance(unit, list) and len(unit) == 1 and type(unit[0]) is Op):
             raise BoError("Type-Error", operands)
-        word = unit[0]
+        op = unit[0]
         left_data, left_shape = ((None, ()) if is_plain_number(left)
                                  else self._tensor(left, operands))
         right_data, right_shape = ((None, ()) if is_plain_number(right)
@@ -1296,9 +1297,9 @@ class Machine:
             size *= dimension
 
         marker = object()
-        program = [[word], [marker], [], Word("CATCH")]
+        program = [[op], [marker], [], Op("CATCH")]
         saved = list(self.data)
-        operation = self._word_operation(word)
+        operation = self._op_operation(op)
         pairs = []
         for index in range(size):
             coordinates = [0] * len(shape)
@@ -1319,7 +1320,7 @@ class Machine:
                 values = None
         if values is None:
             try:
-                values = [self._word_call(program, marker, saved, x, y) for x, y in pairs]
+                values = [self._op_call(program, marker, saved, x, y) for x, y in pairs]
             except BoRethrow:
                 self.data.extend(operands)
                 raise
@@ -1516,15 +1517,15 @@ class Machine:
                 is_int(c) and 0 <= c <= 0x10ffff and not 0xd800 <= c <= 0xdfff
                 for c in value))
 
-        def word_unit(value):
+        def op_unit(value):
             try:
-                word_to_text(value)
+                selector_to_name(value)
             except BoError:
                 return False
             return True
 
         if (not isinstance(error, list) or len(error) != 5
-                or not word_unit(error[0]) or not word_unit(error[1])
+                or not op_unit(error[0]) or not op_unit(error[1])
                 or not isinstance(error[2], list) or not text(error[3])
                 or not is_int(error[4]) or abs(error[4]) > 2**53):
             raise BoError("Type-Error", [error])
@@ -1533,7 +1534,7 @@ class Machine:
     def n_throw(self, data, kind):
         if not isinstance(data, list):
             raise BoError("Type-Error", [data])
-        word_to_text(kind)
+        selector_to_name(kind)
         raise BoError(kind[0].name, data, "THROW")
 
     def n_exit(self, status):
@@ -1557,7 +1558,7 @@ class Machine:
         raise BoError("Debug-Error")
 
     def program_frames(self):
-        """The programs being run, innermost first, as (program, index of the next item, calling word)."""
+        """The programs being run, innermost first, as (program, index of the next item, calling op)."""
         for control in (self.control, *reversed(self._suspended)):
             for frame in reversed(control):
                 if type(frame) is list:

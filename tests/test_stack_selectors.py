@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from python.bo.machine import Machine
-from python.bo.values import BoError, Word, canon, from_str
+from python.bo.values import BoError, Op, canon, from_str
 from tests.diff_c import dump
 
 
@@ -19,8 +19,8 @@ OPERATIONS = (
     "TYPE", "RATIO", "APPLY", "IFTE", "LOOP", "PARALLEL",
     "ADD", "SUB", "MUL", "DIV", "IDIV",
     "POW", "BROADCAST", "EQUAL", "OPEN", "CLOSE", "READ", "WRITE", "INCLUDE", "INCLUDED", "PARSE",
-    "CATCH", "CALL", "THROW", "RETHROW", "EXIT", "ABORT", "UNITTYPE", "WORD",
-    "TEXT", "ARRAY", "SHAPE", "RANK", "RESHAPE", "FETCH", "STORE",
+    "CATCH", "CALL", "THROW", "RETHROW", "EXIT", "ABORT", "UNITTYPE", "SELECTOR",
+    "NAME", "ARRAY", "SHAPE", "RANK", "RESHAPE", "FETCH", "STORE",
     "CHUNK", "CONCAT", "REDUCE", "DOT", "MEAN", "MEDIAN", "TRANSPOSE", "OUTER", "MATMUL",
     "LEXICON", "DELETE", "BREAKPOINT", "STEP", "NEXT", "CONTINUE", "STOP", "BACKTRACE",
 )
@@ -62,7 +62,7 @@ class StackSelectors(unittest.TestCase):
         expected_operands = ([9] if prefix else []) + [selector]
         self.assertEqual(machine.data[:-1], expected_operands)
         error = machine.data[-1]
-        self.assertEqual(error[:3], [[Word("Type-Error")], [Word(operation)], [selector]])
+        self.assertEqual(error[:3], [[Op("Type-Error")], [Op(operation)], [selector]])
         if isinstance(selector, list) and selector:
             self.assertNotIn(canon(selector), machine.stacks)
 
@@ -70,8 +70,8 @@ class StackSelectors(unittest.TestCase):
         cases = (
             ("42", 42),
             ("(7)", [7]),
-            ("((a))", [[Word("a")]]),
-            ("(a b)", [Word("a"), Word("b")]),
+            ("((a))", [[Op("a")]]),
+            ("(a b)", [Op("a"), Op("b")]),
             ('"name"', from_str("name")),
         )
         for source, value in cases:
@@ -82,28 +82,28 @@ class StackSelectors(unittest.TestCase):
     def test_all_selected_primitives_reject_invalid_selectors(self):
         for operation in OPERATIONS:
             with self.subTest(operation=operation):
-                self.check_rejected("(a b)", [Word("a"), Word("b")], operation)
+                self.check_rejected("(a b)", [Op("a"), Op("b")], operation)
 
-    def test_default_and_word_selectors_remain_usable(self):
+    def test_default_and_op_selectors_remain_usable(self):
         machine = self.run_both(
-            "3 4 () ADD 5 (Name) PUSH 6 (name) PUSH "
-            '(Name) TOP (name) TOP "Name" word TOP (Name) POP (name) POP'
+            "3 4 () ADD 5 (Item) PUSH 6 (item) PUSH "
+            '(Item) TOP (item) TOP "Item" selector TOP (Item) POP (item) POP'
         )
         self.assertEqual(machine.data, [7, 5, 6, 5, 5, 6])
 
     def test_stacks_lists_every_stack_that_exists_in_order_of_name(self):
         machine = self.run_both(
             "1 (zz-b) PUSH 2 (zz-a) PUSH 3 (zz-c) PUSH (zz-c) CLEAR () LEXICON "
-            '(apply text "zz-" startswith) filter'
+            '(apply name "zz-" startswith) filter'
         )
-        self.assertEqual(machine.data, [[[Word("zz-a")], [Word("zz-b")], [Word("zz-c")]]],
+        self.assertEqual(machine.data, [[[Op("zz-a")], [Op("zz-b")], [Op("zz-c")]]],
                          "an emptied stack still exists")
         machine = self.run_both(
             "1 (zz-a) PUSH 1 (zz-aa) PUSH 1 (zz-_) PUSH 1 (zz-B) PUSH () LEXICON "
-            '(apply text "zz-" startswith) filter'
+            '(apply name "zz-" startswith) filter'
         )
         self.assertEqual(
-            machine.data, [[[Word("zz-B")], [Word("zz-_")], [Word("zz-a")], [Word("zz-aa")]]],
+            machine.data, [[[Op("zz-B")], [Op("zz-_")], [Op("zz-a")], [Op("zz-aa")]]],
             "by code point: capitals, then _, then a shorter name before a longer one",
         )
 
@@ -120,15 +120,15 @@ class StackSelectors(unittest.TestCase):
 
     def test_stacks_on_a_named_stack_leaves_the_list_there_and_lists_the_stack_selected(self):
         machine = self.run_both(
-            '7 1 (zz-q) PUSH (zz-box) LEXICON (zz-box) POP (apply text "zz-" startswith) filter'
+            '7 1 (zz-q) PUSH (zz-box) LEXICON (zz-box) POP (apply name "zz-" startswith) filter'
         )
-        self.assertEqual(machine.data, [7, [[Word("zz-box")], [Word("zz-q")]]],
+        self.assertEqual(machine.data, [7, [[Op("zz-box")], [Op("zz-q")]]],
                          "selecting a stack makes it exist")
 
     def test_stacks_gives_selectors_that_other_primitives_accept(self):
         machine = self.run_both(
             "1 (zz-x) PUSH 2 (zz-y) PUSH 3 (other) PUSH () LEXICON "
-            '(apply text "zz-" startswith) filter (apply CLEAR) foreach (zz-x) DEPTH (zz-y) DEPTH (other) DEPTH'
+            '(apply name "zz-" startswith) filter (apply CLEAR) foreach (zz-x) DEPTH (zz-y) DEPTH (other) DEPTH'
         )
         self.assertEqual(machine.data, [0, 0, 1])
 
@@ -145,33 +145,33 @@ class StackSelectors(unittest.TestCase):
 
     def test_a_deleted_stack_can_be_pushed_to_again_and_is_not_listed_while_gone(self):
         machine = self.run_both(
-            '1 (zz-a) PUSH 2 (zz-b) PUSH (zz-a) DELETE () LEXICON (apply text "zz-" startswith) filter '
+            '1 (zz-a) PUSH 2 (zz-b) PUSH (zz-a) DELETE () LEXICON (apply name "zz-" startswith) filter '
             "3 (zz-a) PUSH (zz-a) EXISTS (zz-a) DEPTH"
         )
-        self.assertEqual(machine.data, [[[Word("zz-b")]], 1, 1])
+        self.assertEqual(machine.data, [[[Op("zz-b")]], 1, 1])
 
     def test_delete_refuses_the_default_stack_locked_stacks_and_primitives(self):
         for source, selector in (
             ("()", []),
-            ("(PUSH)", [Word("PUSH")]),
-            ("(ADD)", [Word("ADD")]),
-            ("(zz-locked)", [Word("zz-locked")]),
+            ("(PUSH)", [Op("PUSH")]),
+            ("(ADD)", [Op("ADD")]),
+            ("(zz-locked)", [Op("zz-locked")]),
         ):
             with self.subTest(selector=source):
                 machine = self.run_both(
                     f"1 (zz-locked) PUSH (zz-locked) LOCK ({source} DELETE) () catch {source} EXISTS"
                 )
                 error = machine.data[0]
-                self.assertEqual(error[:3], [[Word("Permission-Error")], [Word("DELETE")], [selector]])
+                self.assertEqual(error[:3], [[Op("Permission-Error")], [Op("DELETE")], [selector]])
                 self.assertEqual(machine.data[1], 1, "it still exists")
 
-    def test_a_word_that_uses_a_deleted_stack_fails_until_the_stack_is_defined_again(self):
+    def test_an_op_that_uses_a_deleted_stack_fails_until_the_stack_is_defined_again(self):
         machine = self.run_both(
             "(zz-v 1 +) (zz-use) PUSH 5 (zz-v) PUSH zz-use (zz-v) DELETE (zz-use) () catch "
             "8 (zz-v) PUSH zz-use"
         )
         self.assertEqual(machine.data[0], 6)
-        self.assertEqual(machine.data[1][:2], [[Word("Existence-Error")], [Word("WORD")]])
+        self.assertEqual(machine.data[1][:2], [[Op("Existence-Error")], [Op("EXECUTE")]])
         self.assertEqual(machine.data[2], 9)
 
     def test_locked_reports_primitives_and_stacks_locked_by_the_program(self):
@@ -184,20 +184,20 @@ class StackSelectors(unittest.TestCase):
     def test_the_default_stack_cannot_be_locked_and_unlocking_it_changes_nothing(self):
         machine = self.run_both("(() LOCK) () catch () UNLOCK () LOCKED 1 2 +")
         error, locked, total = machine.data
-        self.assertEqual(error[:3], [[Word("Permission-Error")], [Word("LOCK")], [[]]])
+        self.assertEqual(error[:3], [[Op("Permission-Error")], [Op("LOCK")], [[]]])
         self.assertEqual((locked, total), (0, 3))
 
     def test_deleting_an_unlocked_primitive_stack_keeps_the_primitive(self):
         machine = self.run_both(
             "(ADD) UNLOCK 5 (ADD) PUSH (ADD) DELETE (ADD) EXISTS (ADD) DEPTH 1 2 () ADD "
-            "() LEXICON (apply text \"ADD\" =) filter len"
+            "() LEXICON (apply name \"ADD\" =) filter len"
         )
         self.assertEqual(machine.data, [1, 0, 3, 1])
 
     def test_locked_is_what_delete_refuses(self):
         machine = self.run_both(
             "1 (zz-a) PUSH 1 (zz-b) PUSH (zz-b) LOCK () LEXICON "
-            '(apply text "zz-" startswith) filter (apply LOCKED 0 =) filter (apply DELETE) foreach '
+            '(apply name "zz-" startswith) filter (apply LOCKED 0 =) filter (apply DELETE) foreach '
             "(zz-a) EXISTS (zz-b) EXISTS"
         )
         self.assertEqual(machine.data, [0, 1])
@@ -210,14 +210,14 @@ class StackSelectors(unittest.TestCase):
         self.assertEqual(machine.data, [0, 0, 0, 1, 1, 0])
 
     def test_names_with_comment_delimiters_are_rejected(self):
-        machine = self.run_both('("a;b" word) () catch')
+        machine = self.run_both('("a;b" selector) () catch')
         self.assertEqual(machine.data[0], from_str("a;b"))
-        self.assertEqual(machine.data[1][:2], [[Word("Representation-Error")], [Word("WORD")]])
+        self.assertEqual(machine.data[1][:2], [[Op("Representation-Error")], [Op("SELECTOR")]])
 
-    def test_invalid_host_constructed_word_is_not_a_selector(self):
+    def test_invalid_host_constructed_op_is_not_a_selector(self):
         machine = Machine()
         for name in ("", "a;b", "2", "a b"):
-            ref = [Word(name)]
+            ref = [Op(name)]
             with self.subTest(name=name), self.assertRaises(BoError) as error:
                 machine._ref(ref, create=True)
             self.assertEqual(error.exception.kind, "Representation-Error")

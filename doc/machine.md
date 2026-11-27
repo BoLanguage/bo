@@ -11,19 +11,19 @@ aggregate standard library with `include/std.bo`, or focused modules under
 
 ## Values and stacks
 
-The source is tokenized and lowered to numbers, lists, and first-class words
+The source is tokenized and lowered to numbers, lists, and first-class ops
 before execution. Parentheses form nested list values, strings lower to lists
 of Unicode code points, and each top-level form retains its source line for
-error reporting. A word identifies a named stack. When the word runs, the
+error reporting. An op identifies a named stack. When the op runs, the
 runtime executes the current top value if it is a list, pushes it if it is a
 number, or invokes a kernel primitive if the stack is empty and that name is
 native. This keeps user definitions, redefinitions, and primitive dispatch
 within one lookup model.
 
 The data stack and named stacks hold the same kinds of values. Lists are
-immutable, and words remain distinct values from lists of character codes.
+immutable, and ops remain distinct values from lists of character codes.
 Named-stack contents are dynamically resolved, so definitions can be changed
-while programs are running without freezing a word to an earlier definition.
+while programs are running without freezing an op to an earlier definition.
 Native stacks are protected by default; a definition can shadow a native
 primitive only after its stack is explicitly unlocked. See
 [the language reference](language.md) for the observable semantics.
@@ -50,7 +50,7 @@ control-stack growth, and implements errors as Bo error lists dispatched to
 `catch` or `EXCEPTION`.
 
 The C runtime represents values with tagged NaN-boxed values, stores
-immutable lists and word identities in managed memory, and uses a mark-sweep
+immutable lists and op identities in managed memory, and uses a mark-sweep
 collector. Lists may have cached compiled operation sequences. These sequences
 are interpreted by the C execution loop; the runtime does not generate
 machine code and has no JIT or AOT backend.
@@ -58,7 +58,7 @@ machine code and has no JIT or AOT backend.
 The operation compiler can specialize recognized default-stack wrappers and
 literal control-flow patterns. Specialized code remains subject to Bo's
 dynamic definitions: if a relevant definition changes, stale code checks its
-guards and falls back to ordinary word dispatch. Set
+guards and falls back to ordinary op dispatch. Set
 `BO_NO_OP_OPTIMIZATIONS=1` to disable these specializations while retaining
 compiled operation sequences.
 
@@ -76,7 +76,7 @@ runs the same way.
 ## Validation
 
 `tests/test_examples.py` runs examples against both command-line runtimes.
-`tests/test_c_word_values.py` covers word identity, collection, execution,
+`tests/test_c_op_values.py` covers op identity, collection, execution,
 and redefinition in the C runtime. `make -C c test` also runs the
 Python–C differential tests.
 

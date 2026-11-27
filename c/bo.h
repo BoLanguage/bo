@@ -9,12 +9,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Values are doubles or tagged pointers. Lists and words use distinct
+/* Values are doubles or tagged pointers. Lists and ops use distinct
    negative-NaN pointer tags. */
 typedef uint64_t Val;
 
 #define LIST_TAG 0xFFFC000000000000ULL
-#define WORD_TAG 0xFFFD000000000000ULL
+#define OP_TAG 0xFFFD000000000000ULL
 #define TAG_MASK 0xFFFF000000000000ULL
 #define INT_LIMIT 9007199254740992.0 /* 2^53 */
 
@@ -29,18 +29,18 @@ typedef struct List {
     uint32_t used;     /* owner only: slots filled; a list ending there may grow in place */
     uint32_t cap;      /* owner only: slots available */
     uint8_t mark;
-    uint32_t owner;    /* a word's name: the source file that owns this private word, 0 if it is public;
+    uint32_t owner;    /* an op's name: the source file that owns this private op, 0 if it is public;
                           a list read from a source file: that file (the stepper skips library code) */
     Val inl[];
 } List;
 
 static inline int is_list(Val v) { return (v & TAG_MASK) == LIST_TAG; }
-static inline int is_word(Val v) { return (v & TAG_MASK) == WORD_TAG; }
-static inline int is_num(Val v) { return !is_list(v) && !is_word(v); }
+static inline int is_op(Val v) { return (v & TAG_MASK) == OP_TAG; }
+static inline int is_num(Val v) { return !is_list(v) && !is_op(v); }
 static inline List *as_list(Val v) { return (List *)(uintptr_t)(v & ~TAG_MASK); }
 static inline Val from_list(List *l) { return LIST_TAG | (uint64_t)(uintptr_t)l; }
-static inline List *as_word(Val v) { return (List *)(uintptr_t)(v & ~TAG_MASK); }
-static inline Val from_word(List *name) { return WORD_TAG | (uint64_t)(uintptr_t)name; }
+static inline List *as_op(Val v) { return (List *)(uintptr_t)(v & ~TAG_MASK); }
+static inline Val from_op(List *name) { return OP_TAG | (uint64_t)(uintptr_t)name; }
 static inline double as_num(Val v) { double d; memcpy(&d, &v, 8); return d; }
 static inline Val from_num(double d) {
     Val v;
@@ -63,15 +63,15 @@ uint32_t val_hash(Val v);
 int val_equal(Val a, Val b);
 
 
-/* Unit-based list operations used by the forthcoming word value model. */
+/* Unit-based list operations used by the forthcoming op value model. */
 enum { UNIT_OK, UNIT_TYPE_ERROR, UNIT_STACK_ERROR };
 int unit_element(Val unit, Val *element);
 int unit_type(Val unit, int *type);
 int unit_cons(Val list, Val unit, int right, Val *out);
 int unit_uncons(Val list, int right, Val *rest, Val *unit);
-enum { WORD_OK, WORD_TYPE_ERROR, WORD_REPRESENTATION_ERROR };
-int text_to_word(Val text, Val *unit);
-int word_to_text(Val unit, Val *text);
+enum { NAME_OK, NAME_TYPE_ERROR, NAME_REPRESENTATION_ERROR };
+int name_to_selector(Val text, Val *selector);
+int selector_to_name(Val selector, Val *text);
 
 /* stacks and machine */
 typedef struct Machine Machine;
@@ -108,8 +108,8 @@ typedef struct { Form *f; size_t n; } Forms;
 typedef struct { char msg[160]; int line; int incomplete; } LowerErr;
 
 /* lower.c: returns 0 on success */
-int lower_word_forms(const char *text, size_t len, int first_line, uint32_t owner, Forms *out,
-                     LowerErr *err);
+int lower_op_forms(const char *text, size_t len, int first_line, uint32_t owner, Forms *out,
+                   LowerErr *err);
 int parse_number_text(const char *s, double *out, int *overflow);
 int is_token_space(uint32_t c);
 
@@ -117,29 +117,29 @@ int is_token_space(uint32_t c);
    Kernel-wrapper specializations are guarded by the code epoch. */
 /* Opcodes of the register loop; anything else is H_COLD. */
 enum { H_COLD, H_PUSH, H_NOP, H_JMP, H_BR, H_DROP, H_ADD, H_SUB, H_MUL, H_EQ, H_DIV, H_IDIV,
-       H_PICKK, H_ROLLK, /* k PICK, k ROLL with the literal k folded in: op->a = k + 1 */
+       H_PICKK, H_ROLLK, /* k PICK, k ROLL with the literal k folded in: ins->a = k + 1 */
        H_REC, H_REC0, /* tail (label) REC and tail rec: a jump to the start of the running lambda */
        H_COUNT };
 
-enum { OP_PUSH, OP_SITE, OP_SPECIALIZED, OP_IFTE_GUARD, OP_JMP, OP_BR, OP_LOOP_GUARD, OP_BRL, OP_END };
+enum { I_PUSH, I_SITE, I_SPECIALIZED, I_IFTE_GUARD, I_JMP, I_BR, I_LOOP_GUARD, I_BRL, I_END };
 typedef struct {
     int kind;
     int hot; /* H_* specialized operation, or H_COLD when it must use ordinary dispatch */
     Stack *st;
     Val v;
-    int a, b; /* OP_JMP: target; OP_BR, OP_BRL: target when false, resume point after the structure;
-                 OP_IFTE_GUARD, OP_LOOP_GUARD: source index, resume point after the structure;
+    int a, b; /* I_JMP: target; I_BR, I_BRL: target when false, resume point after the structure;
+                 I_IFTE_GUARD, I_LOOP_GUARD: source index, resume point after the structure;
                  specialized PICK/ROLL: k + 1 when literal k is folded */
     int tail; /* nothing runs after this call, so the frame is released before it */
-    int src;  /* the index of the list item this op comes from (a structure inlined from a deeper
-                 list counts as the item of the outermost list that holds it) */
-} Op;
+    int src;  /* the index of the list item this instruction comes from (a structure inlined from
+                 a deeper list counts as the item of the outermost list that holds it) */
+} Instr;
 struct Code {
     int n;
     uint8_t keep;
     uint64_t epoch;
     Code *prev; /* older versions, kept while a frame may still be running them */
-    Op ops[];
+    Instr instrs[];
 };
 
 enum { FR_CODE, FR_BRANCH, FR_CATCH, FR_CALL, FR_END, FR_LAMBDA, FR_LOOP
@@ -174,16 +174,16 @@ struct Machine {
     Stack *selected;
     jmp_buf *abort_jmp;
     uint64_t epoch; /* bumped when a specialization dependency may have changed */
-    int optimize_ops;
+    int optimize_instrs;
     uint32_t cur_file; /* id of the file whose load is running (0: none), see file_id */
-    int private_words; /* 0: `__` words of source files are ordinary public words (BO_NO_PRIVATE) */
+    int private_ops; /* 0: `__` ops of source files are ordinary public ops (BO_NO_PRIVATE) */
     char *home;        /* the directory that holds include/: the last place a relative include path is looked up; may be NULL */
-    char **owners;     /* resolved paths of the source files that own private words: owner id = index + 1 */
+    char **owners;     /* resolved paths of the source files that own private ops: owner id = index + 1 */
     size_t nowners, owners_cap;
     int stepping, paused, step_mode, step_arm; /* modes: debugger.inc */
-    long step_budget; /* words still allowed to run before the stepper pauses */
+    long step_budget; /* ops still allowed to run before the stepper pauses */
     size_t step_base; /* control-stack base of the stepped program; nested runs never pause */
-    size_t step_depth; /* STEP_OVER: control-stack depth of the word that was paused before */
+    size_t step_depth; /* STEP_OVER: control-stack depth of the op that was paused before */
     int resume_host;   /* the host is a prompt that carries out resume requests (WebAssembly has buttons) */
     int step_cold;     /* the stepper stops at literals too: compiled code keeps them out of the register loop */
     int bp_hit;        /* the last pause came from a BREAKPOINT, not from a step */
@@ -206,11 +206,11 @@ void gc_collect(Machine *m);
 /* debugger.inc: the step driver, used by the WebAssembly host and by the prompt, where a
    BREAKPOINT or a step command pauses a line. debug_step returns a DBG_* state. */
 enum { DBG_IDLE, DBG_READY, DBG_PAUSED, DBG_DONE, DBG_ERROR, DBG_EXIT };
-/* Step modes: every word; the first word of each top-level line; those and user words; none
+/* Step modes: every op; the first op of each top-level line; those and user ops; none
    (only a BREAKPOINT pauses); every call but the kernel primitives (the prompt's step); and
-   those no deeper than step_depth (the prompt's next); and words (not literals) no deeper than
-   step_depth (the playground's "word, over calls"). */
-enum { STEP_WORDS, STEP_LINES, STEP_USER, STEP_RUN, STEP_INTO, STEP_OVER, STEP_WORDS_OVER };
+   those no deeper than step_depth (the prompt's next); and ops (not literals) no deeper than
+   step_depth (the playground's "op, over calls"). */
+enum { STEP_OPS, STEP_LINES, STEP_USER, STEP_RUN, STEP_INTO, STEP_OVER, STEP_OPS_OVER };
 enum { RESUME_NONE, RESUME_STEP, RESUME_NEXT, RESUME_CONTINUE, RESUME_STOP };
 enum { DEBUG_FAST = 1, DEBUG_SCRATCH = 2 }; /* debug_begin flags */
 int debug_begin(Machine *m, const char *text, int flags);

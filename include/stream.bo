@@ -1,6 +1,6 @@
 "list.bo" require
 
-;__ucode: extract a numeric element from a unit without executing a word
+;__ucode: extract a numeric element from a unit without executing an op
 
     (
         (dup unittype 0 =)

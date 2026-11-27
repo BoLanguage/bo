@@ -3,12 +3,12 @@
 ;Errors are lists: (KIND WHERE DATA SOURCE LINE). catch runs a program
 ;if it fails, the
 ;error list is left on top of the stack (the operands are restored below it) and a
-;handler runs. throw raises an error of your own, given its data list and its kind, a word unit such as `(Bad-Digit)`.
+;handler runs. throw raises an error of your own, given its data list and its kind, a selector such as `(Bad-Digit)`.
 "examples/lib.bo" require
 
 ;e show-error : print KIND WHERE DATA and the line, from an error list
     (
-    unconsl apply text emits 32 emitc unconsl apply text emits 32 emitc unconsl apply emit
+    unconsl apply name emits 32 emitc unconsl apply name emits 32 emitc unconsl apply emit
     unconsl drop unconsl nip apply 32 emitc "line " emits emit nl
     )
     (show-error)
@@ -20,7 +20,7 @@ PUSH
     (show-error)
 catch
 
-"unknown word:" emits nl
+"unknown op:" emits nl
 
     (FOO)
     (show-error)

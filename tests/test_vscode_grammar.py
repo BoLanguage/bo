@@ -19,41 +19,41 @@ class VSCodePrimitiveGrammar(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_jupyter_language_data_contains_runtime_words(self):
+    def test_jupyter_language_data_contains_runtime_ops(self):
         source = JUPYTER_LANGUAGE.read_text()
-        for word in ('"PARALLEL"', '"MATMUL"', '"parallel"',
+        for op in ('"PARALLEL"', '"MATMUL"', '"parallel"',
                      'export const primitiveNames', '"PUSH"'):
-            with self.subTest(word=word):
-                self.assertIn(word, source)
+            with self.subTest(op=op):
+                self.assertIn(op, source)
 
-    def test_primitive_actions_and_adapters_are_highlighted_as_words(self):
+    def test_primitive_actions_and_adapters_are_highlighted_as_ops(self):
         grammar = json.loads((ROOT / "vscode/syntaxes/bo.tmLanguage.json").read_text())
-        for rule, word in (("adapter", "unit"), ("adapter", "call"), ("adapter", "rethrow"),
+        for rule, op in (("adapter", "unit"), ("adapter", "call"), ("adapter", "rethrow"),
                            ("adapter", "snapshot")):
             pattern = grammar["repository"][rule]["match"]
-            self.assertIsNotNone(re.fullmatch(pattern, word))
-            self.assertIsNone(re.fullmatch(pattern, word + "suffix"))
+            self.assertIsNotNone(re.fullmatch(pattern, op))
+            self.assertIsNone(re.fullmatch(pattern, op + "suffix"))
         self.assertIsNone(re.fullmatch(grammar["repository"]["adapter"]["match"], "PUSH"))
         self.assertIsNotNone(re.fullmatch(grammar["repository"]["primitive"]["match"], "PUSH"))
         adapter_pattern = grammar["repository"]["adapter"]["match"]
         pattern = grammar["repository"]["primitive"]["match"]
-        for word in ("PUSH", "UNIT", "CALL", "RETHROW"):
-            self.assertIsNotNone(re.fullmatch(pattern, word))
-            self.assertIsNone(re.fullmatch(adapter_pattern, word))
-        for word in ("Stack.PUSH", "List.UNIT"):
-            match = re.search(pattern, word)
+        for op in ("PUSH", "UNIT", "CALL", "RETHROW"):
+            self.assertIsNotNone(re.fullmatch(pattern, op))
+            self.assertIsNone(re.fullmatch(adapter_pattern, op))
+        for op in ("Stack.PUSH", "List.UNIT"):
+            match = re.search(pattern, op)
             self.assertIsNotNone(match)
-            self.assertEqual(match.group(), word.rsplit(".", 1)[1])
+            self.assertEqual(match.group(), op.rsplit(".", 1)[1])
         self.assertIsNone(re.search(pattern, "PUSHED"))
 
     def test_error_pattern_matches_only_error_kinds_written_as_units(self):
         grammar = json.loads((ROOT / "vscode/syntaxes/bo.tmLanguage.json").read_text())
         self.assertNotIn("class", grammar["repository"])
         pattern = grammar["repository"]["error"]["match"]
-        for word in ("(Type-Error)", "( Domain-Error )", "(Shape-Error)"):
-            self.assertIsNotNone(re.fullmatch(pattern, word), word)
-        for word in ("Type-Error", "(Disk-Full)", "(Type-Errors)", "(Stack.Type-Error)"):
-            self.assertIsNone(re.fullmatch(pattern, word), word)
+        for op in ("(Type-Error)", "( Domain-Error )", "(Shape-Error)"):
+            self.assertIsNotNone(re.fullmatch(pattern, op), op)
+        for op in ("Type-Error", "(Disk-Full)", "(Type-Errors)", "(Stack.Type-Error)"):
+            self.assertIsNone(re.fullmatch(pattern, op), op)
 
 
 def has_textmate():

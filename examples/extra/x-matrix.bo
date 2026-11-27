@@ -1,0 +1,12 @@
+"include/std.bo" require
+
+;The X matrix, after Uiua:  ⇡5  ˙⊞=  ⊸⇌  ↥
+;a table of equality gives the identity, its mirror image the other diagonal,
+;and their element-wise maximum the X.
+
+0 4 : (5) array         ; 0 through 4, as a rank-one array
+dup (=) table           ; identity matrix
+dup showmatrix nl
+dup fliplr              ; reverse
+dup showmatrix nl
+(max) . showmatrix       ; max, element by element

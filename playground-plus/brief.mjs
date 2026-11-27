@@ -3,51 +3,51 @@
 // ideas of their own, so the server supplies the idea and the targeting; the agent only has to carry it out.
 import { TAGS } from "./taxonomy.mjs";
 
-/** Starting ideas, by topic: {kind, difficulty, idea, words}. `words` are Bo words the solution will probably use. */
+/** Starting ideas, by topic: {kind, difficulty, idea, ops}. `ops` are Bo ops the solution will probably use. */
 export const IDEAS = {
     shuffle: [
-        { kind: "arrange", difficulty: 1, idea: "Copy the second value onto the top of the stack.", words: ["over"] },
-        { kind: "arrange", difficulty: 1, idea: "Exchange the top two values and leave a third one untouched below.", words: ["swap"] },
-        { kind: "arrange", difficulty: 2, idea: "Reverse the order of three values.", words: ["swap", "rot", "-rot"] },
-        { kind: "arrange", difficulty: 2, idea: "Leave the top value both on top and underneath the other two.", words: ["dup", "-rot", "rot"] },
-        { kind: "arrange", difficulty: 3, idea: "Bring the fourth value from the top up to the top, keeping the others in order.", words: ["roll", "pick"] },
-        { kind: "arrange", difficulty: 4, idea: "Reverse the order of four values.", words: ["swap", "roll", "rot"] },
+        { kind: "arrange", difficulty: 1, idea: "Copy the second value onto the top of the stack.", ops: ["over"] },
+        { kind: "arrange", difficulty: 1, idea: "Exchange the top two values and leave a third one untouched below.", ops: ["swap"] },
+        { kind: "arrange", difficulty: 2, idea: "Reverse the order of three values.", ops: ["swap", "rot", "-rot"] },
+        { kind: "arrange", difficulty: 2, idea: "Leave the top value both on top and underneath the other two.", ops: ["dup", "-rot", "rot"] },
+        { kind: "arrange", difficulty: 3, idea: "Bring the fourth value from the top up to the top, keeping the others in order.", ops: ["roll", "pick"] },
+        { kind: "arrange", difficulty: 4, idea: "Reverse the order of four values.", ops: ["swap", "roll", "rot"] },
     ],
     arithmetic: [
-        { kind: "arrange", difficulty: 1, idea: "Leave the larger of two numbers.", words: ["max"] },
-        { kind: "arrange", difficulty: 1, idea: "Add the top two numbers.", words: ["+"] },
-        { kind: "arrange", difficulty: 2, idea: "Leave the sum of three numbers.", words: ["+"] },
-        { kind: "define", difficulty: 1, idea: "Define a word that adds ten to a number.", words: ["+"] },
-        { kind: "define", difficulty: 2, idea: "Define a word that squares a number and subtracts the number.", words: ["dup", "*", "-", "swap"] },
-        { kind: "define", difficulty: 3, idea: "Define a word for the distance between two numbers (the absolute difference).", words: ["-", "abs"] },
+        { kind: "arrange", difficulty: 1, idea: "Leave the larger of two numbers.", ops: ["max"] },
+        { kind: "arrange", difficulty: 1, idea: "Add the top two numbers.", ops: ["+"] },
+        { kind: "arrange", difficulty: 2, idea: "Leave the sum of three numbers.", ops: ["+"] },
+        { kind: "define", difficulty: 1, idea: "Define an op that adds ten to a number.", ops: ["+"] },
+        { kind: "define", difficulty: 2, idea: "Define an op that squares a number and subtracts the number.", ops: ["dup", "*", "-", "swap"] },
+        { kind: "define", difficulty: 3, idea: "Define an op for the distance between two numbers (the absolute difference).", ops: ["-", "abs"] },
     ],
     conditional: [
-        { kind: "define", difficulty: 2, idea: "Define a word that leaves 1 for an even number and 0 for an odd one.", words: ["mod", "="] },
-        { kind: "define", difficulty: 2, idea: "Define a word that leaves -1, 0 or 1 for the sign of a number.", words: ["ifte", "dup", "<", "="] },
-        { kind: "define", difficulty: 3, idea: "Define a word that limits a number to at most 100 and at least 0.", words: ["min", "max"] },
+        { kind: "define", difficulty: 2, idea: "Define an op that leaves 1 for an even number and 0 for an odd one.", ops: ["mod", "="] },
+        { kind: "define", difficulty: 2, idea: "Define an op that leaves -1, 0 or 1 for the sign of a number.", ops: ["ifte", "dup", "<", "="] },
+        { kind: "define", difficulty: 3, idea: "Define an op that limits a number to at most 100 and at least 0.", ops: ["min", "max"] },
     ],
     quotation: [
-        { kind: "define", difficulty: 1, idea: "Define a word that negates a number.", words: ["neg"] },
-        { kind: "define", difficulty: 2, idea: "Define a word that leaves a number and its double.", words: ["dup", "*"] },
-        { kind: "define", difficulty: 2, idea: "Define a word that replaces two numbers by their sum and their product.", words: ["over", "+", "*", "-rot"] },
+        { kind: "define", difficulty: 1, idea: "Define an op that negates a number.", ops: ["neg"] },
+        { kind: "define", difficulty: 2, idea: "Define an op that leaves a number and its double.", ops: ["dup", "*"] },
+        { kind: "define", difficulty: 2, idea: "Define an op that replaces two numbers by their sum and their product.", ops: ["over", "+", "*", "-rot"] },
     ],
     list: [
-        { kind: "define", difficulty: 2, idea: "Define a word that doubles every element of a list.", words: ["map", "apply", "unit"] },
-        { kind: "define", difficulty: 2, idea: "Define a word that keeps only the elements of a list that are greater than 3.", words: ["filter", "apply", ">"] },
-        { kind: "define", difficulty: 3, idea: "Define a word that leaves the largest element of a non-empty list.", words: ["foldl", "max", "apply"] },
-        { kind: "define", difficulty: 3, idea: "Define a word for the sum of the squares of a list.", words: ["map", "foldl", "apply", "unit"] },
-        { kind: "define", difficulty: 3, idea: "Define a word that counts the even elements of a list.", words: ["filter", "len", "mod", "apply"] },
+        { kind: "define", difficulty: 2, idea: "Define an op that doubles every element of a list.", ops: ["map", "apply", "unit"] },
+        { kind: "define", difficulty: 2, idea: "Define an op that keeps only the elements of a list that are greater than 3.", ops: ["filter", "apply", ">"] },
+        { kind: "define", difficulty: 3, idea: "Define an op that leaves the largest element of a non-empty list.", ops: ["foldl", "max", "apply"] },
+        { kind: "define", difficulty: 3, idea: "Define an op for the sum of the squares of a list.", ops: ["map", "foldl", "apply", "unit"] },
+        { kind: "define", difficulty: 3, idea: "Define an op that counts the even elements of a list.", ops: ["filter", "len", "mod", "apply"] },
     ],
     recursion: [
-        { kind: "define", difficulty: 3, idea: "Define a word for the sum of the numbers from 1 to n.", words: ["ifte", "dup", "+"] },
-        { kind: "define", difficulty: 3, idea: "Define a word for n factorial.", words: ["ifte", "dup", "*"] },
-        { kind: "define", difficulty: 4, idea: "Define a word for the nth Fibonacci number.", words: ["ifte", "dup", "+"] },
-        { kind: "define", difficulty: 4, idea: "Define a word for 2 to the power n, without using ^.", words: ["ifte", "dup", "*"] },
+        { kind: "define", difficulty: 3, idea: "Define an op for the sum of the numbers from 1 to n.", ops: ["ifte", "dup", "+"] },
+        { kind: "define", difficulty: 3, idea: "Define an op for n factorial.", ops: ["ifte", "dup", "*"] },
+        { kind: "define", difficulty: 4, idea: "Define an op for the nth Fibonacci number.", ops: ["ifte", "dup", "+"] },
+        { kind: "define", difficulty: 4, idea: "Define an op for 2 to the power n, without using ^.", ops: ["ifte", "dup", "*"] },
     ],
     definition: [
-        { kind: "define", difficulty: 1, idea: "Define a word that triples a number and adds two.", words: ["*", "+"] },
-        { kind: "define", difficulty: 2, idea: "Define a word that leaves the average of two numbers (whole division).", words: ["+", "//"] },
-        { kind: "define", difficulty: 3, idea: "Define a word that leaves the middle value of three numbers on the stack.", words: ["min", "max"] },
+        { kind: "define", difficulty: 1, idea: "Define an op that triples a number and adds two.", ops: ["*", "+"] },
+        { kind: "define", difficulty: 2, idea: "Define an op that leaves the average of two numbers (whole division).", ops: ["+", "//"] },
+        { kind: "define", difficulty: 3, idea: "Define an op that leaves the middle value of three numbers on the stack.", ops: ["min", "max"] },
     ],
 };
 
@@ -64,7 +64,7 @@ export function formatBrief(brief) {
         `- main tag: ${brief.tag} (put it first in tags)`,
         `- difficulty: about ${brief.difficulty}`,
         `- idea: ${brief.idea} Make the numbers your own.`,
-        ...(brief.words?.length ? [`- Bo words the solution will probably use: ${brief.words.join(" ")} (get_bo_reference with a query shows how one works)`] : []),
+        ...(brief.ops?.length ? [`- Bo ops the solution will probably use: ${brief.ops.join(" ")} (get_bo_reference with a query shows how one works)`] : []),
         `- why this: ${brief.why}`,
         ...(brief.avoid.length ? ["- do not repeat these goals:", ...brief.avoid.map((goal) => `  * ${goal}`)] : []),
         "Now describe the puzzle and call validate_puzzle.",
@@ -141,7 +141,7 @@ export function makeBrief({ profile, puzzles, random = Math.random, preferences 
     if (used.has(chosen.idea)) reasons.push("every idea for this topic was used, so make a new variation");
 
     return {
-        kind: chosen.kind, tag, difficulty, idea: chosen.idea, words: chosen.words,
+        kind: chosen.kind, tag, difficulty, idea: chosen.idea, ops: chosen.ops,
         avoid: puzzles.slice(-RECENT).map((p) => p.goal),
         why: reasons.join("; "),
     };

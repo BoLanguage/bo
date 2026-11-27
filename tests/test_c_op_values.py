@@ -10,14 +10,14 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 @unittest.skipUnless(shutil.which("cc"), "C compiler not available")
-class CWordValues(unittest.TestCase):
-    def test_word_identity_gc_and_execution_modes(self):
+class COpValues(unittest.TestCase):
+    def test_op_identity_gc_and_execution_modes(self):
         with tempfile.TemporaryDirectory() as directory:
-            binary = Path(directory) / "word-values"
-            sources = ["machine.c", "heap.c", "units.c", "words.c", "lower.c", "lineedit.c"]
+            binary = Path(directory) / "op-values"
+            sources = ["machine.c", "heap.c", "units.c", "names.c", "lower.c", "lineedit.c"]
             build = subprocess.run(
                 ["cc", "-O2", "-g", "-Wall", "-Wextra", "-std=gnu11",
-                 "-I", str(ROOT / "c"), str(ROOT / "tests" / "c_word_values.c"),
+                 "-I", str(ROOT / "c"), str(ROOT / "tests" / "c_op_values.c"),
                  *(str(ROOT / "c" / source) for source in sources), "-lm", "-o", str(binary)],
                 capture_output=True, text=True,
             )

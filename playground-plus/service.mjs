@@ -19,7 +19,7 @@ export const REFERENCES = {
     examples: "doc/examples.md",
 };
 const DAY = 24 * 60 * 60 * 1000;
-export const REFERENCE_LIMIT = 14000; // characters of a reference one call returns (the language reference is returned whole)
+export const REFERENCE_LIMIT = 15000; // characters of a reference one call returns (the language reference is returned whole)
 
 /**
  * What makes a puzzle that puzzle, whatever its wording: the solution lines and the setup code with
@@ -127,9 +127,9 @@ function groupSummaries(sessions, key, describe) {
 }
 
 const NOT_A_GUESS_AT_THE_ANSWER = new Set(["guess", "hint", "reveal"]);
-/** How many words each session's prompt lines held (the unit of tokens.mjs), without the words that only check or ask for help. */
-function wordsTyped(promptLines) {
-    const words = new Map();
+/** How many top-level tokens (tokens.mjs) each session's prompt lines held, without the ops that only check or ask for help. */
+function tokensTyped(promptLines) {
+    const typed = new Map();
     for (const { sessionId, code } of promptLines) {
         let tokens;
         try {
@@ -137,9 +137,9 @@ function wordsTyped(promptLines) {
         } catch {
             tokens = code.split(/\s+/).filter(Boolean); // not valid Bo: count what was typed anyway
         }
-        words.set(sessionId, (words.get(sessionId) ?? 0) + tokens.filter((t) => !NOT_A_GUESS_AT_THE_ANSWER.has(t)).length);
+        typed.set(sessionId, (typed.get(sessionId) ?? 0) + tokens.filter((t) => !NOT_A_GUESS_AT_THE_ANSWER.has(t)).length);
     }
-    return words;
+    return typed;
 }
 
 /**
@@ -169,8 +169,8 @@ export function createService({ repository, validate = validatePuzzle, now = Dat
     };
     const plain = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
     const clean = (text) => text.replace(/\s+/g, " ").trim();
-    /** What makes a spec that puzzle, whatever its words: its kind, inputs, solution and word. */
-    const specKey = (spec) => JSON.stringify([spec.kind, spec.inputs, spec.solution, spec.word ?? null]);
+    /** What makes a spec that puzzle, whatever its wording: its kind, inputs, solution and op. */
+    const specKey = (spec) => JSON.stringify([spec.kind, spec.inputs, spec.solution, spec.op ?? null]);
 
     /** A puzzle already known (guide example or stored) with the same spec essence, or null. */
     async function findSpecDuplicate(spec) {
@@ -245,7 +245,7 @@ export function createService({ repository, validate = validatePuzzle, now = Dat
         const { derived, spec } = compiled;
         const found = spec.kind === "arrange"
             ? `Your solution "${spec.solution}" turns the start stack (${spec.inputs[0].map((v) => (Array.isArray(v) ? `(${v.join(" ")})` : v)).join(" ")}) into ${derived.results[0]}. That is what the player must leave: check that it is what you meant.`
-            : `Your solution gives (this is what the check expects):\n${spec.inputs.map((stack, i) => `  ${stack.map((v) => (Array.isArray(v) ? `(${v.join(" ")})` : v)).join(" ")} ${spec.word} -> ${derived.results[i]}`).join("\n")}\nCheck that these are what you meant.`;
+            : `Your solution gives (this is what the check expects):\n${spec.inputs.map((stack, i) => `  ${stack.map((v) => (Array.isArray(v) ? `(${v.join(" ")})` : v)).join(" ")} ${spec.op} -> ${derived.results[i]}`).join("\n")}\nCheck that these are what you meant.`;
         return [
             `Title: ${derived.title}; tags: ${derived.tags.join(", ")}; difficulty ${derived.difficulty} (estimated).`,
             found,
@@ -397,19 +397,19 @@ export function createService({ repository, validate = validatePuzzle, now = Dat
          * What the profile dialog shows: the player's statistics (first plays only), those of each agent that
          * has played (every attempt counts: an agent does not learn from the last one), and what is stored.
          * Besides the counts of `getUserProfile` it has the mean difficulty of the puzzles played and how many
-         * words were typed to solve them, alone and against the puzzle's best known answer.
+         * tokens were typed to solve them, alone and against the puzzle's best known answer.
          */
         getStatistics() {
             const all = repository.sessionSummaries(5000);
-            const words = wordsTyped(repository.listPromptLines());
+            const typed = tokensTyped(repository.listPromptLines());
             const describe = (sessions, abandonedIsFailure = false) => {
                 const solved = sessions.filter((s) => s.outcome === "solved");
                 return {
                     ...summarize(sessions, abandonedIsFailure),
                     played: sessions.length,
                     meanDifficulty: average(sessions.map((s) => s.difficulty).filter((d) => d !== null)),
-                    meanWordsToSolve: average(solved.map((s) => words.get(s.id)).filter((n) => n !== undefined)),
-                    meanLengthRatio: average(solved.filter((s) => s.bestKnownLength && words.get(s.id)).map((s) => words.get(s.id) / s.bestKnownLength)),
+                    meanTokensToSolve: average(solved.map((s) => typed.get(s.id)).filter((n) => n !== undefined)),
+                    meanLengthRatio: average(solved.filter((s) => s.bestKnownLength && typed.get(s.id)).map((s) => typed.get(s.id) / s.bestKnownLength)),
                 };
             };
             const human = all.filter((s) => s.role === "human");
@@ -466,7 +466,7 @@ export function createService({ repository, validate = validatePuzzle, now = Dat
          * The language documents (see REFERENCES). A short one is returned whole. A long one is returned
          * as an outline, or, with a `query`, as the entries that mention it, so that a client with a small
          * context window is never handed tens of kilobytes at once. Without a topic a query searches every
-         * document, so the caller need not know which one holds a word.
+         * document, so the caller need not know which one describes an op.
          */
         getReference(topic, { query = "" } = {}) {
             const needle = typeof query === "string" ? query.trim() : "";

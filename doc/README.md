@@ -5,8 +5,8 @@
 1. [Tutorial](tutorial.md): a short, executable introduction to stacks,
    quotations and named stacks.
 2. [Language](language.md): values, syntax, evaluation, and errors; [errors](errors.md) lists the error kinds.
-3. [Primitives](primitives.md): kernel operations and their stack effects.
-4. [Library](library.md): default-stack adapters and library words from `include/`.
+3. [Primitives](primitives.md): kernel primitives and their stack effects.
+4. [Library](library.md): default-stack adapters and library ops from `include/`.
 5. [Examples](examples.md): sample programs.
 6. [Notebook](notebook.md): running Bo in Jupyter.
 7. [Debugging](debugging.md): breakpoints, stepping and `watch`.

@@ -1,4 +1,4 @@
-// Counting what a player typed. The unit is the top-level token: a word, a number, a string, or a
+// Counting what a player typed. The unit is the top-level token: an op, a number, a string, or a
 // whole parenthesised list (so `(2 *) (twicer) PUSH guess` is four). Literals count, as decided;
 // what is inside a list does not. The rules follow doc/language.md: tokens are separated by
 // whitespace, parentheses delimit lists, `"..."` is a string with backslash escapes, and `;` outside

@@ -131,3 +131,9 @@ PUSH
     )
     (round)
 PUSH
+
+;sqrt ( x -- y ) the square root of x; a negative x raises Domain-Error
+
+    (0.5 ^)
+    (sqrt)
+PUSH

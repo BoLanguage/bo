@@ -1,10 +1,10 @@
 """Host-side rendering, used only for error messages (ps and emit are in the standard library)."""
 
-from .values import Word
+from .values import Op
 
 
 def render(value):
-    if isinstance(value, Word):
+    if isinstance(value, Op):
         return value.name
     if isinstance(value, list):
         return "(" + " ".join(render(element) for element in value) + ")"

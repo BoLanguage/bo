@@ -12,7 +12,7 @@ const ARRANGE = {
     inputs: [[7, 3, 5]], solution: "rot", hints: ["The biggest value travels up.", "`rot` cycles the top three."],
 };
 const DEFINE = {
-    kind: "define", tags: ["definition", "arithmetic"], word: "twice-plus-one",
+    kind: "define", tags: ["definition", "arithmetic"], op: "twice-plus-one",
     goal: "Define `twice-plus-one` so that it doubles the number on top and then adds one.",
     inputs: [[0], [3], [10], [-4]], solution: "2 * 1 +", hints: ["Double first, then add one."],
 };
@@ -50,7 +50,7 @@ test("a define spec: expected results come from running the solution, with a fre
     assert.deepEqual([parsed.hints, parsed.freeHints], [2, 1], "the free hint is counted among the hints");
     assert.deepEqual(parsed.solutions, ["(2 * 1 +) (twice-plus-one) PUSH guess"]);
     assert.equal(parsed.wrong.length, 2, "an empty definition and a constant one are tried");
-    assert.match(compiled.source, /"Define a word by pushing a quotation onto a stack with its name: \(BODY\) \(twice-plus-one\) PUSH\. Then run guess\."/);
+    assert.match(compiled.source, /"Define an op by pushing a quotation onto a stack with its name: \(BODY\) \(twice-plus-one\) PUSH\. Then run guess\."/);
     const report = await validatePuzzle(compiled.source);
     assert.equal(report.ok, true, formatReport(report));
     assert.ok(report.checks.some((c) => c.id === "freehints" && c.ok));
@@ -58,13 +58,13 @@ test("a define spec: expected results come from running the solution, with a fre
     assert.match(parsed.description, /Push a quotation onto `twice-plus-one`\.\nRun `guess` to check your solution\.$/);
 });
 
-test("lists as inputs, and a recursive word, work", async () => {
-    const total = await compile({ ...DEFINE, tags: ["list"], word: "total", goal: "Define `total` so that it sums a list of numbers.", inputs: [[[1, 2, 3]], [[]], [[5]], [[4, 6]]], solution: "0 (apply +) foldl" });
+test("lists as inputs, and a recursive op, work", async () => {
+    const total = await compile({ ...DEFINE, tags: ["list"], op: "total", goal: "Define `total` so that it sums a list of numbers.", inputs: [[[1, 2, 3]], [[]], [[5]], [[4, 6]]], solution: "0 (apply +) foldl" });
     assert.deepEqual(total.problems, []);
     assert.deepEqual(total.derived.results, ["(6)", "(0)", "(5)", "(10)"]);
     assert.equal((await validatePuzzle(total.source)).ok, true);
     const factorial = await compile({
-        ...DEFINE, tags: ["recursion"], word: "fact", goal: "Define `fact` so that it replaces n with n factorial.", inputs: [[0], [1], [3], [5]],
+        ...DEFINE, tags: ["recursion"], op: "fact", goal: "Define `fact` so that it replaces n with n factorial.", inputs: [[0], [1], [3], [5]],
         solution: "(dup 1 >) (dup 1 - fact *) (drop 1) ifte",
     });
     assert.deepEqual(factorial.problems, []);
@@ -92,14 +92,14 @@ test("the title is the main tag, the puzzle's number and who wrote it", () => {
     assert.ok(makeTitle(["list"], 2, "x".repeat(200)).length < 60);
 });
 
-test("difficulty is estimated from the solution's size and use of control words", () => {
+test("difficulty is estimated from the solution's size and use of control ops", () => {
     assert.equal(estimateDifficulty("arrange", "rot"), 1);
     assert.equal(estimateDifficulty("arrange", "swap rot"), 2);
     assert.equal(estimateDifficulty("arrange", "swap rot swap rot"), 3);
     assert.equal(estimateDifficulty("arrange", "swap rot swap rot swap rot swap"), 5);
     assert.equal(estimateDifficulty("define", "2 *"), 1);
     assert.equal(estimateDifficulty("define", "2 * 1 +"), 2);
-    assert.equal(estimateDifficulty("define", "(dup 0 <) (neg) (nop) ifte"), 4, "five words and a conditional");
+    assert.equal(estimateDifficulty("define", "(dup 0 <) (neg) (nop) ifte"), 4, "six tokens and a conditional");
     assert.equal(estimateDifficulty("define", "dup dup dup dup dup dup dup dup dup dup dup dup ifte"), 5, "capped");
 });
 
@@ -124,8 +124,8 @@ test("a spec with a wrong shape gets every problem at once, in the agent's terms
     assert.match((await problemsOf({ inputs: [[1e9]] }))[0], /inputs\[0\]/);
     assert.match((await problemsOf({ inputs: [[[1, [2]]]] }))[0], /inputs\[0\]/, "lists of lists are not supported");
     assert.match((await problemsOf({ inputs: [[7, 3, 5], [1, 2, 3]] }))[0], /arrange puzzle needs exactly one input/);
-    assert.match((await problemsOf({ word: "x" }))[0], /word is only for define/);
-    assert.match((await problemsOf({ word: "Bad Name", inputs: [[1], [2], [3]] }, DEFINE))[0], /word must be the name to define/);
+    assert.match((await problemsOf({ op: "x" }))[0], /op is only for define/);
+    assert.match((await problemsOf({ op: "Bad Name", inputs: [[1], [2], [3]] }, DEFINE))[0], /op must be the name of the op to define/);
     assert.match((await problemsOf({ inputs: [[1], [2]] }, DEFINE))[0], /needs 3 to 8 inputs/);
     assert.match((await problemsOf({ inputs: Array.from({ length: 9 }, (_, i) => [i]) }, DEFINE))[0], /needs 3 to 8 inputs/);
 });
@@ -133,7 +133,7 @@ test("a spec with a wrong shape gets every problem at once, in the agent's terms
 test("failures say what to do about the commonest mistakes, once when every input fails the same way", async () => {
     const missing = await problemsOf({ solution: "dup 1 < if 0 else 1 then" }, DEFINE);
     assert.equal(missing.length, 1, "four inputs, one message");
-    assert.match(missing[0], /^the solution run on every input failed: .*Existence-Error \(WORD\) \(\(if\)\)\. "if" is not a Bo word.*ifte: \(condition\) \(then\) \(else\) ifte.*query "if"/);
+    assert.match(missing[0], /^the solution run on every input failed: .*Existence-Error \(EXECUTE\) \(\(if\)\)\. "if" is not a Bo op.*ifte: \(condition\) \(then\) \(else\) ifte.*query "if"/);
     const wrongOrder = await problemsOf({ solution: "dup 1 <= ifte (drop 0) (dup 1 - sum + )" }, DEFINE);
     assert.match(wrongOrder[0], /ifte needs three quotations in this order: \(condition\) \(then\) \(else\) ifte, for example \(dup 0 <\) \(neg\) \(nop\) ifte/);
     // different failures on different inputs are each reported
@@ -146,26 +146,26 @@ test("a spec whose solution cannot be run says what failed, and nothing is built
     const empty = await compile({ ...ARRANGE, solution: "drop drop drop" });
     assert.match(empty.problems[0], /the solution run on inputs\[0\], failed|leaves nothing/);
     assert.equal(empty.source, null);
-    assert.match((await problemsOf({ solution: "no-such-word" }))[0], /the solution run on inputs\[0\], failed/);
+    assert.match((await problemsOf({ solution: "no-such-op" }))[0], /the solution run on inputs\[0\], failed/);
     assert.match((await problemsOf({ solution: "1 2 /" }))[0], /not a whole number/, "0.5 is not a whole number");
     assert.match((await compile({ ...ARRANGE, solution: "(spin) (spin) PUSH spin" }, { budget: 5000 })).problems[0], /step budget/);
     assert.match((await problemsOf({ solution: "swap swap" }))[0], /leaves the stack as it started/);
 });
 
-test("a define spec whose inputs cannot tell a wrong word from the right one is refused", async () => {
+test("a define spec whose inputs cannot tell a wrong op from the right one is refused", async () => {
     assert.match((await problemsOf({ solution: "dup drop" }, DEFINE))[0], /every input comes out unchanged \(0 twice-plus-one -> \(0\); 3 twice-plus-one -> \(3\); .*\), so doing nothing would pass\. Check that your solution does what the goal says/);
-    assert.match((await problemsOf({ solution: "drop 5" }, DEFINE))[0], /every input gives \(5\) \(0 twice-plus-one -> \(5\); .*\), so a word that ignores its input would pass/);
+    assert.match((await problemsOf({ solution: "drop 5" }, DEFINE))[0], /every input gives \(5\) \(0 twice-plus-one -> \(5\); .*\), so an op that ignores its input would pass/);
     assert.match((await problemsOf({ inputs: [[1], [1], [2]] }, DEFINE))[0], /inputs must all be different/);
-    assert.match((await problemsOf({ word: "dup" }, DEFINE))[0], /word "dup" already exists in Bo/);
-    assert.match((await problemsOf({ word: "guess" }, DEFINE))[0], /already exists/);
-    assert.match((await problemsOf({ solution: "xyzzy" }, DEFINE))[0], /the solution run on every input failed: .*"xyzzy" is not a Bo word/);
+    assert.match((await problemsOf({ op: "dup" }, DEFINE))[0], /op "dup" already exists in Bo/);
+    assert.match((await problemsOf({ op: "guess" }, DEFINE))[0], /already exists/);
+    assert.match((await problemsOf({ solution: "xyzzy" }, DEFINE))[0], /the solution run on every input failed: .*"xyzzy" is not a Bo op/);
 });
 
-test("warnings: a hint that gives the solution away, a goal without the word, a tag the solution does not use", async () => {
+test("warnings: a hint that gives the solution away, a goal without the op, a tag the solution does not use", async () => {
     const leaky = await compile({ ...DEFINE, hints: ["Just write 2 * 1 + and you are done."] });
     assert.deepEqual(leaky.problems, []);
     assert.match(leaky.warnings[0], /a hint contains the whole solution/);
-    assert.match((await compile({ ...DEFINE, goal: "Make a word that doubles and adds one." })).warnings[0], /does not mention the word "twice-plus-one"/);
+    assert.match((await compile({ ...DEFINE, goal: "Make an op that doubles and adds one." })).warnings[0], /does not mention the op "twice-plus-one"/);
     assert.match((await compile({ ...ARRANGE, tags: ["arithmetic"] })).warnings[0], /tag "arithmetic" is claimed but the solution uses none/);
     assert.deepEqual((await compile(ARRANGE)).warnings, []);
 });
@@ -184,7 +184,7 @@ test("text in a spec cannot break the file: quotes, backslashes, newlines and co
 
 test("the spec is normalised: whitespace, and a final guess on the solution", () => {
     assert.deepEqual(normalizeSpec({ ...ARRANGE, goal: "  Put   them \n in order  ", solution: " swap   rot guess " }), { ...ARRANGE, goal: "Put them in order", solution: "swap rot" });
-    assert.equal(normalizeSpec({ ...ARRANGE, solution: "rot guessing" }).solution, "rot guessing", "only the word guess is dropped");
+    assert.equal(normalizeSpec({ ...ARRANGE, solution: "rot guessing" }).solution, "rot guessing", "only the op guess is dropped");
 });
 
 let failed = 0;

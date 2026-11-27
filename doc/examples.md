@@ -18,9 +18,9 @@ The programs use a recommended (not enforced) vertical layout with the quotation
     (fact)
 PUSH
 ```
-Helper words are private words with two leading underscores (for example `__lenacc` in `include/list.bo`), as explained in the [language guide](language.md#private-words).
+Helper ops are private ops with two leading underscores (for example `__lenacc` in `include/list.bo`), as explained in the [language guide](language.md#private-ops).
 
-The migrated helpers include `range`, `sum`, `say`, dictionary keys with `tagkey`, and variables with `set`/`get`/`incr`. `filter` is a standard-library word (with `mask`, `reverse`, `startswith`, `endswith` and `contains`, in `include/list.bo`); its predicates receive element units; `word` converts valid word-name text to a word, and `tagkey` encodes a value under a word-unit tag as a named-stack selector.
+The helpers in `examples/lib.bo` are `range` and `incr`; the examples also use standard-library ops such as `say`, `sum`, dictionary keys with `tagkey`, and variables with `set`/`get`. `filter` is a standard-library op (with `mask`, `reverse`, `startswith`, `endswith` and `contains`, in `include/list.bo`); its predicates receive element units; `selector` converts a string holding a valid op name to a selector, and `tagkey` encodes a value under a selector tag as a named-stack selector.
 
 | File | Shows |
 |---|---|
@@ -34,13 +34,15 @@ The migrated helpers include `range`, `sum`, `say`, dictionary keys with `tagkey
 | `08-matrix.bo` | transpose, product, identity, powers, Fibonacci by matrix power |
 | `09-numeric.bo` | Newton's square root, midpoint integration, a series, Monte Carlo with an exact generator |
 | `10-dictionaries.bo` | memoization, word splitting and word frequencies with keys computed at run time |
-| `11-code-as-data.bo` | compiling and differentiating polynomials as lists, defining words by computed names, Newton's method |
+| `11-code-as-data.bo` | compiling and differentiating polynomials as lists, defining ops by computed names, Newton's method |
 | `12-errors.bo` | `catch`, `throw`, error lists, recovery, rethrowing |
 | `13-parallel.bo` | ordered isolated workers, multi-value results, named-stack isolation, nesting, worker-error handling |
 | `14-bobo.bo` | the mascot drawn as text from a run-length encoded picture (palette lookup with `nth`, `loop`, `foreach`); defines `bobo` and shows it |
 | `15-breeze-hash.bo` | a tribute to Breeze: running code represented as numbers and lists with a `#` operator |
 
-Two conventions that the examples rely on and that are easy to trip over: the value of a variable is stored as itself (`0 (COUNT) PUSH`) and naming it pushes it, but a *list* stored in a stack is a program, so naming it runs it; read a list value with `(NAME) TOP` or define a word that pushes it with a doubled paren, `((1 2 3)) (DATA) PUSH`. And `ift`/`ifte` take their condition as a list to run (`(cond) (then) ift`); when the truth value is already on the stack use `() (then) (else) ifte`.
+`examples/extra/` holds further, smaller programs (many after examples of other languages such as Uiua); they are not tested and have no expected output.
+
+Two conventions that the examples rely on and that are easy to trip over: the value of a variable is stored as itself (`0 (COUNT) PUSH`) and naming it pushes it, but a *list* stored in a stack is a program, so naming it runs it; read a list value with `(NAME) TOP` or define an op that pushes it with a doubled paren, `((1 2 3)) (DATA) PUSH`. And `ift`/`ifte` take their condition as a list to run (`(cond) (then) ift`); when the truth value is already on the stack use `() (then) (else) ifte`.
 
 ```
 "three numbers on the default stack" drop
@@ -111,4 +113,4 @@ PUSH
 lambda
 ```
 
-and it is a kernel primitive pair: `LAMBDA` runs the program in a frame labelled by its selector and `REC` re-enters the innermost frame with the same label, so `lambda` and `rec` are the wrappers with the anonymous label `()`. The frame lives on the control stack, so an error that unwinds past it leaves nothing behind, and recursion in tail position runs in constant space. [File-local words](language.md#file-local-words) use named labels, which keeps a callback from re-entering the wrong program.
+and it is a kernel primitive pair: `LAMBDA` runs the program in a frame labelled by its selector and `REC` re-enters the innermost frame with the same label, so `lambda` and `rec` are the wrappers with the anonymous label `()`. The frame lives on the control stack, so an error that unwinds past it leaves nothing behind, and recursion in tail position runs in constant space. [Private ops](language.md#private-ops) use named labels, which keeps a callback from re-entering the wrong program.

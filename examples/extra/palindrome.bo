@@ -1,0 +1,26 @@
+
+"include/std.bo" require
+
+; We need to ignore punctuation (including spaces) and case
+
+(dup 65 90 : in) (__isUpperChar) PUSH
+(apply 32 + unit) (__toLowerChar) PUSH
+(((__isUpperChar) (__toLowerChar) () ifte) map) (__toLower) PUSH
+(" ,;:.!'" in not) (__isNotPunctuation) PUSH
+((__isNotPunctuation) filter) (__removePunctuation) PUSH
+
+    (
+    __toLower 
+    __removePunctuation 
+    dup reverse =
+    ) 
+    (isPalindrome) 
+PUSH
+
+    "Hello, world!" 
+isPalindrome ?  ; should say "No"
+
+; Alastair Reid's famous palindrome
+    "T. Eliot, top bard, notes putrid tang emanating, is sad; I'd assign it a name: gnat dirt upset on drab pot toilet." 
+isPalindrome ?  ; should say "yes"
+    

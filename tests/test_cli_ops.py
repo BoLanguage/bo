@@ -1,4 +1,4 @@
-"""First-class-word behavior through the actual command-line entry points."""
+"""First-class-op behavior through the actual command-line entry points."""
 
 import os
 import subprocess
@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 C_BIN = ROOT / "c" / "bo"
 
 
-class WordCli(unittest.TestCase):
+class OpCli(unittest.TestCase):
     def commands(self):
         yield "python", [sys.executable, "-m", "python.bo"], None
         if C_BIN.exists():
@@ -33,10 +33,10 @@ class WordCli(unittest.TestCase):
                 f'"{ROOT / "include" / "std.bo"}" () INCLUDE\n'
                 f'"{nested}" () INCLUDE\n'
                 '(OP 2) unconsl consl emit nl\n'
-                '"OP" word text emits nl\n'
+                '"OP" selector name emits nl\n'
                 '(OP) unittype emit nl\n'
-                '"OP" word apply emit nl\n'
-                '(NO-SUCH-WORD) (unconsl apply text emits nl) catch\n',
+                '"OP" selector apply emit nl\n'
+                '(NO-SUCH-OP) (unconsl apply name emits nl) catch\n',
                 encoding="utf-8",
             )
             for mode, command, env in self.commands():
@@ -181,12 +181,12 @@ class WordCli(unittest.TestCase):
             self.assertIn("Existence-Error", result.stderr)
             result = subprocess.run(
                 [str(C_BIN), "--bare", "--dump", str(dump), "-e",
-                 f'"{ROOT / "include" / "core.bo"}" () INCLUDE 1 2 + (word) POP'],
+                 f'"{ROOT / "include" / "core.bo"}" () INCLUDE 1 2 + (selector) POP'],
                 cwd=directory, capture_output=True, text=True, timeout=30,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(dump.read_text(encoding="utf-8").strip(), "3 (() WORD)")
-        result = subprocess.run([str(C_BIN), "-e", '"OP" () WORD () TEXT'],
+            self.assertEqual(dump.read_text(encoding="utf-8").strip(), "3 (() SELECTOR)")
+        result = subprocess.run([str(C_BIN), "-e", '"OP" () SELECTOR () NAME'],
                                 cwd=ROOT, capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
         result = subprocess.run(
@@ -200,12 +200,12 @@ class WordCli(unittest.TestCase):
         self.assertIn("Existence-Error", result.stderr)
 
     @unittest.skipUnless(C_BIN.exists(), "c/bo is not built")
-    def test_c_expression_dump_contains_word_values(self):
+    def test_c_expression_dump_contains_op_values(self):
         with tempfile.TemporaryDirectory() as directory:
             dump = Path(directory) / "stack"
             result = subprocess.run(
                 [str(C_BIN), "--dump", str(dump), "-e",
-                 '"include/std.bo" () INCLUDE (OP) unittype "OP" word "OP" "@" word'],
+                 '"include/std.bo" () INCLUDE (OP) unittype "OP" selector "OP" "@" selector'],
                 cwd=ROOT, capture_output=True, text=True, timeout=30,
             )
             self.assertEqual(result.returncode, 0, result.stderr)

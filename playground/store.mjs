@@ -7,7 +7,7 @@
 // An optional `onEvent` observer receives one event per user-facing action (see createStore); the
 // playground itself does not use it. It is how an application built on the playground records play.
 
-export const RUN_CHUNK = 20000; // words per chunk when running; the page stays responsive between chunks
+export const RUN_CHUNK = 20000; // ops per chunk when running; the page stays responsive between chunks
 const MAX_OUTPUT = 2000;
 const STATE_OPTIONS = { maxItems: 200, maxChars: 160 };
 const DETAIL_OPTIONS = { maxItems: 50, maxChars: 400 };
@@ -17,7 +17,7 @@ const ACTIVE = new Set(["ready", "paused"]);
 /**
  * @param {(onOutput: Function) => object} createClient builds a client; called again by `kill`
  * @param {{files?: Record<string,string>, input?: string, chunk?: number, onEvent?: Function}} [options]
- *   files for the virtual file system, standard input, the words per chunk when running, and an
+ *   files for the virtual file system, standard input, the ops per chunk when running, and an
  *   optional observer. The observer gets, after each setup, restart, evaluate, step, run, runFast,
  *   reset, clearStacks, abort and kill action: `{type, time, duration, version, before, after, status,
  *   output, error, ...details}`, where `time` is the start in ms since the epoch, `version` is the
@@ -31,7 +31,7 @@ export function createStore(createClient, { files = {}, input = "", chunk = RUN_
         version: null,
         files,
         input,
-        mode: "words", // "words" | "over" | "lines" | "user": what one step is
+        mode: "ops", // "ops" | "over" | "lines" | "user": what one step is
         status: "idle", // "idle" | "ready" | "paused" | "done" | "error" | "exit"
         machine: null, // the machine's state JSON (see bo.state() in wasm/bo.mjs)
         stacksShown: false, // the stacks are displayed: once something is on them, until a fresh machine or clearStacks
@@ -116,7 +116,7 @@ export function createStore(createClient, { files = {}, input = "", chunk = RUN_
         set({ ready: true, version, status: "idle", previous: null, stacksShown: false, pausedAtPrompt: false });
     };
 
-    /** Starts a fresh machine with `code` loaded and paused before its first word. */
+    /** Starts a fresh machine with `code` loaded and paused before its first op. */
     const startProgram = async (code) => {
         await initMachine();
         set({ output: [], source: "program", fast: null });
@@ -157,12 +157,12 @@ export function createStore(createClient, { files = {}, input = "", chunk = RUN_
         await initMachine();
         await refresh();
     }),
-    /** Resets the machine and loads `code`, paused before its first word. */
+    /** Resets the machine and loads `code`, paused before its first op. */
     restart: (code) => interrupting(() => observed("restart", { code }, () => startProgram(code))),
     /** Runs `count` steps of the current mode (loading `code` first if nothing is active). */
     step: (code, count = 1) => enqueue(() => observed("step", { code, count, mode: state.mode }, async () => {
         if (!ACTIVE.has(state.status)) {
-            // a program just loaded is already paused before its first word
+            // a program just loaded is already paused before its first op
             if (!(await startProgram(code)) || count === 1) return;
         }
         set({ source: state.pausedAtPrompt ? state.source : "program", fast: null });
@@ -177,7 +177,7 @@ export function createStore(createClient, { files = {}, input = "", chunk = RUN_
         for (;;) {
             const status = await client.debugRun(chunk);
             await refresh();
-            // "paused" is also what a chunk that ran out of words reports: a breakpoint is told apart
+            // "paused" is also what a chunk that ran out of ops reports: a breakpoint is told apart
             if (status !== "paused" || stopRequested || state.machine.breakpoint) break;
         }
     })),
@@ -221,7 +221,7 @@ export function createStore(createClient, { files = {}, input = "", chunk = RUN_
     })),
     /**
      * Evaluates `code` on the current machine. A paused program stays paused where it is, and the
-     * code runs at that point; it may resume the program (the words step, next, continue and stop).
+     * code runs at that point; it may resume the program (the commands step, next, continue and stop).
      * Otherwise the code is a program of its own, and a breakpoint (`@`) in it pauses it. If the code
      * calls `exit`, everything is emptied as by `clearStacks` and the output is cleared, and the exit
      * status is returned (otherwise null).

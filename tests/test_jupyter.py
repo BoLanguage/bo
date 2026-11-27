@@ -14,7 +14,7 @@ except ImportError:
     Kernel = None
 
 from python.bo.machine import Machine
-from python.bo.values import Word
+from python.bo.values import Op
 
 
 @unittest.skipUnless(Kernel is not None, "requires the jupyter extra of pyproject.toml (make deps)")
@@ -134,7 +134,7 @@ class JupyterKernelTests(unittest.TestCase):
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["ename"], "Existence-Error")
         self.assertEqual(messages[-1][0], "error")
-        self.assertIn("WORD", messages[-1][1]["evalue"])
+        self.assertIn("EXECUTE", messages[-1][1]["evalue"])
 
     def test_completion_detects_unclosed_lists(self):
         kernel, _ = self.make_kernel()
@@ -149,10 +149,10 @@ class MachineNotebookTests(unittest.TestCase):
             result = machine.execute_result("MISSING", "cell-4")
         self.assertFalse(result.success)
         self.assertEqual(result.data, [])
-        self.assertEqual(result.error[1], [Word("WORD")])
+        self.assertEqual(result.error[1], [Op("EXECUTE")])
         self.assertEqual(result.error[3], [ord(char) for char in "cell-4"])
 
-    def test_stack_snapshot_uses_word_names(self):
+    def test_stack_snapshot_uses_op_names(self):
         machine = Machine()
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertTrue(machine.execute("42 (ANSWER) PUSH"))

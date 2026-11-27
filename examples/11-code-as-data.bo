@@ -42,10 +42,10 @@ PUSH
 
 "derivative of (3 2 1): " emits (3 2 1) deriv say
 
-;defining a word is a PUSH on the stack named by the word, so the name can be computed
+;defining an op is a PUSH on the stack selected by the op, so the name can be computed
 
 ;body "NAME" define
-    (word PUSH)
+    (selector PUSH)
     (define)
 PUSH
 

@@ -1,6 +1,6 @@
 # Bo (BoLang)
 
-Bo is the successor of Breeze [^1] (**Bo** means **B**reeze **o**ptimized), following a theoretical exercise in language minimalism: a **concatenative, purely postfix, homoiconic, stack-based** language with **no distinction between data and code**, and **no distinction between stacks and dictionary**. Runtime values are numbers, nested lists and named stacks (in the following, also referred to as words for convenience).
+Bo is the successor of Breeze [^1] (**Bo** means **B**reeze **o**ptimized), following a theoretical exercise in language minimalism: a **concatenative, purely postfix, homoiconic, stack-based** language with **no distinction between data and code**, and **no distinction between stacks and dictionary**. Runtime values are numbers, nested lists and named stacks (in the following, also referred to as ops for convenience).
 
 > [!IMPORTANT]
 > Status: **experimental, draft specification**
@@ -81,7 +81,7 @@ requires only `cc` and `python3`.
 git clone https://github.com/BoLanguage/bo.git
 cd bo
 make all                  # installs missing dependencies and builds all components
-c/bo                      # REPL with the core words; try: "include/std.bo" require 1 2 + ps
+c/bo                      # REPL with the core ops; try: "include/std.bo" require 1 2 + ps
 c/bo examples/01-classics.bo   # run a program
 ```
 
@@ -111,7 +111,7 @@ See below for the other components and options.
 - Unit tests: `.venv/bin/python -m unittest discover tests` (includes the examples and documentation freshness checks).
 - Differential test C vs Python: `make -C c test` (or `.venv/bin/python -m tests.diff_c`).
 - Benchmarks (Python): `.venv/bin/python -m bench.bench`; comparison with other languages: see [benchmarks](doc/benchmarks.md).
-- Documentation: `python3 tools/bodoc.py` regenerates the primitive inventory in `doc/primitives.md` and the adapter/library inventory in `doc/library.md`; `--check` only reports staleness. Primitive descriptions and effects live in `include/primitives.json`, while derived-word comments live in the focused `include/` modules.
+- Documentation: `python3 tools/bodoc.py` regenerates the primitive inventory in `doc/primitives.md` and the adapter/library inventory in `doc/library.md`; `--check` only reports staleness. Primitive descriptions and effects live in `include/primitives.json`, while derived-op comments live in the focused `include/` modules.
 - Jupyter: install the `jupyter` extra of `pyproject.toml` with uv (`make deps`), register the kernel with `.venv/bin/python -m python.bo.jupyter --install --user`, and install the local JupyterLab highlighter; see [the notebook guide](doc/notebook.md).
 
 ## Repository layout
@@ -123,7 +123,7 @@ See below for the other components and options.
 - `playground/`: browser playground
 - `playground-plus/`: Playground+, the local application built on the playground
 - `doc/`: documentation
-- `examples/`: example programs with expected output (and reference notebooks)
+- `examples/`: example programs with expected output (and reference notebooks); `examples/extra/` holds additional, untested programs
 - `tests/`: unit, example and differential tests
 - `bench/`: benchmarks
 - `tools/`: generators for the adapters, documentation and syntax data

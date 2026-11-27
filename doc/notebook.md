@@ -6,8 +6,8 @@ startup (a notebook that wants the standard library starts with
 `"include/std.bo" require`, which resolves from the kernel's checkout), and
 displays the default stack after each successful cell. Use normal
 Bo stream operations for output; uncaught Bo errors become Jupyter errors with
-their Bo source location. A cell is not a source file, so `__` words in a cell are
-ordinary public words (see [private words](language.md#private-words)); the standard
+their Bo source location. A cell is not a source file, so `__` ops in a cell are
+ordinary public ops (see [private ops](language.md#private-ops)); the standard
 library's own helpers are private, because `std.bo` is loaded as a file.
 
 From a checkout, install the optional dependencies (`make deps` does this, and
@@ -78,10 +78,10 @@ Jupyter continues the input instead of executing it early.
 
 ## Debugging in a notebook
 
-A notebook cannot pause a program between cells, so the debugging words behave
+A notebook cannot pause a program between cells, so the debugging ops behave
 differently here from the native prompt (see [debugging](debugging.md)).
 
-- `@` shows where the cell is and goes on. The cell's output gets the user word
+- `@` shows where the cell is and goes on. The cell's output gets the user op
   that is running, the stack and the next item:
 
   ```
@@ -104,7 +104,7 @@ differently here from the native prompt (see [debugging](debugging.md)).
   program to resume.
 
 Not available yet: pausing a cell at `@` so that the next cells run at that point
-on the same stacks and the words above resume it, and the JupyterLab debugger
+on the same stacks and the ops above resume it, and the JupyterLab debugger
 panel (breakpoints set in cells, a call stack and a view of the stacks). Both are
 possible with the kernel's explicit control stack, but they are larger pieces of
 work; for now use the native prompt (`bo --debug`) or the playground to step

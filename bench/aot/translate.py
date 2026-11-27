@@ -1,4 +1,4 @@
-"""Translate a file of literal Bo word definitions to experimental x86-64 assembly."""
+"""Translate a file of literal Bo op definitions to experimental x86-64 assembly."""
 
 import argparse
 import sys
@@ -6,8 +6,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from python.bo.lower import LoweringError, lower_word_forms
-from python.bo.values import Word
+from python.bo.lower import LoweringError, lower_op_forms
+from python.bo.values import Op
 
 
 def c_bytes(text):
@@ -15,9 +15,9 @@ def c_bytes(text):
 
 
 def translate(source):
-    forms = [items[0] for _, items in lower_word_forms(source)]
+    forms = [items[0] for _, items in lower_op_forms(source)]
     if not forms or len(forms) % 3:
-        raise ValueError("expected one or more (quotation) (WORD) PUSH definitions")
+        raise ValueError("expected one or more (quotation) (OP) PUSH definitions")
     roots = []
     seen = set()
     blocks = []
@@ -28,15 +28,15 @@ def translate(source):
         for i, item in enumerate(items):
             if isinstance(item, list):
                 add_block(item, index, i)
-            elif not isinstance(item, (int, float, Word)):
+            elif not isinstance(item, (int, float, Op)):
                 raise ValueError(f"unsupported value at block {index}, element {i}")
         return index
 
     for pos in range(0, len(forms), 3):
         body, name, push = forms[pos:pos + 3]
         if (not isinstance(body, list) or not isinstance(name, list) or len(name) != 1
-                or not isinstance(name[0], Word) or not isinstance(push, Word) or push.name != "PUSH"):
-            raise ValueError(f"expected (quotation) (WORD) PUSH at definition {pos // 3 + 1}")
+                or not isinstance(name[0], Op) or not isinstance(push, Op) or push.name != "PUSH"):
+            raise ValueError(f"expected (quotation) (OP) PUSH at definition {pos // 3 + 1}")
         if name[0].name in seen:
             raise ValueError(f"duplicate definition: {name[0].name}")
         seen.add(name[0].name)
@@ -51,13 +51,13 @@ def translate(source):
             asm.extend((f"    cmpq ${i}, %rdx", f"    je .L{index}_{i}"))
         asm.append("    ud2")
         for i, item in enumerate(items):
-            helper = "aot_generated_call" if isinstance(item, Word) else "aot_generated_push"
+            helper = "aot_generated_call" if isinstance(item, Op) else "aot_generated_push"
             asm.extend((f".L{index}_{i}:", "    movq %rbx, %rdi", "    movq %r12, %rsi",
                         f"    movq ${i}, %rdx"))
-            if isinstance(item, Word):
+            if isinstance(item, Op):
                 asm.append(f"    movq ${i + 1}, %rcx")
             asm.append(f"    call {helper}")
-            if isinstance(item, Word):
+            if isinstance(item, Op):
                 asm.extend(("    testl %eax, %eax", f"    jne .L{index}_return"))
         asm.extend((f".L{index}_{len(items)}:", "    xorl %eax, %eax", f".L{index}_return:",
                     "    addq $8, %rsp", "    popq %r12", "    popq %rbx", "    ret"))
@@ -71,7 +71,7 @@ def translate(source):
     for index, name in roots:
         c.append(f"static const unsigned char name_{index}[] = {c_bytes(name)};")
     for index, (items, _, _) in enumerate(blocks):
-        kinds = "".join("w" if isinstance(item, Word) else "l" if isinstance(item, list) else "n"
+        kinds = "".join("w" if isinstance(item, Op) else "l" if isinstance(item, list) else "n"
                         for item in items)
         c.append(f'static const char kinds_{index}[] = "{kinds}";')
     c.extend(('int main(int argc, char **argv) {',

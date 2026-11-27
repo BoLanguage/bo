@@ -38,7 +38,7 @@
       "type": "primitive",
       "effect": "D: (s -- n), S: (... -- ...)",
       "stack": "`D`<->`S` (cross-stack)",
-      "description": "Count the values on `S` and push the count onto `D`. The count is also 0 for a word that has no stack (`EXISTS` tells it apart from an empty one) and for a primitive, whose stack holds no values."
+      "description": "Count the values on `S` and push the count onto `D`. The count is also 0 for an op that has no stack (`EXISTS` tells it apart from an empty one) and for a primitive, whose stack holds no values."
     },
     {
       "name": "EXISTS",
@@ -54,7 +54,7 @@
       "type": "primitive",
       "effect": "D: (s -- 1|0), S: ( -- )",
       "stack": "`D`<->`S` (cross-stack)",
-      "description": "Report whether `S` is locked, as every primitive's stack is and `LOCK` makes any other: it then refuses `PUSH`, `POP`, `DELETE` and the like. The default stack is not locked, and the result is also 0 for a word that has no stack (`EXISTS` reports 0 for it)."
+      "description": "Report whether `S` is locked, as every primitive's stack is and `LOCK` makes any other: it then refuses `PUSH`, `POP`, `DELETE` and the like. The default stack is not locked, and the result is also 0 for an op that has no stack (`EXISTS` reports 0 for it)."
     },
     {
       "name": "LEXICON",
@@ -62,7 +62,7 @@
       "type": "primitive",
       "effect": "D: (s --), S: ( -- L)",
       "stack": "`S` (named `s`)",
-      "description": "On `S`, push the list `L` of the selectors of every word that has a stack, that is, every one for which `EXISTS` reports 1, primitives and emptied stacks included, ordered by name. Each selector is a unit containing the word, so it can be used as it is. Filter the list in Bo and map `CLEAR` or `DELETE` over what is left."
+      "description": "On `S`, push the list `L` of the selectors of every op that has a stack, that is, every one for which `EXISTS` reports 1, primitives and emptied stacks included, ordered by name. Each selector is a unit containing the op, so it can be used as it is. Filter the list in Bo and map `CLEAR` or `DELETE` over what is left."
     },
     {
       "name": "CLEAR",
@@ -166,7 +166,7 @@
       "type": "primitive",
       "effect": "D: (s --), S: (X -- K)",
       "stack": "`S` (named `s`)",
-      "description": "On `S`, return 0 for a number, 1 for a list, or 2 for a word."
+      "description": "On `S`, return 0 for a number, 1 for a list, or 2 for an op."
     },
     {
       "name": "RATIO",
@@ -206,7 +206,7 @@
       "type": "primitive",
       "effect": "D: (P s --), S: ( -- )",
       "stack": "`D` (default)",
-      "description": "Run the program `P` in a frame labelled by `s`. The selector is a *virtual* stack selector, a unit containing a word or `()`: it works as a label that is only compared, and no stack is ever created or touched. Inside `P`, `REC` with the same selector runs `P` again. The frame is dropped when `P` ends or an error unwinds it."
+      "description": "Run the program `P` in a frame labelled by `s`. The selector is a *virtual* stack selector, a unit containing an op or `()`: it works as a label that is only compared, and no stack is ever created or touched. Inside `P`, `REC` with the same selector runs `P` again. The frame is dropped when `P` ends or an error unwinds it."
     },
     {
       "name": "REC",
@@ -214,7 +214,7 @@
       "type": "primitive",
       "effect": "D: (s --), S: ( -- )",
       "stack": "`D` (default)",
-      "description": "Run again the program of the innermost running `LAMBDA` whose label is `s`, as a tail call when nothing follows. The selector is a *virtual* stack selector, like that of `LAMBDA`: a label that creates no stack. Without such a frame `REC` raises `Existence-Error`. Recursive file-local words lower to a labelled `LAMBDA`, so a callback of another recursive word never reaches the wrong frame; `()` is the anonymous label of `lambda` and `rec`."
+      "description": "Run again the program of the innermost running `LAMBDA` whose label is `s`, as a tail call when nothing follows. The selector is a *virtual* stack selector, like that of `LAMBDA`: a label that creates no stack. Without such a frame `REC` raises `Existence-Error`. Recursive file-local ops lower to a labelled `LAMBDA`, so a callback of another recursive op never reaches the wrong frame; `()` is the anonymous label of `lambda` and `rec`."
     },
     {
       "name": "PARALLEL",
@@ -286,7 +286,7 @@
       "type": "primitive",
       "effect": "D: (s --), S: (A B U -- C)",
       "stack": "`S` (named `s`)",
-      "description": "On `S`, apply the binary operation word held by unit `U` to every pair of elements of numbers or arrays `A` and `B`, aligning shapes from the right. The word runs with the pair on top and must leave exactly one number."
+      "description": "On `S`, apply the binary op held by unit `U` to every pair of elements of numbers or arrays `A` and `B`, aligning shapes from the right. The op runs with the pair on top and must leave exactly one number."
     },
     {
       "name": "ARRAY",
@@ -358,7 +358,7 @@
       "type": "primitive",
       "effect": "D: (s --), S: (T axis-or-() U -- x-or-T')",
       "stack": "`S` (named `s`)",
-      "description": "On `S`, fold array `T` over all axes or along one zero-based axis with the binary word held by unit `U`, from left to right starting at each slice's first element. Each step runs `U` with the accumulator and the next element on top; it must leave exactly one number. An empty slice raises `Domain-Error`."
+      "description": "On `S`, fold array `T` over all axes or along one zero-based axis with the binary op held by unit `U`, from left to right starting at each slice's first element. Each step runs `U` with the accumulator and the next element on top; it must leave exactly one number. An empty slice raises `Domain-Error`."
     },
     {
       "name": "DOT",
@@ -454,7 +454,7 @@
       "type": "primitive",
       "effect": "D: (s --), S: (P -- )",
       "stack": "`S` (named `s`)",
-      "description": "On `S`, lower and execute the source file named by `P`, even if it was already loaded, after taking out what its earlier load left (its private words, the items it pushed, its locks and the stacks it made; see the language guide). The default-stack word `require` skips files that were loaded."
+      "description": "On `S`, lower and execute the source file named by `P`, even if it was already loaded, after taking out what its earlier load left (its private ops, the items it pushed, its locks and the stacks it made; see the language guide). The default-stack op `require` skips files that were loaded."
     },
     {
       "name": "INCLUDED",
@@ -470,7 +470,7 @@
       "type": "primitive",
       "effect": "D: (s --), S: (T -- P)",
       "stack": "`S` (named `s`)",
-      "description": "On `S`, read source text `T` and leave the program it denotes as the list `P`, without running it. Invalid source raises `Syntax-Error` with the message and the line within `T`."
+      "description": "On `S`, read the source code in string `T` and leave the program it denotes as the list `P`, without running it. Invalid source raises `Syntax-Error` with the message and the line within `T`."
     },
     {
       "name": "CATCH",
@@ -494,7 +494,7 @@
       "type": "primitive",
       "effect": "D: (s --), S: (L K -- )",
       "stack": "`S` (named `s`)",
-      "description": "On `S`, raise an error whose kind is the word unit `K` (such as `(Type-Error)`) with data list `L`; any other `K` raises `Type-Error`."
+      "description": "On `S`, raise an error whose kind is the selector `K` (such as `(Type-Error)`) with data list `L`; any other `K` raises `Type-Error`."
     },
     {
       "name": "RETHROW",
@@ -534,7 +534,7 @@
       "type": "primitive",
       "effect": "D: (s --), S: ( -- )",
       "stack": "`D` (default)",
-      "description": "Resume the paused program and pause again before the next word it calls, also inside the definitions it calls. Raises `Debug-Error` if no program is paused."
+      "description": "Resume the paused program and pause again before the next op it calls, also inside the definitions it calls. Raises `Debug-Error` if no program is paused."
     },
     {
       "name": "NEXT",
@@ -542,7 +542,7 @@
       "type": "primitive",
       "effect": "D: (s --), S: ( -- )",
       "stack": "`D` (default)",
-      "description": "Resume the paused program and pause again before the next word at the same depth or shallower, running the definitions it calls without pausing. Raises `Debug-Error` if no program is paused."
+      "description": "Resume the paused program and pause again before the next op at the same depth or shallower, running the definitions it calls without pausing. Raises `Debug-Error` if no program is paused."
     },
     {
       "name": "CONTINUE",
@@ -566,7 +566,7 @@
       "type": "primitive",
       "effect": "D: (s --), S: ( -- L)",
       "stack": "`S` (named `s`)",
-      "description": "On `S`, push the list `L` of the programs being run, innermost first. Each is a list `(NAME PROGRAM INDEX)`: `NAME` is a unit with the word whose call started it (`()` if none did), `PROGRAM` is the list it runs and `INDEX` the number of its elements that have already run."
+      "description": "On `S`, push the list `L` of the programs being run, innermost first. Each is a list `(NAME PROGRAM INDEX)`: `NAME` is a unit with the op whose call started it (`()` if none did), `PROGRAM` is the list it runs and `INDEX` the number of its elements that have already run."
     },
     {
       "name": "UNITTYPE",
@@ -574,23 +574,23 @@
       "type": "primitive",
       "effect": "D: (s --), S: (U -- K)",
       "stack": "`S` (named `s`)",
-      "description": "On `S`, inspect the element type of unit `U`: 0 number, 1 list, or 2 word."
+      "description": "On `S`, inspect the element type of unit `U`: 0 number, 1 list, or 2 op."
     },
     {
-      "name": "WORD",
+      "name": "SELECTOR",
       "group": "Value",
       "type": "primitive",
-      "effect": "D: (s --), S: (T -- U)",
+      "effect": "D: (s --), S: (N -- K)",
       "stack": "`S` (named `s`)",
-      "description": "On `S`, convert valid word-name text `T` to a word unit."
+      "description": "On `S`, convert the string `N`, a valid op name, to the selector `K` of that op; the empty string `()` gives the default-stack selector `()`."
     },
     {
-      "name": "TEXT",
+      "name": "NAME",
       "group": "Value",
       "type": "primitive",
-      "effect": "D: (s --), S: (U -- T)",
+      "effect": "D: (s --), S: (K -- N)",
       "stack": "`S` (named `s`)",
-      "description": "On `S`, convert word unit `U` to its name as text."
+      "description": "On `S`, convert the selector `K` to the name `N` of its op, a string; the default-stack selector `()` gives the empty string `()`."
     }
   ]
 }

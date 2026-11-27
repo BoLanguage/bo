@@ -1,0 +1,43 @@
+"stack.bo" require
+"logic.bo" require
+"list.bo" require
+
+;__strsplitacc: split the rest S of a string at each occurrence of P (G C S P -- G')
+
+    (
+        (over null =)
+        (2drop unit consr)
+        (
+            (2dup startswith)
+            (swap over len split nip swap 2swap unit consr null 2swap)
+            (swap unconsl 3 roll swap consr -rot swap)
+        ifte
+        __strsplitacc
+        )
+    ifte
+    )
+    (__strsplitacc)
+PUSH
+
+;strsplit ( S sep -- G ) the strings between the occurrences of the string sep in the string S, empty ones included; with sep = () (the empty string), the runs of characters that are not spaces, tabs, newlines or other control characters
+
+    (
+        (dup null =)
+        (drop (apply 32 >) partition)
+        (null null 2swap __strsplitacc)
+    ifte
+    )
+    (strsplit)
+PUSH
+
+;strjoin ( G sep -- S ) the strings of the list G joined into one string, with the string sep between them
+
+    (
+    swap
+        (dup null =)
+        (nip)
+        (unconsl apply rot unit (apply) swap append (swap append append) append foldl)
+    ifte
+    )
+    (strjoin)
+PUSH

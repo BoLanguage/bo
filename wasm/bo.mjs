@@ -58,11 +58,11 @@ export async function createBo({ onOutput = () => {}, autoload = "include/std.bo
     Module.ccall("bo_mark_baseline", null, [], []);
     const json = (name, types, args) => JSON.parse(invoke(name, "string", types, args));
     const STATES = ["idle", "ready", "paused", "done", "error", "exit"];
-    // "words": every word call; "lines": the first word of each top-level line;
-    // "user": lines plus calls of user-defined words (library and kernel words run through).
+    // "ops": every op call; "lines": the first op of each top-level line;
+    // "user": lines plus calls of user-defined ops (library ops and primitives run through).
     // "free": nothing counts, so a program only pauses at a BREAKPOINT (`@`).
-    // "over": words like "words", but the calls they make run without stopping.
-    const MODES = { words: 0, lines: 1, user: 2, free: 3, over: 6 };
+    // "over": like "ops", but the calls they make run without stopping.
+    const MODES = { ops: 0, lines: 1, user: 2, free: 3, over: 6 };
 
     return {
         version: Module.ccall("bo_version", "string", [], []),
@@ -82,16 +82,16 @@ export async function createBo({ onOutput = () => {}, autoload = "include/std.bo
         /** Treats everything defined so far as library (call after including your own prelude). */
         markBaseline: () => Module.ccall("bo_mark_baseline", null, [], []),
         /**
-         * Stepping debugger. `load` prepares a program without running it; `step(n)` lets n words
-         * run and pauses before the next (`step(0)` only reaches the first word). Nested runs such
-         * as INCLUDE and PARALLEL count as one word. Returns the status:
+         * Stepping debugger. `load` prepares a program without running it; `step(n)` lets n ops
+         * run and pauses before the next (`step(0)` only reaches the first op). Nested runs such
+         * as INCLUDE and PARALLEL count as one op. Returns the status:
          * "idle" | "ready" | "paused" | "done" | "error" | "exit". `step(n, mode)` counts steps
-         * as words, lines or user words (see MODES). A program also pauses at a BREAKPOINT (`@`):
+         * as ops, lines or user ops (see MODES). A program also pauses at a BREAKPOINT (`@`):
          * `state().breakpoint` then tells it from a step. `load(code, {fast: true})` keeps the
          * optimized operations until the program is stepped, so that `step(0, "free")` runs it at
          * full speed up to a breakpoint, as the prompt of the native runtime does; with
          * `{scratch: true}` (a prompt line) the status afterwards is the previous program's. While a program
-         * is paused, `eval` runs at the pause point, and the words step, next, continue and stop
+         * is paused, `eval` runs at the pause point, and the ops step, next, continue and stop
          * typed there only record what to do: `resume()` does it and returns the new status (null
          * if nothing was asked for).
          */
@@ -103,13 +103,13 @@ export async function createBo({ onOutput = () => {}, autoload = "include/std.bo
                 const state = call("bo_debug_resume", [], []);
                 return state < 0 ? null : STATES[state];
             },
-            step: (n = 1, mode = "words") => STATES[call("bo_debug_step", ["number", "number"], [n, MODES[mode]])],
-            /** Runs up to `limit` words; "paused" means the limit was reached. */
+            step: (n = 1, mode = "ops") => STATES[call("bo_debug_step", ["number", "number"], [n, MODES[mode]])],
+            /** Runs up to `limit` ops; "paused" means the limit was reached. */
             run: (limit = 1e6) => STATES[call("bo_debug_step", ["number", "number"], [limit, 0])],
             abort: () => call("bo_debug_abort", [], []),
         },
         /**
-         * Visualizer state: status, current line, the word about to run, the control stack, and
+         * Visualizer state: status, current line, the op about to run, the control stack, and
          * the default stack plus the user's stacks (origin "user" or "shadows" for a changed
          * library stack). Library, kernel and empty stacks are only counted in `counts`.
          */
@@ -118,7 +118,7 @@ export async function createBo({ onOutput = () => {}, autoload = "include/std.bo
         /** Lists stacks (name, origin, depth) whose name contains `filter`; reveals library on demand. */
         stacks: (filter = "", { includeEmpty = false } = {}) =>
             json("bo_stacks_json", ["string", "number"], [filter, includeEmpty ? 1 : 0]),
-        /** One stack by word name ("" is the default stack) with its top items, or null. */
+        /** One stack by op name ("" is the default stack) with its top items, or null. */
         stack: (name = "", { maxItems = 200, maxChars = 400 } = {}) =>
             json("bo_stack_json", ["string", "number", "number"], [name, maxItems, maxChars]),
         /** Creates or replaces a file in the virtual file system (relative paths are under "/"). */

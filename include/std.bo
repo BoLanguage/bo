@@ -3,8 +3,10 @@
 
 "stack.bo" require
 "logic.bo" require
+"control.bo" require
 "math.bo" require
 "list.bo" require
+"string.bo" require
 "value.bo" require
 "dict.bo" require
 "stream.bo" require
@@ -12,4 +14,4 @@
 "array.bo" require
 "debug.bo" require
 
-; The focused modules above define plain lowercase words directly.
+; The focused modules above define plain lowercase ops directly.

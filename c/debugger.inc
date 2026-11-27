@@ -1,8 +1,8 @@
 /* Step debugger and state inspection, compiled into machine.c. It serves the WebAssembly host
    and the prompt of the native REPL. A program steps one top-level line at a time; with
-   specialized operations off, compiled code maps one op to one list item and the interpreter
-   pauses before every word call of the stepped program. Nested runs (INCLUDE, PARALLEL) are
-   stepped over. The JSON functions return text owned by this file until the next call. */
+   specialized operations off, compiled code maps one instruction to one list item and the
+   interpreter pauses before every op call of the stepped program. Nested runs (INCLUDE,
+   PARALLEL) are stepped over. The JSON functions return text owned by this file until the next call. */
 
 extern int bo_exit_status;
 
@@ -143,7 +143,7 @@ static void json_num(Buf *o, double d) {
 }
 
 static void json_item(Buf *o, Val v, size_t max) {
-    buf_str(o, is_list(v) ? "[\"l\"," : is_word(v) ? "[\"w\"," : "[\"n\",");
+    buf_str(o, is_list(v) ? "[\"l\"," : is_op(v) ? "[\"w\"," : "[\"n\",");
     json_text(o, v, max);
     buf_str(o, "]");
 }
@@ -213,7 +213,7 @@ static Frame *debug_top_code(Machine *m) {
 
 static const char *const STATUS[] = {"idle", "ready", "paused", "done", "error", "exit"};
 
-/* Everything a visualizer draws for one step: status, the word about to run, the control
+/* Everything a visualizer draws for one step: status, the op about to run, the control
    stack, the default stack and the stacks that are the user's. Library, kernel and empty
    stacks are only counted; debug_stacks_json lists them on demand. */
 const char *debug_state_json(Machine *m, long max_items, size_t max_chars) {
@@ -233,28 +233,28 @@ const char *debug_state_json(Machine *m, long max_items, size_t max_chars) {
         /* what a step would run: the next call or literal of the paused program, or the first
            item of its next line when this one is over */
         Frame *top = dbg.state == DBG_PAUSED ? debug_top_code(m) : NULL;
-        Op *op = top ? &top->code->ops[top->idx] : NULL;
+        Instr *ins = top ? &top->code->instrs[top->idx] : NULL;
         Val item = 0;
         Stack *st = NULL;
         int literal = 0, known = 0;
-        if (op && (op->kind == OP_SITE || op->kind == OP_SPECIALIZED)) {
-            item = op->v;
-            st = op->st;
+        if (ins && (ins->kind == I_SITE || ins->kind == I_SPECIALIZED)) {
+            item = ins->v;
+            st = ins->st;
             known = 1;
-        } else if (op && op->kind == OP_PUSH) {
-            item = op->v;
+        } else if (ins && ins->kind == I_PUSH) {
+            item = ins->v;
             literal = known = 1;
         } else if (dbg.state == DBG_PAUSED && !top && dbg.next < dbg.nprograms &&
                    as_list(dbg.programs[dbg.next])->len) {
             item = as_list(dbg.programs[dbg.next])->items[0];
-            if (is_word(item)) st = stack_lookup(m, list_of1(item), 0);
+            if (is_op(item)) st = stack_lookup(m, list_of1(item), 0);
             else literal = 1;
             known = 1;
         }
         if (!known) {
             buf_str(&o, "null");
         } else {
-            buf_str(&o, "{\"word\":");
+            buf_str(&o, "{\"op\":");
             json_text(&o, item, max_chars);
             buf_str(&o, ",\"origin\":");
             json_cstr(&o, literal ? "literal" : st ? stack_origin(st) : "empty");
@@ -280,8 +280,8 @@ const char *debug_state_json(Machine *m, long max_items, size_t max_chars) {
         json_cstr(&o, f->kind >= 0 && f->kind <= FR_LOOP ? KIND[f->kind] : "other");
         if (f->kind == FR_CODE) {
             buf_str(&o, ",\"pos\":");
-            /* the item that runs next: an op of code compiled with specializations does not map one to one */
-            json_num(&o, (double)(f->idx < (size_t)f->code->n ? (size_t)f->code->ops[f->idx].src
+            /* the item that runs next: an instruction of code compiled with specializations does not map one to one */
+            json_num(&o, (double)(f->idx < (size_t)f->code->n ? (size_t)f->code->instrs[f->idx].src
                                                                : as_list(f->a)->len));
             buf_str(&o, ",\"list\":");
             json_text(&o, f->a, max_chars * 4);
@@ -363,13 +363,13 @@ const char *debug_stacks_json(Machine *m, const char *filter, int include_empty)
     return finish_json(&o);
 }
 
-/* One stack by word name ("" for the default stack), with its top `max_items` items. */
+/* One stack by op name ("" for the default stack), with its top `max_items` items. */
 const char *debug_stack_json(Machine *m, const char *name, long max_items, size_t max_chars) {
     Buf o = {0};
     Stack *s = &m->data;
     if (*name) {
-        Val word = from_word(as_list(str_list(name)));
-        s = stack_lookup(m, list_of1(word), 0);
+        Val op = from_op(as_list(str_list(name)));
+        s = stack_lookup(m, list_of1(op), 0);
     }
     if (!s) {
         buf_str(&o, "null");
@@ -394,24 +394,24 @@ static int in_library(Machine *m, Val lst) {
 
 /* a literal, or a call of something other than a kernel primitive or a breakpoint (which pauses
    by itself), in code that is not the library's */
-static int user_step(Machine *m, Op *op) {
-    int literal = op->kind == OP_PUSH;
-    if (!literal && (!op->st || (!op->st->len && op->st->native))) return 0;
+static int user_step(Machine *m, Instr *ins) {
+    int literal = ins->kind == I_PUSH;
+    if (!literal && (!ins->st || (!ins->st->len && ins->st->native))) return 0;
     Frame *f = &m->ctl[m->ctl_len - 1];
     return f->kind == FR_CODE && !in_library(m, f->a) &&
-           (literal || !is_default_wrapper(m, op->st, op->v, "@", "BREAKPOINT"));
+           (literal || !is_default_wrapper(m, ins->st, ins->v, "@", "BREAKPOINT"));
 }
 
-/* does an op count as a step (a pause point) in the current mode? */
-static int debug_counts(Machine *m, Op *op) {
+/* does an instruction count as a step (a pause point) in the current mode? */
+static int debug_counts(Machine *m, Instr *ins) {
     if (m->step_mode == STEP_RUN) return 0;
-    if (m->step_mode == STEP_INTO) return user_step(m, op);
-    if (m->step_mode == STEP_OVER) return m->ctl_len <= m->step_depth && user_step(m, op);
-    if (m->step_mode == STEP_WORDS_OVER) return op->kind != OP_PUSH && m->ctl_len <= m->step_depth;
-    if (op->kind == OP_PUSH) return 0; /* the modes of the playground step over words only */
-    if (m->step_mode == STEP_WORDS || m->step_arm) return 1;
+    if (m->step_mode == STEP_INTO) return user_step(m, ins);
+    if (m->step_mode == STEP_OVER) return m->ctl_len <= m->step_depth && user_step(m, ins);
+    if (m->step_mode == STEP_OPS_OVER) return ins->kind != I_PUSH && m->ctl_len <= m->step_depth;
+    if (ins->kind == I_PUSH) return 0; /* the modes of the playground step over ops only */
+    if (m->step_mode == STEP_OPS || m->step_arm) return 1;
     if (m->step_mode != STEP_USER) return 0;
-    const char *origin = stack_origin(op->st);
+    const char *origin = stack_origin(ins->st);
     return strcmp(origin, "library") && strcmp(origin, "kernel");
 }
 
@@ -436,8 +436,8 @@ static int debug_finish(Machine *m, int state) {
         dbg.source = NULL;
         dbg.is_file = 0;
     }
-    if (m->optimize_ops != dbg.saved_opt || m->step_cold) {
-        m->optimize_ops = dbg.saved_opt;
+    if (m->optimize_instrs != dbg.saved_opt || m->step_cold) {
+        m->optimize_instrs = dbg.saved_opt;
         m->step_cold = 0;
         m->epoch++;
     }
@@ -470,8 +470,8 @@ static int debug_begin_as(Machine *m, const char *text, int flags, const char *s
     LowerErr le;
     dbg.forms = (Forms){0};
     uint32_t tag = file ? file_id(m, source) : 0;
-    uint32_t owner = m->private_words ? tag : 0;
-    if (lower_word_forms(text, len, 1, owner, &dbg.forms, &le)) {
+    uint32_t owner = m->private_ops ? tag : 0;
+    if (lower_op_forms(text, len, 1, owner, &dbg.forms, &le)) {
         free(dbg.forms.f);
         dbg.forms.f = NULL;
         /* reports the reading error */
@@ -481,9 +481,9 @@ static int debug_begin_as(Machine *m, const char *text, int flags, const char *s
     dbg.prev_state = dbg.state;
     dbg.prev_line = dbg.last_line;
     dbg.prev_steps = dbg.steps;
-    dbg.saved_opt = m->optimize_ops;
-    if (m->optimize_ops && !specialized) {
-        m->optimize_ops = 0;
+    dbg.saved_opt = m->optimize_instrs;
+    if (m->optimize_instrs && !specialized) {
+        m->optimize_instrs = 0;
         m->epoch++;
     }
     dbg.saved_base = m->base;
@@ -536,8 +536,8 @@ int debug_begin(Machine *m, const char *text, int flags) { return debug_begin_as
 
 int debug_load(Machine *m, const char *text) { return debug_begin(m, text, 0); }
 
-/* Lets up to `budget` words run, then pauses before the next one (budget 0 only advances to
-   the first word). `mode` is a STEP_* value. Returns the new DBG_* state. */
+/* Lets up to `budget` ops run, then pauses before the next one (budget 0 only advances to
+   the first op). `mode` is a STEP_* value. Returns the new DBG_* state. */
 int debug_step(Machine *m, long budget, int mode) {
     if (dbg.state != DBG_READY && dbg.state != DBG_PAUSED) return dbg.state;
     jmp_buf jb;
@@ -567,7 +567,7 @@ int debug_step(Machine *m, long budget, int mode) {
             m->line = dbg.lines[dbg.next];
             m->step_arm = 1;
             /* a new line starts at the first depth, whatever a tail call of the last one left */
-            if (mode == STEP_OVER || mode == STEP_WORDS_OVER) m->step_depth = m->base + 1;
+            if (mode == STEP_OVER || mode == STEP_OPS_OVER) m->step_depth = m->base + 1;
             push_code(m, dbg.programs[dbg.next++]);
             continue;
         }
@@ -591,25 +591,25 @@ void debug_abort(Machine *m) {
 
 /* ------------------------------------------------------------------ the prompt of a paused program */
 
-/* Specialized operations on or off for the code that runs next: with them off, every op of
+/* Specialized operations on or off for the code that runs next: with them off, every instruction of
    code entered from now on is one list item, and a frame already running (its compiled code
-   is now stale) runs its remaining ops through the slow path, where the step hook is. With
+   is now stale) runs its remaining instructions through the slow path, where the step hook is. With
    `cold`, literals take that path too, for a stepper that stops at them. */
 static void debug_specialize(Machine *m, int on, int cold) {
     int want = on ? dbg.saved_opt : 0;
-    if (m->optimize_ops != want || m->step_cold != cold) {
-        m->optimize_ops = want;
+    if (m->optimize_instrs != want || m->step_cold != cold) {
+        m->optimize_instrs = want;
         m->step_cold = cold;
         m->epoch++;
     }
 }
 
 /* debug_step for a host that may step a program it started with specialized operations on
-   (bo_debug_load_fast): anything but a free run needs one op per item. */
+   (bo_debug_load_fast): anything but a free run needs one instruction per item. */
 int debug_step_host(Machine *m, long budget, int mode) {
     if (dbg.state == DBG_READY || dbg.state == DBG_PAUSED) debug_specialize(m, mode == STEP_RUN, 0);
     /* over calls: no deeper than where the program is now (anywhere before it started) */
-    if (mode == STEP_WORDS_OVER) m->step_depth = dbg.state == DBG_READY ? (size_t)-1 : m->ctl_len;
+    if (mode == STEP_OPS_OVER) m->step_depth = dbg.state == DBG_READY ? (size_t)-1 : m->ctl_len;
     return debug_step(m, budget, mode);
 }
 
@@ -673,8 +673,8 @@ const char *debug_where(Machine *m) {
     Frame *top = debug_top_code(m);
     buf_str(&o, "paused");
     if (top) {
-        /* the nearest word of the user's code that called a frame on the way down: a branch or a
-           callback has none, and the library's own words are not the user's business */
+        /* the nearest op of the user's code that called a frame on the way down: a branch or a
+           callback has none, and the library's own ops are not the user's business */
         for (Frame *f = top;; f--) {
             if (f->kind == FR_CODE && f->b && !in_library(m, f->a)) {
                 buf_str(&o, " in ");
@@ -694,11 +694,11 @@ const char *debug_where(Machine *m) {
     }
     buf_str(&o, "\n  step: ");
     if (top) {
-        Op *op = &top->code->ops[top->idx];
-        /* code compiled before the pause may have inlined a branch: only the guard ops then
+        Instr *ins = &top->code->instrs[top->idx];
+        /* code compiled before the pause may have inlined a branch: only the guard instructions then
            name no item of their own */
-        int own = op->kind == OP_PUSH || op->kind == OP_SITE || op->kind == OP_SPECIALIZED;
-        render_short(&o, own ? op->v : as_list(top->a)->items[op->src], 60);
+        int own = ins->kind == I_PUSH || ins->kind == I_SITE || ins->kind == I_SPECIALIZED;
+        render_short(&o, own ? ins->v : as_list(top->a)->items[ins->src], 60);
     } else if (dbg.next < dbg.nprograms && as_list(dbg.programs[dbg.next])->len) {
         render_short(&o, as_list(dbg.programs[dbg.next])->items[0], 60); /* the next line of the program */
     } else {

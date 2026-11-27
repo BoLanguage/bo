@@ -31,7 +31,7 @@ PUSH
     (isinteger)
 PUSH
 
-;isword ( X -- 1|0 ) whether X is () or a unit containing a word, and therefore a valid stack key
+;isselector ( X -- 1|0 ) whether X is a stack selector: () or a unit containing an op
 
     (
         (0 pick () =)
@@ -39,5 +39,5 @@ PUSH
         ((unittype 2 =) (drop drop 0) catch)
     ifte
     )
-    (isword)
+    (isselector)
 PUSH

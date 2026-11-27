@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from python.bo.machine import Machine
-from python.bo.values import Word
+from python.bo.values import Op
 
 ROOT = Path(__file__).resolve().parent.parent
 C_BIN = ROOT / "c" / "bo"
@@ -51,7 +51,7 @@ class PausedPrompt(unittest.TestCase):
         self.assertEqual(err, "")
         self.assertEqual(out, pause("succ_debug", "2 1", "+") + "  1: 2\n  0: 1\n  0: 13\n")
 
-    def test_step_goes_into_user_words_and_next_runs_them(self):
+    def test_step_goes_into_user_ops_and_next_runs_them(self):
         program = ("(1 +) (succ) PUSH", "(@ succ succ) (twice) PUSH", "0 twice")
         out, err = self.both(*program, "step", "step", "step")
         self.assertEqual(err, "")
@@ -61,7 +61,7 @@ class PausedPrompt(unittest.TestCase):
         self.assertEqual(err, "")
         self.assertEqual(out, pause("twice", "0", "succ") + pause("twice", "1", "succ") + "  0: 2\n")
 
-    def test_step_stops_before_literals_and_words_of_the_users_code_only(self):
+    def test_step_stops_before_literals_and_ops_of_the_users_code_only(self):
         out, err = self.both("(1 +) (succ) PUSH", "(@ 5 dup + succ) (f) PUSH", "f", "step", "step", "step")
         self.assertEqual(err, "")
         self.assertEqual(out, pause("f", "(empty)", "5") + pause("f", "5", "dup")
@@ -177,7 +177,7 @@ class DebuggedFile(unittest.TestCase):
         steps = [line.split("step: ")[1] for line in result.stdout.splitlines() if "step:" in line]
         self.assertEqual(steps, ["(1 +)", "(succ)", "5", "succ", "7"])
 
-    def test_private_words_of_the_file_work_and_exit_status_is_kept(self):
+    def test_private_ops_of_the_file_work_and_exit_status_is_kept(self):
         files = {"p.bo": f"{STD}\n(2 *) (__dbl) PUSH\n(__dbl __dbl) (quad) PUSH\n5 quad emit nl\n3 exit\n"}
         result = self.both("--debug", "p.bo", files=files, text="continue\n")
         self.assertEqual((result.returncode, result.stdout.splitlines()[-1]), (3, "20"))
@@ -220,7 +220,7 @@ class DebuggingInPython(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertTrue(machine.execute(f"(() {name}) () catch"))
                 error = machine.data.pop()
-                self.assertEqual(error[:3], [[Word("Debug-Error")], [Word(name)], []])
+                self.assertEqual(error[:3], [[Op("Debug-Error")], [Op(name)], []])
 
     def test_backtrace_lists_the_programs_with_their_names_and_positions(self):
         machine = python_machine()
@@ -228,9 +228,9 @@ class DebuggingInPython(unittest.TestCase):
         first, frames, *rest = machine.data
         self.assertEqual((first, rest), (1, [2, 3]))
         wrapper, inner, outer = frames
-        self.assertEqual(wrapper, [[Word("backtrace")], [[], Word("BACKTRACE")], 2])
-        self.assertEqual(inner, [[Word("inner")], [1, Word("backtrace"), 2], 2])
-        self.assertEqual(outer, [[Word("outer")], [Word("inner"), 3], 1])
+        self.assertEqual(wrapper, [[Op("backtrace")], [[], Op("BACKTRACE")], 2])
+        self.assertEqual(inner, [[Op("inner")], [1, Op("backtrace"), 2], 2])
+        self.assertEqual(outer, [[Op("outer")], [Op("inner"), 3], 1])
 
     def test_watch_writes_the_text_and_the_top_items_to_standard_error_and_changes_nothing(self):
         machine = python_machine()
@@ -247,21 +247,21 @@ class DebuggingInPython(unittest.TestCase):
             machine.execute(code)
         return machine, out.getvalue(), err.getvalue()
 
-    def test_trace_writes_entry_and_exit_lines_indented_by_the_nesting_of_traced_words(self):
+    def test_trace_writes_entry_and_exit_lines_indented_by_the_nesting_of_traced_ops(self):
         machine, out, err = self.run_machine(
             "(1 +) (succ) PUSH (succ succ) (twice) PUSH (twice) 2 trace (succ) 0 trace 10 20 twice")
         self.assertEqual(machine.data, [10, 22])
         self.assertEqual(out, "")
         self.assertEqual(err, "> twice (10 20)\n  > succ\n  < succ\n  > succ\n  < succ\n< twice (10 22)\n")
 
-    def test_untrace_restores_the_word_and_tracing_again_replaces_the_old_trace(self):
+    def test_untrace_restores_the_op_and_tracing_again_replaces_the_old_trace(self):
         machine, _, err = self.run_machine(
             "(1 +) (succ) PUSH (succ) 1 trace (succ) 1 trace 1 succ (succ) untrace 2 succ (succ) untrace "
             "(succ) DEPTH")
         self.assertEqual(machine.data, [2, 3, 1])
         self.assertEqual(err, "> succ (1)\n< succ (2)\n")
 
-    def test_a_traced_word_that_fails_does_not_confuse_the_indent_afterwards(self):
+    def test_a_traced_op_that_fails_does_not_confuse_the_indent_afterwards(self):
         machine, _, err = self.run_machine(
             "(1 0 /) (bad) PUSH (1 +) (succ) PUSH (bad) 0 trace (succ) 0 trace (bad) (drop) catch 7 succ")
         self.assertEqual(err, "> bad\n> succ\n< succ\n")

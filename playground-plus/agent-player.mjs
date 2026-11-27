@@ -47,8 +47,8 @@ const TOOL_NAMES = TOOLS.map((tool) => tool.name);
 export function boPrimer(guide) {
     const start = guide.indexOf("## Bo in one minute");
     if (start < 0) return "";
-    const end = guide.indexOf("Uppercase words are kernel primitives");
-    return `${guide.slice(start, end < 0 ? undefined : end).trim()}\n\nUppercase words are kernel primitives; lowercase ones act on the default stack.`;
+    const end = guide.indexOf("Uppercase ops are kernel primitives");
+    return `${guide.slice(start, end < 0 ? undefined : end).trim()}\n\nUppercase ops are kernel primitives; lowercase ones act on the default stack.`;
 }
 
 const clip = (text, max) => (text.length > max ? `${text.slice(0, max)}…` : text);
@@ -87,7 +87,7 @@ const ENDINGS = {
  * @param {{repository: object, service: object, ollama?: object, capabilities: () => Promise<{available: boolean, reason: string|null, models: object[], model: string|null}>,
  *   now?: () => number, limits?: Partial<typeof AGENT_LIMITS>, budget?: number, transcriptDir?: string|null, random?: () => number}} options
  *   `capabilities` says whether a model can play and which ones (the generator's: same Ollama, same size rule).
- *   `budget` is the words one line may execute, so that an endless loop is stopped.
+ *   `budget` is the ops one line may execute, so that an endless loop is stopped.
  */
 export function createAgentPlayer({
     repository, service, ollama = createOllama(), capabilities, now = Date.now, limits = {}, budget = DEFAULT_BUDGET, transcriptDir = null, random = Math.random,

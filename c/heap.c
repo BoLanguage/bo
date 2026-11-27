@@ -137,9 +137,9 @@ static uint32_t list_hash(List *l) {
 
 uint32_t val_hash(Val v) {
     if (is_list(v)) return list_hash(as_list(v));
-    if (is_word(v)) {
-        uint32_t h = mix(0x776f7264u, list_hash(as_word(v)));
-        return as_word(v)->owner ? mix(h, as_word(v)->owner) : h;
+    if (is_op(v)) {
+        uint32_t h = mix(0x776f7264u, list_hash(as_op(v)));
+        return as_op(v)->owner ? mix(h, as_op(v)->owner) : h;
     }
     uint64_t bits = v;
     return (uint32_t)((bits ^ (bits >> 32)) * 2654435761u);
@@ -147,9 +147,9 @@ uint32_t val_hash(Val v) {
 
 int val_equal(Val a, Val b) {
     if (a == b) return 1;
-    if (is_word(a) && is_word(b))
-        return as_word(a)->owner == as_word(b)->owner &&
-               val_equal(from_list(as_word(a)), from_list(as_word(b)));
+    if (is_op(a) && is_op(b))
+        return as_op(a)->owner == as_op(b)->owner &&
+               val_equal(from_list(as_op(a)), from_list(as_op(b)));
     if (is_list(a) && is_list(b)) {
         List *x = as_list(a), *y = as_list(b);
         if (x->len != y->len) return 0;
@@ -168,8 +168,8 @@ static List **work;
 static size_t work_n, work_cap;
 
 static void mark_val(Val v) {
-    if (!is_list(v) && !is_word(v)) return;
-    List *l = is_word(v) ? as_word(v) : as_list(v);
+    if (!is_list(v) && !is_op(v)) return;
+    List *l = is_op(v) ? as_op(v) : as_list(v);
     if (!l || l->mark) return;
     l->mark = 1;
     if (l->base) mark_val(from_list(l->base));
@@ -215,7 +215,7 @@ void gc_collect(Machine *m) {
                     if (o->keep) { o->keep = 0; cp = &o->prev; }
                     else { *cp = o->prev; free(o); }
                 }
-                for (Code *c = l->code; c; c = c->prev) live += sizeof(Code) + (size_t)c->n * sizeof(Op);
+                for (Code *c = l->code; c; c = c->prev) live += sizeof(Code) + (size_t)c->n * sizeof(Instr);
             }
             link = &l->next;
         } else {

@@ -44,14 +44,14 @@ export function describeStep(index, { stackItems = 0, stackVisible = false, edit
                     target: "#next",
                     arrow: { side: "right" },
                     title: "Step through a program",
-                    body: "Write a program in the editor, then Run it or press Step to go one word at a time. This panel shows the word about to run, and Running below shows the programs being executed.",
+                    body: "Write a program in the editor, then Run it or press Step to go one op at a time. This panel shows the op about to run, and Running below shows the programs being executed.",
                     helper: null,
                 }
                 : {
                     target: "#editor-toggle",
                     arrow: { side: "right" },
                     title: "Open the editor for longer programs",
-                    body: "The editor can run a program in one go or step through it word by word, showing what is about to run.",
+                    body: "The editor can run a program in one go or step through it op by op, showing what is about to run.",
                     helper: null,
                 };
         case 3:

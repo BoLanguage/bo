@@ -52,8 +52,8 @@
     --shadows: #b45f06;                 /* library stacks the program redefined */
     --locked: #9c3d74;                  /* mutation-protected stacks */
     --library: #6a7385;
-    --kernel: #7a4fa3;                  /* kernel primitives; also word items in stacks */
-    --current: #fff3c4;                 /* the word or source line about to run */
+    --kernel: #7a4fa3;                  /* kernel primitives; also op items in stacks */
+    --current: #fff3c4;                 /* the op or source line about to run */
     --fresh: #d5f0dc;                   /* items that are new since the last action */
     --error-bg: #fde3e1;
     --active-line: rgba(20, 30, 60, 0.055);
@@ -421,15 +421,15 @@ details > summary:hover { color: var(--text); }
 h2 { margin: 1rem 0 0.4rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
 .subtle { text-transform: none; letter-spacing: 0; font-weight: 400; }
 
-/* "Next": the word about to run, or why nothing is running */
+/* "Next": the op about to run, or why nothing is running */
 .next { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; }
-.next .word { font-size: 1.1rem; font-weight: 700; }
+.next .op { font-size: 1.1rem; font-weight: 700; }
 .next .detail { color: var(--muted); }
 .next .detail code { color: var(--text); }
 .next .error { color: var(--danger); }
 .next.error { border-color: var(--danger); }
 
-/* the small pill naming where a word or stack comes from (user, library, kernel...) and its colours */
+/* the small pill naming where an op or stack comes from (user, library, kernel...) and its colours */
 .badge { font-size: 0.7rem; padding: 0 0.4rem; border-radius: 1rem; border: 1px solid currentColor; font-family: system-ui, sans-serif; vertical-align: middle; }
 .origin-user, .badge.origin-user { color: var(--user); }
 .origin-shadows, .badge.origin-shadows { color: var(--shadows); }
@@ -438,7 +438,7 @@ h2 { margin: 1rem 0 0.4rem; font-size: 0.8rem; text-transform: uppercase; letter
 .badge.origin-default { color: var(--accent); }
 .badge.locked { color: var(--locked); }
 
-/* "Running": the nested lists being executed; .token.current is the next word */
+/* "Running": the nested lists being executed; .token.current is the next op */
 .frames { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); max-height: 30vh; overflow: auto; }
 .frame { display: flex; gap: 0.6rem; padding: 0.3rem 0.7rem; border-bottom: 1px solid var(--border); font-size: 13px; }
 .frame:last-child { border-bottom: 0; }

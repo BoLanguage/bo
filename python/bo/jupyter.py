@@ -53,12 +53,12 @@ def _short(value, limit=60):
 
 
 def breakpoint_report(machine):
-    """Where a program is at a breakpoint: the user word running, the stack and the next item."""
+    """Where a program is at a breakpoint: the user op running, the stack and the next item."""
     frames = list(machine.program_frames())
     at = next((i for i, (program, index, _) in enumerate(frames) if index < len(program)), None)
     name = None
     for _, _, caller in frames[at:] if at is not None else ():
-        # the words that start with __ are the library's own helpers
+        # the ops that start with __ are the library's own helpers
         if caller is not None and not caller.name.startswith("__"):
             name = caller.name
             break
