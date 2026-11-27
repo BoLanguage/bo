@@ -1,15 +1,28 @@
-# Publishes the playground (playground/, wasm/ and examples/) to GitHub Pages.
-#
-# Until it is enabled, nothing is published. To go live:
-#   1. Settings -> Pages -> Source: "GitHub Actions".
-#   2. Run this workflow by hand (Actions -> "Deploy the playground" -> Run workflow).
-#   3. Optional: to redeploy on every push to main, uncomment the `push` trigger below.
+# Publishes the playground (playground/, wasm/ and examples/) to GitHub Pages
+# on every push to main that changes what the site is built from, and on demand
+# (Actions -> "Deploy the playground" -> Run workflow).
+# Pages must use "GitHub Actions" as its source (Settings -> Pages).
+# To deploy only by hand, comment the `push` trigger (and its `branches` and `paths`) below.
 name: Deploy the playground
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [main]
+  push:
+    branches: [main]
+    # everything the build reads or publishes: a change elsewhere (docs, Playground+, tests)
+    # does not redeploy; run the workflow by hand if the site ever needs it anyway
+    paths:
+      - "playground/**"
+      - "wasm/**"
+      - "examples/**"
+      - "images/**"
+      - "include/**"
+      - "c/**"
+      - "tools/**"
+      - "Makefile"
+      - "VERSION"
+      - ".github/pages/**"
+      - ".github/workflows/pages.yml"
 
 permissions:
   contents: read
