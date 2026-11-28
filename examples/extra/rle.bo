@@ -1,0 +1,25 @@
+"include/std.bo" require
+
+;Run-length encoding, a classic of APL and K: "aaabccdddd" becomes 3a 1b 2c 4d.
+;group splits the string into runs of equal characters, and each run becomes a
+;(count character) pair.
+
+;S encode : the (count character) pairs of the string S
+    (group (apply dup len swap 1 nth apply pair unit) map)
+    (encode)
+PUSH
+
+;R decode : the string that the pairs R encode; times repeats the append, which finds the
+;character and the string built so far right below it
+    (null (apply apply unit -rot (over append) swap times nip) foldl)
+    (decode)
+PUSH
+
+;R show : the pairs written as count and character
+    ((apply apply swap emit emitc) foreach nl)
+    (show)
+PUSH
+
+"aaabccdddd" encode dup show decode says
+"WWWWWWWWWWWWBWWWWWWWWWWWWBBBWWWWWWWWWWWWWWWWWWWWWWWWBWWWWWWWWWWWWWW" encode dup show
+decode "WWWWWWWWWWWWBWWWWWWWWWWWWBBBWWWWWWWWWWWWWWWWWWWWWWWWBWWWWWWWWWWWWWW" = ?

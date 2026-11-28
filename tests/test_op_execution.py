@@ -395,6 +395,30 @@ class OpExecution(unittest.TestCase):
         data = run("((1) (apply 1 +) map) () catch", standard_library=True)
         self.assertEqual(data[-1][0], [Op("Type-Error")])
 
+    def test_branch_when_and_unless_take_a_truth_value_from_the_stack(self):
+        self.assertEqual(run("1 (10) (20) branch 0 (10) (20) branch 7 (30) when 0 (40) when "
+                             "0 (50) unless 1 (60) unless", standard_library=True), [10, 20, 30, 50])
+
+    def test_pair_zipwith_and_group(self):
+        a = Op("a")
+        self.assertEqual(run("3 (a) pair", standard_library=True), [[3, [a]]])
+        self.assertEqual(run("100 (1 2 3) (10 20) (apply swap apply + over + unit) zipwith", standard_library=True),
+                         [100, [111, 122]], "zipwith stops at the shorter list and shows the caller's stack")
+        self.assertEqual(run('"aabccc" group (1 1 2 1) group () group (1 2 3 1 2 0) (<) groupby',
+                             standard_library=True),
+                         [[from_str("aa"), from_str("b"), from_str("ccc")], [[1, 1], [2], [1]], [],
+                          [[1, 2, 3], [1, 2], [0]]], "only consecutive elements are grouped")
+
+    def test_circshift_rotates_an_array_along_one_axis(self):
+        self.assertEqual(run("(1 2 3 4 5 6) (2 3) array dup 1 0 circshift swap -1 1 circshift "
+                             "(1 2 3 4 5 6 7 8) (2 2 2) array 1 1 circshift () (0 3) array 1 1 circshift",
+                             standard_library=True),
+                         [[[4, 5, 6, 1, 2, 3], [2, 3]], [[3, 1, 2, 6, 4, 5], [2, 3]],
+                          [[3, 4, 1, 2, 7, 8, 5, 6], [2, 2, 2]], [[], [0, 3]]])
+        for code in ("((1 2) (2) array 1 1 circshift) () catch", "((1 2) (2) array 1 -1 circshift) () catch"):
+            with self.subTest(code=code):
+                self.assertEqual(run(code, standard_library=True)[-1][0], [Op("Domain-Error")])
+
     def test_incr_counts_and_rejects_a_key_that_does_not_hold_a_number(self):
         self.assertEqual(run("(N) incr (N) incr N 2.5 (D) set (D) incr D 1 (E) PUSH 7 (E) PUSH (E) incr (E) SNAPSHOT",
                              standard_library=True), [2, 3.5, [8]], "incr makes the result the only value, as set does")
@@ -417,6 +441,13 @@ class OpExecution(unittest.TestCase):
                    "((1 2) (() (Boom) throw) sortby) () catch clear "
                    "0 (1 2 3) (apply +) foreach 10 (1 2) (apply over + unit) map nip", standard_library=True)
         self.assertEqual(data, [6, [11, 12]], "an error in a callback leaves no state behind")
+        for code in ("(5 (drop) foreach) () catch", "(5 (apply unit) map) () catch", "(5 (drop 1) filter) () catch",
+                     "(5 0 (dup 3 =) (1 +) unfoldl) () catch"):
+            with self.subTest(code=code):
+                data = run(code + " clear (1 2) (apply 1 + unit) map", standard_library=True)
+                self.assertEqual(data, [[2, 3]], "a value that is not a list is a Type-Error and leaves no state behind")
+        self.assertEqual(run("(5 (drop) foreach) () catch", standard_library=True)[-1][:2],
+                         [[Op("Type-Error")], [Op("UNCONSL")]])
 
     def test_mask_keeps_the_elements_where_the_mask_is_true(self):
         op = Op("OP")

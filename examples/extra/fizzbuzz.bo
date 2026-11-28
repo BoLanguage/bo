@@ -1,0 +1,16 @@
+"include/std.bo" require
+
+;FizzBuzz, without nested conditionals: the divisibility by 3 and by 5 gives an index
+;(1 to 4) into the list (n "Fizz" "Buzz" "FizzBuzz"), and nth picks what to print.
+
+;n __fizzbuzz : write n, Fizz, Buzz or FizzBuzz
+    (
+    dup unit ("Fizz" "Buzz" "FizzBuzz") append      ; the four choices
+    swap (3 mod 0 =) (5 mod 0 = 2 *) bi + 1 +       ; 1 + (3 divides n) + 2 (5 divides n)
+    nth apply
+    (dup isnumber) (say) (says) ifte
+    )
+    (__fizzbuzz)
+PUSH
+
+1 15 : (apply __fizzbuzz) foreach

@@ -39,3 +39,21 @@ PUSH
     )
     (times)
 PUSH
+
+;branch ( b t e -- ) run t if b is true (positive), e otherwise: ifte with a truth value already on the stack, as in Joy
+
+    (rot unit -rot ifte)
+    (branch)
+PUSH
+
+;when ( b q -- ) run q if b is true (positive)
+
+    (() branch)
+    (when)
+PUSH
+
+;unless ( b q -- ) run q unless b is true (positive)
+
+    (() swap branch)
+    (unless)
+PUSH

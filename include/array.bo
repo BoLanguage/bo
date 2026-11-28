@@ -2,6 +2,7 @@
 "math.bo" require
 "list.bo" require
 "io.bo" require
+"control.bo" require
 
 ;any ( T axis-or-() -- b-or-T' ) test whether any array element is positive, globally or along one axis; an empty slice raises Domain-Error
 
@@ -95,4 +96,32 @@ PUSH
     foldl 2drop nl
     )
     (showmatrix)
+PUSH
+
+;circshift ( T n axis -- T' ) the array T rotated by n places along the zero-based axis: the element at index i moves to index i - n (mod the length of the axis), so a positive n rotates toward the start, as rotate does for lists (MATLAB's circshift goes the other way and counts dimensions from 1)
+
+    (
+    dup 0 <
+        (unit (Domain-Error) throw)
+        ()
+    branch
+    2 pick rank over >
+        ()
+        (unit (Domain-Error) throw)
+    branch
+        (2 pick 1 nth apply null =)
+        (2drop)
+        (
+        rot dup shape rot 1 + split product        ; n T Qhead inner
+        swap unconsr nip apply                      ; n T inner d
+        2dup * -rot 4 roll swap mod *               ; T block shift
+        rot dup shape swap 1 nth apply              ; block shift Q F
+        dup len 4 pick / swap dup len unit array swap chunk
+            (apply 1 nth apply 2 pick rotate unit)  ; each block rotated by shift
+        map null (apply append) foldl
+        swap array nip nip
+        )
+    ifte
+    )
+    (circshift)
 PUSH

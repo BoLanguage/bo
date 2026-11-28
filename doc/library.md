@@ -38,8 +38,10 @@ Notes on the standard library:
 - List elements are represented by **units**: `(1 2 3) unconsl` gives `(2 3) (1)`; `nth` and `sel` return units, and `ins` accepts one. `apply` evaluates a unit, executing its element if it is an op. `unittype` inspects it without execution.
 - The focused `Value` module provides total predicates for numbers, lists, units, integral values, and stack keys; `std.bo` forwards them as `isnumber`, `islist`, `isunit`, `isinteger`, and `isselector`.
 - Comparison ops return `1`/`0`.
+- `ifte` runs its condition as a program; `branch` takes a truth value already on the stack (`b (then) (else) branch`, as in Joy), and `when`/`unless` run a single program on a true/false value.
+- `group` and `groupby` gather *consecutive* elements only, as in Haskell: `(1 1 2 1) group` gives `((1 1) (2) (1))`; sort first to gather all equal elements.
 - `unfoldl`/`unfoldr` take `L B ( stop ) ( step )`: the stop test is run on the seed and leaves a truth value (so it normally starts with `dup`), then each `step(B)` is added to `L`; only `L` is left, as the final seed is dropped.
-- The iterating ops (`foreach`, `map`, `filter`, `foldl`, `foldr`, `partition`, `sortby`, `unfoldl` and `unfoldr`, and `times`, `dip`, `keep` and `bi`) keep their own state off the default stack. Their callback finds the caller's stack right below its arguments, as in Joy and Factor: `0 (1 2 3) (apply +) foreach` leaves `6`, and `10 (1 2 3) (apply over + unit) map` leaves `10 (11 12 13)`. `map` and `filter` take the top that the callback leaves as its result; anything else it leaves, or takes, stays changed on the caller's stack.
+- The iterating ops (`foreach`, `map`, `filter`, `foldl`, `foldr`, `partition`, `sortby`, `groupby`, `zipwith`, `unfoldl` and `unfoldr`, and `times`, `dip`, `keep` and `bi`) keep their own state off the default stack. Their callback finds the caller's stack right below its arguments, as in Joy and Factor: `0 (1 2 3) (apply +) foreach` leaves `6`, and `10 (1 2 3) (apply over + unit) map` leaves `10 (11 12 13)`. `map` and `filter` take the top that the callback leaves as its result; anything else it leaves, or takes, stays changed on the caller's stack.
 - `puts` returns nothing; `open` takes a mode string ([primitives](primitives.md)); `INPUT`, `OUTPUT`, `PEEK`, `FLUSH`, `SEEK` and friends are not provided yet.
 - `//` is floor division.
 - `lambda` and `rec` run a program and re-enter it (anonymous recursion); they wrap the kernel primitives `LAMBDA` and `REC`, see [examples](examples.md).
@@ -87,6 +89,7 @@ on the value's size, even though named-stack lookup uses a hash table.
 | `any` | derived | `( T axis-or-() -- b-or-T' )` | test whether any array element is positive, globally or along one axis; an empty slice raises Domain-Error |
 | `array` | primitive adapter | `( F Q -- T )` | Validate flat numeric data `F` and shape `Q` and construct array `T`. |
 | `chunk` | primitive adapter | `( T n -- C )` | Split rank-one array `T` into `n` ordered rank-one array chunks. |
+| `circshift` | derived | `( T n axis -- T' )` | the array T rotated by n places along the zero-based axis: the element at index i moves to index i - n (mod the length of the axis), so a positive n rotates toward the start, as rotate does for lists (MATLAB's circshift goes the other way and counts dimensions from 1) |
 | `concat` | primitive adapter | `( C -- T )` | Concatenate an ordered list of rank-one array chunks. |
 | `dot` | primitive adapter | `( A B -- x )` | Return the dot product of rank-one arrays `A` and `B`. |
 | `flip` | derived | `( V -- V' )` | the elements of the rank-one array V in reverse order |
@@ -110,6 +113,7 @@ on the value's size, even though named-stack lookup uses a hash table.
 | `abort` | primitive adapter | `( -- )` | Abandon the current top-level run. |
 | `apply` | primitive adapter | `( L -- ... )` | Execute the elements of list `L` in order. |
 | `bi` | derived | `( .. x p q -- .. )` | run p on x, then q on another copy of x |
+| `branch` | derived | `( b t e -- )` | run t if b is true (positive), e otherwise: ifte with a truth value already on the stack, as in Joy |
 | `call` | primitive adapter | `( SETUP BODY CATCHER CLEANUP -- ... )` | Run `SETUP` and `BODY`, then `CLEANUP`; after a body error, run `CATCHER` after cleanup. |
 | `dip` | derived | `( .. x q -- .. x )` | run q with x set aside, then put x back on top (also after an error in q) |
 | `exit` | primitive adapter | `( C -- )` | Terminate with integer exit status `C` from 0 through 255. |
@@ -120,6 +124,8 @@ on the value's size, even though named-stack lookup uses a hash table.
 | `parallel` | primitive adapter | `( L Q -- R )` | Run quotation `Q` for each item of `L` in isolated workers and collect their final stacks in input order. |
 | `rec` | primitive adapter | `( -- )` | Run again the program of the innermost running `lambda`. |
 | `times` | derived | `( .. q n -- .. )` | run q n times (not at all if n is not positive); q sees the stack below its arguments |
+| `unless` | derived | `( b q -- )` | run q unless b is true (positive) |
+| `when` | derived | `( b q -- )` | run q if b is true (positive) |
 
 ### Debug
 
@@ -182,6 +188,8 @@ on the value's size, even though named-stack lookup uses a hash table.
 | `foldl` | derived | `( L b q -- r )` | fold from the left: q receives the accumulator and a unit containing each element, with the caller's stack below |
 | `foldr` | derived | `( L b q -- r )` | fold from the right: q receives a unit containing each element and the accumulator, last element first, with the caller's stack below |
 | `foreach` | derived | `( L q -- )` | run q for each element of L, with a unit containing the element on top of the stack and the caller's stack below |
+| `group` | derived | `( L -- G )` | the runs of consecutive equal elements of L, as in Haskell: (1 1 2 1) gives ((1 1) (2) (1)); sort first to gather all equal elements |
+| `groupby` | derived | `( L q -- G )` | the runs of consecutive elements of L in which q ( a b -- 0\|1 ), run with the caller's stack below, is true for every element b and the one a before it; every element is kept |
 | `in` | derived | `( u L -- 0\|1 )` | 1 if the element of unit u is an element of L |
 | `ins` | derived | `( L u n -- L' )` | insert the element of unit u so that it becomes the n-th element |
 | `len` | derived | `( L -- n )` | the number of elements of L |
@@ -189,6 +197,7 @@ on the value's size, even though named-stack lookup uses a hash table.
 | `mask` | derived | `( L M -- L' )` | the elements of L at the positions where the mask M is true (positive), in order; it stops at the shorter list |
 | `nth` | derived | `( L n -- u )` | a unit containing the n-th element of L, counting from 1 |
 | `null` | derived | `( -- L )` | the empty list |
+| `pair` | derived | `( a b -- L )` | the two-element list (a b) |
 | `partition` | derived | `( L p -- G )` | the runs of consecutive elements of L for which p, applied to a unit containing the element with the caller's stack below, leaves a true value; the other elements separate the runs and are dropped |
 | `prepend` | derived | `( a b -- L )` | the elements of b followed by those of a |
 | `product` | derived | `( L -- n )` | the product of the numbers in L (1 for the empty list) |
@@ -207,6 +216,7 @@ on the value's size, even though named-stack lookup uses a hash table.
 | `unique` | derived | `( L -- L' )` | the elements of L without repetitions, each where it first occurs |
 | `unit` | primitive adapter | `( X -- U )` | Wrap the top value in a one-element list. |
 | `zip` | derived | `( A B -- C )` | pair corresponding elements of A and B, stopping at the shorter list |
+| `zipwith` | derived | `( A B q -- C )` | apply q to units containing the corresponding elements of A and B, stopping at the shorter list, with the caller's stack below; q returns a unit containing the result, as with map |
 
 ### Logic
 

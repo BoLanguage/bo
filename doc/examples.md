@@ -42,7 +42,7 @@ The examples use only the standard library: for example `say`, `sum`, ranges wit
 
 `examples/extra/` holds further, smaller programs (many after examples of other languages such as Uiua); they are not tested and have no expected output.
 
-Two conventions that the examples rely on and that are easy to trip over: the value of a variable is stored as itself (`0 (COUNT) PUSH`) and naming it pushes it, but a *list* stored in a stack is a program, so naming it runs it; read a list value with `(NAME) TOP` or define an op that pushes it with a doubled paren, `((1 2 3)) (DATA) PUSH`. And `ift`/`ifte` take their condition as a list to run (`(cond) (then) ift`); when the truth value is already on the stack use `() (then) (else) ifte`.
+Two conventions that the examples rely on and that are easy to trip over: the value of a variable is stored as itself (`0 (COUNT) PUSH`) and naming it pushes it, but a *list* stored in a stack is a program, so naming it runs it; read a list value with `(NAME) TOP` or define an op that pushes it with a doubled paren, `((1 2 3)) (DATA) PUSH`. And `ift`/`ifte` take their condition as a list to run (`(cond) (then) ift`); when the truth value is already on the stack use `(then) (else) branch`, or `when`/`unless` for one branch.
 
 ```
 "three numbers on the default stack" drop

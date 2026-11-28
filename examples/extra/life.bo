@@ -1,0 +1,51 @@
+"include/std.bo" require
+
+;Conway's Game of Life, after Uiua:  Life ← ↥∩=₃⟜+⊸(/+↻⊂A₂C₂)
+;the board is a rank-two array of 0 and 1 that wraps around at the edges. A cell's neighbours
+;are counted by adding up the board rotated one step in each of the 8 directions, and a cell
+;lives in the next generation when its count is 3, or its count plus itself is 3.
+
+;G __neighbours : the number of living neighbours of every cell; the callback of foldl
+;finds the board right below the sum
+    (
+    ((-1 -1) (-1 0) (-1 1) (0 -1) (0 1) (1 -1) (1 0) (1 1))
+    over 0 (*) .                                        ; a board of zeros
+        (apply apply 3 pick rot 0 circshift swap 1 circshift (+) .)
+    foldl
+    )
+    (__neighbours)
+PUSH
+
+;G __life : the next generation
+    (
+    dup __neighbours
+    2dup (+) . 3 (=) .          ; count plus itself is 3
+    swap 3 (=) .                ; count is 3
+    (max) . nip
+    )
+    (__life)
+PUSH
+
+;G __show : one line per row, a block for a living cell
+    (
+    dup shape 1 nth apply swap 1 nth apply dup len unit array swap chunk
+        (apply 1 nth apply ((46 9608) swap apply 1 + nth apply emitc) foreach nl)
+    foreach nl
+    )
+    (__show)
+PUSH
+
+;a glider on an 8 x 8 board, four generations: it moves one cell down and to the right
+    (
+    0 1 0 0 0 0 0 0
+    0 0 1 0 0 0 0 0
+    1 1 1 0 0 0 0 0
+    0 0 0 0 0 0 0 0
+    0 0 0 0 0 0 0 0
+    0 0 0 0 0 0 0 0
+    0 0 0 0 0 0 0 0
+    0 0 0 0 0 0 0 0
+    )
+    (8 8)
+array
+(dup __show __life) 5 times drop

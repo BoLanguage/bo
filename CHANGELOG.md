@@ -8,6 +8,25 @@ for their banner and `--version`.
 
 ## Unreleased
 
+- New ops:
+  - `branch ( b t e -- )` runs `t` or `e` on a truth value already on the stack (Joy's
+    `branch`), where `ifte` runs its condition as a program; `when` and `unless` run a
+    single program.
+  - `pair ( a b -- L )` makes the two-element list `(a b)`.
+  - `zipwith ( A B q -- C )` combines corresponding elements of two lists, as `map` does for
+    one.
+  - `group ( L -- G )` and `groupby ( L q -- G )` split a list into runs of consecutive
+    equal elements, or of elements related by `q` (as in Haskell): `(1 1 2 1) group` gives
+    `((1 1) (2) (1))`.
+  - `circshift ( T n axis -- T' )` rotates an array along one zero-based axis, toward the start
+    for a positive `n` as `rotate` does for lists (MATLAB's `circshift` goes the other way).
+- `rle.bo` and `life.bo` use the new ops: run-length encoding is `group` followed by a `map`,
+  and the Game of Life works on a rank-two array with `circshift` and broadcasting.
+- Fixed: `foreach`, `map`, `foldl`, `foldr`, `unfoldl` and `unfoldr` reported a
+  value that is not a list as a `Stack-Error` from their own cleanup instead of the `Type-Error`
+  it is, leaving part of their private state behind.
+- New extra examples: `life.bo` (Conway's Game of Life, after Uiua), `rle.bo` (run-length
+  encoding) and `fizzbuzz.bo`.
 - `dedup` is now `unique`.
 - `incr` moved from `examples/lib.bo` to the standard library (`include/dict.bo`), and
   `examples/lib.bo` is gone: the examples use only the standard library. Its exclusive `range`

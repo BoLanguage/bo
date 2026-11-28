@@ -201,6 +201,8 @@ OP_CASES = [
     '(1 2 3 4) sum () product (5 3 9 1 3 7) sort ((1 x) (0 y) (1 z)) (1 nth apply swap 1 nth apply swap <=) sortby '
     '(1 2 3 4) -1 rotate (1 2 1 (3) x (3) x) unique "  to be\tor\\n" () strsplit (0 1 2 0 3) (apply 0 >) partition '
     '16 sqrt (-1 sqrt) () catch (1 2) (2) array (1 2 3) (3) array (-) table',
+    '1 (10) (20) branch 0 (10) (20) branch 7 (30) when 0 (40) unless 3 4 pair 100 (1 2 3) (10 20) (apply swap apply + over + unit) zipwith '
+    '"aabccc" group (1 2 3 1 2 0) (<) groupby (1 2 3 4 5 6) (2 3) array -1 1 circshift ((1 2) (2) array 1 1 circshift) () catch',
     '(N) incr (N) incr N 1 (E) PUSH 7 (E) PUSH (E) incr (E) SNAPSHOT "hi" (S) set ((S) incr) () catch (S) SNAPSHOT',
     '0 (1 2 3) (apply +) foreach 10 (1 2 3) (apply over + unit) map 3 (1 5 2 8) (apply over >) filter '
     '5 (9 1 6 4) (2 pick - abs swap 2 pick - abs swap <=) sortby 2 () 1 (dup 10 >) (over *) unfoldr '

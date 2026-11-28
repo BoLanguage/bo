@@ -45,7 +45,7 @@ PUSH
     ()
         (
             ((__its) TOP apply not)
-            ((__itp) TOP apply dup unit (__itr) POP swap (__itq) TOP apply (__itr) PUSH)
+            ((__itp) TOP apply dup unit (__itr) TOP swap (__itq) TOP apply (__itr) POP drop (__itr) PUSH)
         loop
         drop (__itr) TOP
         )
@@ -97,8 +97,9 @@ PUSH
 PUSH
 
 ;__next: move the first element of the list in __itl to the top of the stack ( -- u)
+;the list is read before it is replaced, so a value that is not a list fails with __itl intact
 
-    ((__itl) POP unconsl swap (__itl) PUSH)
+    ((__itl) TOP unconsl swap (__itl) POP drop (__itl) PUSH)
     (__next)
 PUSH
 
@@ -403,4 +404,47 @@ PUSH
     call
     )
     (partition)
+PUSH
+
+;pair ( a b -- L ) the two-element list (a b)
+
+    (unit swap unit swap append)
+    (pair)
+PUSH
+
+;zipwith ( A B q -- C ) apply q to units containing the corresponding elements of A and B, stopping at the shorter list, with the caller's stack below; q returns a unit containing the result, as with map
+
+    (-rot zip swap (apply unconsl swap) swap append map)
+    (zipwith)
+PUSH
+
+;groupby ( L q -- G ) the runs of consecutive elements of L in which q ( a b -- 0|1 ), run with the caller's stack below, is true for every element b and the one a before it; every element is kept
+
+    (
+    (__itq) PUSH (__itl) PUSH null (__itr) PUSH null (__itc) PUSH
+    ()
+        (
+            ((__itl) TOP null \=)
+            (
+            __next
+                ((__itc) TOP null =)
+                ()
+                ((__itc) TOP unconsr nip apply over apply (__itq) TOP apply () () (__flushrun) ifte)
+            ifte
+            (__itc) TOP swap consr (__itc) POP drop (__itc) PUSH
+            )
+        loop
+        __flushrun (__itr) TOP
+        )
+    (rethrow)
+    ((__itl) POP drop (__itq) POP drop (__itr) POP drop (__itc) POP drop)
+    call
+    )
+    (groupby)
+PUSH
+
+;group ( L -- G ) the runs of consecutive equal elements of L, as in Haskell: (1 1 2 1) gives ((1 1) (2) (1)); sort first to gather all equal elements
+
+    ((=) groupby)
+    (group)
 PUSH
