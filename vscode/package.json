@@ -2,7 +2,7 @@
   "name": "bolang",
   "displayName": "BoLang",
   "description": "Syntax highlighting for Bo, a minimal concatenative language",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "publisher": "mauro-di-nuzzo",
   "repository": {
