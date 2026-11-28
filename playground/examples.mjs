@@ -17,5 +17,6 @@ export const EXAMPLES = [
     { file: "13-parallel.bo", title: "Parallel execution" },
     { file: "14-bobo.bo", title: "Bobo, the mascot, drawn as text" },
     { file: "15-breeze-hash.bo", title: "A tribute to Breeze's # operator" },
+    { file: "16-constraints.bo", title: "Constraint programming: SEND+MORE, zebra, map colouring" },
 ];
 

@@ -8,6 +8,14 @@ for their banner and `--version`.
 
 ## Unreleased
 
+- New module `include/constraint.bo`: constraint programming over finite domains, in plain Bo
+  (not loaded by `std.bo`). Variables are ops with integer domains (`problem`, `setdomain`,
+  `getdomain`); constraints relate expressions written as quotations (`#=`, `#\=`, `#<`,
+  `#<=`, `#>`, `#>=`, `#in`, `alldiff`); `label` and `solutions` search with propagation and
+  backtracking; `delay` runs a goal once its variables are bound; `consistent` tells whether a
+  constraint was found impossible. Guide: `doc/constraint.md`. New example
+  `16-constraints.bo` (map colouring, SEND + MORE = MONEY, the zebra puzzle) and extra
+  examples `queens.bo` and `sudoku.bo`.
 - New ops:
   - `branch ( b t e -- )` runs `t` or `e` on a truth value already on the stack (Joy's
     `branch`), where `ifte` runs its condition as a program; `when` and `unless` run a

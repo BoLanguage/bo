@@ -26,7 +26,7 @@ test("start creates the machine and reports its version", async () => {
     assert.equal(state().ready, true);
     assert.match(state().version, /^\d+\.\d+/);
     assert.equal(state().status, "idle");
-    assert.equal(state().machine.counts.library, 254);
+    assert.equal(state().machine.counts.library, 265);
 });
 
 test("step on an idle machine loads the program paused before its first op", async () => {

@@ -8,8 +8,9 @@
 3. [Primitives](primitives.md): kernel primitives and their stack effects.
 4. [Library](library.md): default-stack adapters and library ops from `include/`.
 5. [Examples](examples.md): sample programs.
-6. [Notebook](notebook.md): running Bo in Jupyter.
-7. [Debugging](debugging.md): breakpoints, stepping and `watch`.
+6. [Constraints](constraint.md): constraint programming over finite domains with `include/constraint.bo`.
+7. [Notebook](notebook.md): running Bo in Jupyter.
+8. [Debugging](debugging.md): breakpoints, stepping and `watch`.
 
 ## Runtime and project notes
 
@@ -20,4 +21,4 @@
 - [Open questions](open-questions.md): undecided language and runtime behavior.
 - [Planned updates](planned-updates.md): what's next for Bo.
 
-Back to [repository](../README.md).
+Back to [repository](../).

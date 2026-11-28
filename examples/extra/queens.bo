@@ -1,0 +1,49 @@
+; queens.bo -- place N queens on an NxN board so that none attacks another
+
+"include/std.bo" require
+"include/constraint.bo" require
+
+;__q: the selector of the variable Qi ( i -- (Qi) )
+    (numstr "Q" swap append selector)
+    (__q)
+PUSH
+
+;queens ( n -- L ) declare Q1..Qn (the column of the queen of each row) and
+; post the constraints; leaves the list of variables
+    (
+    dup (__n) set 1 swap : (apply __q) map dup (__qs) set
+    1 __n : setdomain
+    (__qs) TOP alldiff
+    1 __n 1 - :
+    (
+      apply (__i) set
+      __i 1 + __n :
+      (
+        apply (__j) set
+        () __i __q consr __j __q consr (-) consr
+        dup __j __i - unit #\=                       ; not on the same diagonal
+        __i __j - unit #\=                           ; nor on the other one
+      )
+      foreach
+    )
+    foreach
+    (__qs) TOP
+    )
+    (queens)
+PUSH
+
+;board ( L -- ) print the board of a solution
+    (
+    dup len (__n) set
+    (apply (__c) set 1 __n : (apply __c = ("Q " emits) (". " emits) branch) foreach "" says)
+    foreach
+    )
+    (board)
+PUSH
+
+"8-queens" problem
+8 queens dup label drop (apply unit) map board
+
+"" says
+"6-queens" problem
+"solutions for n = 6: " emits 6 queens solutions len say

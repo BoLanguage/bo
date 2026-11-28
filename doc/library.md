@@ -11,7 +11,7 @@ defined). Every wrapper is an ordinary, unlocked definition such as
 modules (`stack`, `logic`, `control`, `math`, `list`, `value`, `dict`, `stream`,
 `io` and `error`) need `core.bo` and define plain lowercase ops
 directly: for example, `include/list.bo` defines `map`. `include/std.bo` loads
-all the focused modules. `require` loads a source file only once: requiring a file that was already loaded does nothing, so modules can list their dependencies freely and a program may require `std.bo` again. A file whose load ended in an error does not count as loaded, so requiring it again after a fix runs it. `include` (the default-stack op of the primitive `INCLUDE`) always executes the file, discarding its private ops first, which is how to reload it; use it only for files that can run twice. On a machine that started with `--bare`, load `core.bo` with `() INCLUDE` first, since `require` is defined there. `PUSH`, `POP`, `TOP`, `SNAPSHOT` and `DEPTH` transfer
+all the focused modules. `include/constraint.bo` (constraint programming over finite domains, see [constraints](constraint.md)) is not part of `std.bo`: it keeps solver state and defines general names such as `label` and `problem`, so a program loads it explicitly. `require` loads a source file only once: requiring a file that was already loaded does nothing, so modules can list their dependencies freely and a program may require `std.bo` again. A file whose load ended in an error does not count as loaded, so requiring it again after a fix runs it. `include` (the default-stack op of the primitive `INCLUDE`) always executes the file, discarding its private ops first, which is how to reload it; use it only for files that can run twice. On a machine that started with `--bare`, load `core.bo` with `() INCLUDE` first, since `require` is defined there. `PUSH`, `POP`, `TOP`, `SNAPSHOT` and `DEPTH` transfer
 values between named and default stacks.
 Examples:
 
@@ -105,6 +105,25 @@ on the value's size, even though named-stack lookup uses a hash table.
 | `showmatrix` | derived | `( T -- )` | write the rank-two array T one row per line, with spaces between the elements; a rank-one array is written as one row |
 | `table` | derived | `( A B U -- T )` | apply the binary op held by unit U to every element of the rank-one array A paired with every element of the rank-one array B, giving the rank-two array T with a row for each element of A |
 | `transpose` | primitive adapter | `( T -- T' )` | Transpose rank-two array `T`. |
+
+### Constraint
+
+| Name | Type | Effect | Description |
+|---|---|---|---|
+| `#<` | derived | `( L R -- )` | constrain the value of the expression L to be less than that of R |
+| `#<=` | derived | `( L R -- )` | constrain the value of the expression L to be at most that of R |
+| `#=` | derived | `( L R -- )` | constrain the expressions L and R, quotations such as (X) or (2 X * 1 +), to have equal values |
+| `#>` | derived | `( L R -- )` | constrain the value of the expression L to be greater than that of R |
+| `#>=` | derived | `( L R -- )` | constrain the value of the expression L to be at least that of R |
+| `#\=` | derived | `( L R -- )` | constrain the expressions L and R, quotations such as (X) or (2 X * 1 +), to have different values |
+| `#in` | derived | `( L D -- )` | constrain each variable of the list L to take a value of the list of integers D |
+| `consistent` | derived | `( -- 0\|1 )` | 1 while no constraint of the problem was found impossible, 0 after; once 0, later constraints are ignored, label leaves 0 and solutions () |
+| `delay` | derived | `( G -- ... )` | run the program G now or, if it needs a variable that is not bound yet, as soon as that variable is bound (the partial effect of the first attempt on the stack is undone) |
+| `getdomain` | derived | `( V -- D )` | the current domain of the variable selected by V |
+| `label` | derived | `( L -- 0\|1 )` | search a solution for the variables of the list L, smallest domain first: leave 1 and bind every variable whose value is determined, or leave 0 if there is no solution |
+| `problem` | derived | `( S -- )` | start the problem named by the string S, which every model needs: forget the variables, constraints and waiting goals of the previous problem and unbind the values the solver gave them |
+| `setdomain` | derived | `( L D -- )` | declare each op of the list L as a variable of the problem, with the domain D: a list of integers, in any order; a variable the problem already has, or a declaration before any problem, raises Domain-Error with data ((V) name) |
+| `solutions` | derived | `( L -- S )` | every solution, as a list of the values of the variables of L in order (() if there is none); the problem is left as it was |
 
 ### Control
 

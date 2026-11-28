@@ -1,0 +1,88 @@
+"../include/std.bo" require
+"../include/constraint.bo" require
+
+;Constraint programming with include/constraint.bo: a variable is an op, its
+;domain lists the values it may take, constraints relate expressions written
+;as quotations, and label searches for values that satisfy them all.
+
+;---- a first problem: two numbers whose sum is 10 and difference 4
+"first" problem
+(X Y) 0 10 : setdomain
+(X Y +) (10) #=
+(X Y -) (4) #=
+(X Y) label drop
+"X = " emits X say
+"Y = " emits Y say
+
+;---- every solution, and a delayed goal that runs once its variables are bound
+"pairs" problem
+(A B) 1 4 : setdomain
+(A) (B) #<
+(A B +) (5) #=
+(A B) solutions say
+(A B * "A * B = " emits say) delay
+(A) (1) #=
+
+;---- an impossible constraint makes the problem inconsistent
+"impossible" problem
+(N) (1 3 5) setdomain
+(N) (2) #=
+consistent say
+(N) label say
+
+;---- map colouring: neighbouring states of Australia get different colours
+"australia" problem
+(WA NT SA Q NSW V T) 1 3 : setdomain
+(WA) (NT) #\=   (WA) (SA) #\=   (NT) (SA) #\=   (NT) (Q) #\=
+(SA) (Q) #\=    (SA) (NSW) #\=  (SA) (V) #\=    (Q) (NSW) #\=
+(NSW) (V) #\=
+(WA NT SA Q NSW V T) label drop
+    (WA NT SA Q NSW V T)
+    (
+    dup name emits ": " emits
+    apply ("red" "green" "blue") swap nth apply says
+    )
+foreach
+
+;---- SEND + MORE = MONEY: one linear equation over eight digits
+"send+more" problem
+(S E N D M O R Y) 0 9 : setdomain
+(S E N D M O R Y) alldiff
+(S) (0) #\=
+(M) (0) #\=
+    (1000 S * 100 E * + 10 N * + D + 1000 M * + 100 O * + 10 R * + E +)
+    (10000 M * 1000 O * + 100 N * + 10 E * + Y +)
+#=
+(S E N D M O R Y) label drop
+"  " emits S emit E emit N emit D say
+"+ " emits M emit O emit R emit E say
+"= " emits M emit O emit N emit E emit Y say
+
+;---- the zebra puzzle: each variable is the number (1 to 5) of a house
+"zebra" problem
+(Red Green Ivory Yellow Blue)                        (colors) set
+(English Spaniard Ukrainian Norwegian Japanese)      (people) set
+(Coffee Tea Milk Juice Water)                        (drinks) set
+(OldGold Kools Chesterfield LuckyStrike Parliament)  (smokes) set
+(Dog Snails Fox Horse Zebra)                         (pets) set
+(colors people drinks smokes pets) (TOP dup 1 5 : setdomain alldiff) foreach
+
+(English) (Red) #=                   ; the Englishman lives in the red house
+(Spaniard) (Dog) #=                  ; the Spaniard owns the dog
+(Coffee) (Green) #=                  ; coffee is drunk in the green house
+(Ukrainian) (Tea) #=                 ; the Ukrainian drinks tea
+(Green) (Ivory 1 +) #=               ; green is just right of ivory
+(OldGold) (Snails) #=                ; the Old Gold smoker owns snails
+(Kools) (Yellow) #=                  ; Kools are smoked in the yellow house
+(Milk) (3) #=                        ; milk is drunk in the middle house
+(Norwegian) (1) #=                   ; the Norwegian lives in the first house
+(Chesterfield Fox - abs) (1) #=      ; Chesterfield next to the fox
+(Kools Horse - abs) (1) #=           ; Kools next to the horse
+(LuckyStrike) (Juice) #=             ; the Lucky Strike smoker drinks juice
+(Japanese) (Parliament) #=           ; the Japanese smokes Parliament
+(Norwegian Blue - abs) (1) #=        ; the Norwegian lives next to the blue house
+
+(colors) TOP (people) TOP append (drinks) TOP append
+(smokes) TOP append (pets) TOP append label drop
+(people) TOP (apply Water =) filter 1 nth name emits " drinks water" says
+(people) TOP (apply Zebra =) filter 1 nth name emits " owns the zebra" says

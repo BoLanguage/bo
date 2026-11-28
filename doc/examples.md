@@ -39,8 +39,9 @@ The examples use only the standard library: for example `say`, `sum`, ranges wit
 | `13-parallel.bo` | ordered isolated workers, multi-value results, named-stack isolation, nesting, worker-error handling |
 | `14-bobo.bo` | the mascot drawn as text from a run-length encoded picture (palette lookup with `nth`, `loop`, `foreach`); defines `bobo` and shows it |
 | `15-breeze-hash.bo` | a tribute to Breeze: running code represented as numbers and lists with a `#` operator |
+| `16-constraints.bo` | constraint programming with `include/constraint.bo`: domains, `#=` and friends, `alldiff`, `label`, `solutions`, `delay`; map colouring, SEND + MORE = MONEY, the zebra puzzle |
 
-`examples/extra/` holds further, smaller programs (many after examples of other languages such as Uiua); they are not tested and have no expected output.
+`examples/extra/` holds further, smaller programs (many after examples of other languages such as Uiua, and the N-queens and Sudoku solvers `queens.bo` and `sudoku.bo` built on `include/constraint.bo`); they are not tested and have no expected output.
 
 Two conventions that the examples rely on and that are easy to trip over: the value of a variable is stored as itself (`0 (COUNT) PUSH`) and naming it pushes it, but a *list* stored in a stack is a program, so naming it runs it; read a list value with `(NAME) TOP` or define an op that pushes it with a doubled paren, `((1 2 3)) (DATA) PUSH`. And `ift`/`ifte` take their condition as a list to run (`(cond) (then) ift`); when the truth value is already on the stack use `(then) (else) branch`, or `when`/`unless` for one branch.
 

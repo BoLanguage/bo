@@ -1,0 +1,644 @@
+;constraint.bo: constraint programming over finite domains, in plain Bo.
+;Not part of std.bo: load it with "include/constraint.bo" require.
+;See doc/constraint.md for a guide.
+;
+;A variable is an op. Its value lives on its own stack: while the stack is
+;empty the variable is unbound, and running it raises Existence-Error. Two
+;auxiliary stacks hold the solver state of a variable V:
+;
+;   V.dom    its domain, a sorted list of integers; narrowing pushes a smaller
+;            domain, so the stack itself is the history that backtracking pops
+;   V.cons   the constraints to wake up when the domain of V changes
+;
+;A constraint is a quotation (its data followed by a propagator), so the
+;propagation queue and the wake lists simply hold programs. Linear
+;expressions get bounds propagators; any other expression gets a generic
+;propagator that enumerates the domains of the variables it mentions.
+
+"std.bo" require
+
+; ---------------------------------------------------------------------------
+; helpers
+
+;__aux: the selector of an auxiliary stack of V ((V) suffix -- (V.suffix))
+    (swap name swap append selector)
+    (__aux)
+PUSH
+
+;__iskind: whether error E has kind K (E K -- E 0|1)
+    (unit over 1 nth =)
+    (__iskind)
+PUSH
+
+;__fail: the search, or the problem, has reached a dead end (--)
+    (() (__Inconsistent) throw)
+    (__fail)
+PUSH
+
+;__failed holds 1 once the problem is inconsistent
+0 (__failed) set
+
+; ---------------------------------------------------------------------------
+; delayed goals
+
+;__var: make V a variable that goals can wait on ((V) --)
+    (".waits" __aux CLEAR)
+    (__var)
+PUSH
+
+;__bound: whether V has a value ((V) -- 0|1)
+    (DEPTH 0 >)
+    (__bound)
+PUSH
+
+;delay ( G -- ... ) run the program G now or, if it needs a variable that is not bound yet, as soon as that variable is bound (the partial effect of the first attempt on the stack is undone)
+    (
+    (__G) PUSH
+    ((__G) TOP apply (__G) POP drop)
+    (
+      (Existence-Error) __iskind
+      (dup 3 nth apply apply ".waits" __aux EXISTS) (0) branch
+      (3 nth apply apply ".waits" __aux (__G) POP swap PUSH)
+      ((__G) POP drop rethrow)
+      branch
+    )
+    try
+    )
+    (delay)
+PUSH
+
+;__bind: give V the value x and wake the goals waiting on it (x (V) -- ...)
+    (
+    dup -rot PUSH
+    dup (__binds) PUSH
+    ".waits" __aux dup SNAPSHOT swap CLEAR
+    (apply delay) foreach
+    )
+    (__bind)
+PUSH
+
+; ---------------------------------------------------------------------------
+; variables and domains
+
+;__h: the handle of V, the list ((V.dom) (V.cons) (V)), built once per use ((V) -- h)
+    (
+    dup ".dom" __aux unit over ".cons" __aux unit consr swap unit consr
+    )
+    (__h)
+PUSH
+;__D: the domain stack of a handle (h -- (V.dom))
+    (unconsl nip apply)
+    (__D)
+PUSH
+;__C: the stack of the constraints of a handle (h -- (V.cons))
+    (2 nth apply)
+    (__C)
+PUSH
+;__V: the variable of a handle (h -- (V))
+    (3 nth apply)
+    (__V)
+PUSH
+;__dom: the current domain of a handle (h -- D)
+    (__D TOP)
+    (__dom)
+PUSH
+;__minmax: the smallest and largest values of a handle (h -- lo hi)
+    (__dom dup 1 nth apply swap unconsr nip apply)
+    (__minmax)
+PUSH
+;__handles: the handles of the variables of L, a list of ops (L -- H)
+    (
+    ((dup ".dom" __aux EXISTS) () (unit (Existence-Error) throw) ifte __h unit) map
+    )
+    (__handles)
+PUSH
+
+;__varsof: the variables at the top level of Q, once each (Q -- L)
+    (
+    ((dup unittype 2 =) (".dom" __aux EXISTS) (drop 0) ifte) filter unique
+    )
+    (__varsof)
+PUSH
+
+;getdomain ( V -- D ) the current domain of the variable selected by V
+    (".dom" __aux TOP)
+    (getdomain)
+PUSH
+
+;__normdom: a domain as a sorted list of distinct integers (D -- D')
+    (
+    dup (apply isinteger not) filter () = not (unit (Type-Error) throw) when
+    sort unique
+    )
+    (__normdom)
+PUSH
+
+;__newvar: declare V with the domain D (D (V) --)
+    (
+    dup ".cons" __aux CLEAR
+    dup __var
+    dup __h (__vars) PUSH
+    ".dom" __aux PUSH
+    )
+    (__newvar)
+PUSH
+
+;__varerr: V cannot be declared: it already belongs to the problem, or there is no problem ((V) --)
+    (
+    (__pname) DEPTH 0 > ((__pname) TOP) ("") branch pair (Domain-Error) throw
+    )
+    (__varerr)
+PUSH
+
+;setdomain ( L D -- ) declare each op of the list L as a variable of the problem, with the domain D: a list of integers, in any order; a variable the problem already has, or a declaration before any problem, raises Domain-Error with data ((V) name)
+    (
+    __normdom swap
+    (
+      (dup ".dom" __aux EXISTS (__pname) DEPTH 0 = or)
+      (__varerr)
+      (over swap __newvar)
+      ifte
+    )
+    foreach
+    () = (1 (__failed) set) when
+    )
+    (setdomain)
+PUSH
+
+;#in ( L D -- ) constrain each variable of the list L to take a value of the list of integers D
+    (
+    __normdom
+    __failed
+    (2drop)
+    (
+      swap
+      (
+        (dup ".dom" __aux EXISTS) () (unit (Existence-Error) throw) ifte
+        __h dup __dom (2 pick in) filter
+        (__rd) PUSH (__rh) PUSH ((__rh) POP (__rd) POP __narrow) __settle
+      )
+      foreach drop
+    )
+    branch
+    )
+    (#in)
+PUSH
+
+;consistent ( -- 0|1 ) 1 while no constraint of the problem was found impossible, 0 after; once 0, later constraints are ignored, label leaves 0 and solutions ()
+    (__failed not)
+    (consistent)
+PUSH
+
+; ---------------------------------------------------------------------------
+; the solver state: narrowing, the trail and the propagation queue
+
+;__narrow: restrict the domain of h to D, a sublist of it (h D --)
+    (
+    (over __dom len over len =)
+    (2drop)
+    (
+      dup () = (__fail) when
+      over __D dup (__trail) PUSH PUSH
+      __C SNAPSHOT (apply (__queue) PUSH) foreach
+    )
+    ifte
+    )
+    (__narrow)
+PUSH
+
+;__range: restrict the domain of h to lo..hi (h lo hi --)
+    (
+    (__hi) set (__lo) set
+    (dup __minmax __hi <= swap __lo >= and)
+    (drop)
+    (dup __dom (apply dup __lo >= swap __hi <= and) filter __narrow)
+    ifte
+    )
+    (__range)
+PUSH
+
+;__propagate: run the woken constraints until none is left (--)
+    (((__queue) DEPTH 0 >) ((__queue) POP apply) loop)
+    (__propagate)
+PUSH
+
+;__undo: pop the domains narrowed since the trail had depth mark (mark --)
+    (
+    (dup (__trail) DEPTH <) ((__trail) POP POP drop) loop drop
+    (__queue) CLEAR
+    )
+    (__undo)
+PUSH
+
+;__settle: outside the search, run q, which narrows domains, then propagate and bind the variables that are determined; a dead end makes the problem inconsistent (q --)
+    (
+    (__sq) PUSH
+    ((__sq) TOP apply __propagate __bindfixed (__sq) POP drop)
+    (
+      (__sq) POP drop
+      (__Inconsistent) __iskind (drop 1 (__failed) set (__queue) CLEAR) (rethrow) branch
+    )
+    try
+    )
+    (__settle)
+PUSH
+
+;__post: attach constraint C to its variables and propagate (C H --)
+    (
+    (apply __C over swap PUSH) foreach
+    unit ((__queue) PUSH) append __settle
+    )
+    (__post)
+PUSH
+
+;__bindfixed: bind every unbound variable whose domain is a single value (--)
+    (
+    (__vars) SNAPSHOT
+    (
+      apply
+      (dup __D EXISTS (dup __V __bound not over __dom len 1 = and) (0) branch)
+      (dup __dom apply swap __V __bind)
+      (drop)
+      ifte
+    )
+    foreach
+    )
+    (__bindfixed)
+PUSH
+
+; ---------------------------------------------------------------------------
+; linear expressions
+;
+; A term (c (a1 (V1)) (a2 (V2)) ...) stands for c + a1*V1 + a2*V2 + ...
+; Running an expression with + - * replaced by term operations, and each
+; variable bound to its own term, computes the term of the expression.
+
+;__lift: a number as a constant term (x -- t)
+    (dup isnumber (unit) when)
+    (__lift)
+PUSH
+
+;__tadd: the sum of two terms (t1 t2 -- t)
+    (
+    __lift swap __lift
+    unconsl rot unconsl rot apply swap apply () ADD
+    -rot append swap unit swap append
+    )
+    (__tadd)
+PUSH
+
+;__tscale: a term multiplied by the number k (t k -- t')
+    (
+    (__k) set __lift
+    unconsl apply __k () MUL unit swap
+    (apply apply swap __k () MUL swap pair unit) map append
+    )
+    (__tscale)
+PUSH
+
+;__tsub: the difference of two terms (t1 t2 -- t)
+    (__lift -1 __tscale __tadd)
+    (__tsub)
+PUSH
+
+;__tmul: the product of two terms, one of them a constant; otherwise __Nonlinear (t1 t2 -- t)
+    (
+    __lift swap __lift swap
+    (over len 1 =) (swap apply __tscale)
+    ((dup len 1 =) (apply __tscale) (() (__Nonlinear) throw) ifte)
+    ifte
+    )
+    (__tmul)
+PUSH
+
+;__symop: the term version of an arithmetic op (u -- u')
+    (
+    (dup (+) =) (drop (__tadd))
+    ((dup (-) =) (drop (__tsub)) ((dup (*) =) (drop (__tmul)) () ifte) ifte)
+    ifte
+    )
+    (__symop)
+PUSH
+
+;__vterm: a program that pushes the term of V ((V) -- ((0 (1 (V)))))
+    (unit (1) swap consr unit (0) swap consr unit)
+    (__vterm)
+PUSH
+
+;__linearize: the term of the expression Q; any failure on the way means that it is not linear (__Nonlinear) (Q -- t)
+    (
+    dup __varsof (__lv) set
+    (__symop) map
+    (__lv) TOP (dup __vterm swap PUSH) foreach
+    (apply)
+    ((__lv) TOP (POP drop) foreach 2drop () (__Nonlinear) throw)
+    try
+    (__lv) TOP (POP drop) foreach
+    __lift
+    )
+    (__linearize)
+PUSH
+
+;__norm: collect the coefficients of each variable, dropping zeros (t -- c A L)
+    (
+    unconsl apply (__nc) set (__P) set
+    () (__nA) set () (__nS) set
+    (__P) TOP (apply apply nip unit) map unique
+    (
+      apply (__s) set
+      (__P) TOP 0 (apply apply (__s) TOP = * +) foldl
+      dup 0 =
+      (drop)
+      ((__nA) TOP swap unit consr (__nA) set (__nS) TOP (__s) TOP consr (__nS) set)
+      branch
+    )
+    foreach
+    __nc (__nA) TOP (__nS) TOP
+    )
+    (__norm)
+PUSH
+
+;__lohi: the bounds of a*V (a h -- lo hi)
+    (__minmax 2 pick * -rot * 2dup min -rot max)
+    (__lohi)
+PUSH
+
+;__pEq: bounds propagation for c + sum a*V = 0 (c A H --)
+    (
+    (__H) set (__A) set (__c) set
+    0 0 (__A) TOP (__H) TOP zip (apply apply __lohi rot + -rot + swap) foreach
+    __c + (__shi) set __c + (__slo) set
+    __slo 0 > __shi 0 < or (__fail) when
+    (__A) TOP (__H) TOP zip
+    (
+      apply apply swap (__a) set
+      dup __a swap __lohi
+      __shi - swap __slo -                              ; h L U: L <= a*V <= U
+      __a / swap __a / swap
+      __a 0 < (swap) when
+      floor swap ceil swap
+      __range
+    )
+    foreach
+    )
+    (__pEq)
+PUSH
+
+;__pLe: bounds propagation for c + sum a*V <= 0 (c A H --)
+    (
+    (__H) set (__A) set (__c) set
+    0 (__A) TOP (__H) TOP zip (apply apply __lohi drop +) foreach
+    __c + (__slo) set
+    __slo 0 > (__fail) when
+    (__A) TOP (__H) TOP zip
+    (
+      apply apply swap (__a) set
+      dup __a swap __lohi drop __slo - __a /
+      __a 0 > (floor -1000000000000000 swap) (ceil 1000000000000000) branch
+      __range
+    )
+    foreach
+    )
+    (__pLe)
+PUSH
+
+;__pNe: c + sum a*V <> 0, checked once at most one variable is open (c A H --)
+    (
+    (__H) set (__A) set (__s) set 0 (__n) set
+    (__A) TOP (__H) TOP zip
+    (
+      apply apply
+      dup __dom len 1 =
+      (__dom 1 nth apply * __s + (__s) set)
+      ((__uh) set (__ua) set __n 1 + (__n) set)
+      branch
+    )
+    foreach
+    __n 0 = (__s 0 = (__fail) when) when
+    __n 1 =
+    (__s neg __ua / (__v) set (__uh) TOP dup __dom (apply __v = not) filter __narrow)
+    when
+    )
+    (__pNe)
+PUSH
+
+;__linpost: post L - R = 0 (k 0), <= 0 (k 1) or <> 0 (k 2) (L R k --)
+    (
+    (__kind) set
+    swap __linearize swap __linearize __tsub __norm __handles   ; c A H
+    dup (__lh) set
+    -rot unit swap unit swap consr swap unit consr               ; (c A H)
+    (__pEq __pLe __pNe) __kind 1 + nth consr
+    (__lh) TOP __post
+    )
+    (__linpost)
+PUSH
+
+; ---------------------------------------------------------------------------
+; generic constraints: Q (a program that leaves a truth value) is checked by
+; enumerating the domains of its variables; values without support are removed
+
+;__sat: whether some values of the variables of H satisfy __gQ (H -- 0|1)
+    (
+    (dup () =)
+    (drop (__gQ) TOP apply)
+    (
+      unconsl apply dup __dom swap __V swap 0             ; rest (V) D 0
+      ((over) (drop) (apply 2 pick PUSH 2 pick __sat or over POP drop) ifte)
+      foldl nip nip
+    )
+    ifte
+    )
+    (__sat)
+PUSH
+
+;__pGen: generic propagator: keep the values that some values of the other variables of H support (Q H --)
+    (
+    (__gH) set (__gQ) set
+    (__gH) TOP
+    (
+      apply dup __dom
+      (over __D PUSH (__gH) TOP __sat over __D POP drop) filter
+      __narrow
+    )
+    foreach
+    )
+    (__pGen)
+PUSH
+
+;__genpost: post the generic constraint Q, a program that leaves a truth value (Q --)
+    (
+    dup __varsof __handles dup (__lh) set
+    unit swap unit swap consr (__pGen) consr
+    (__lh) TOP __post
+    )
+    (__genpost)
+PUSH
+
+; ---------------------------------------------------------------------------
+; relations
+
+;__rel: linear propagator of kind k, or generic L R G (L R k G --)
+    (
+    __failed
+    (2drop 2drop)
+    (
+      (drop __linpost)
+      ((__Nonlinear) __iskind (drop nip -rot append swap append __genpost) (rethrow) branch)
+      try
+    )
+    branch
+    )
+    (__rel)
+PUSH
+
+
+;#= ( L R -- ) constrain the expressions L and R, quotations such as (X) or (2 X * 1 +), to have equal values
+    (0 (=) __rel)
+    (#=)
+PUSH
+
+;#\= ( L R -- ) constrain the expressions L and R, quotations such as (X) or (2 X * 1 +), to have different values
+    (2 (= not) __rel)
+    (#\=)
+PUSH
+
+;#<= ( L R -- ) constrain the value of the expression L to be at most that of R
+    (1 (<=) __rel)
+    (#<=)
+PUSH
+
+;#< ( L R -- ) constrain the value of the expression L to be less than that of R
+    ((1 -) append 1 (<=) __rel)
+    (#<)
+PUSH
+
+;#>= ( L R -- ) constrain the value of the expression L to be at least that of R
+    (swap 1 (<=) __rel)
+    (#>=)
+PUSH
+
+;#> ( L R -- ) constrain the value of the expression L to be greater than that of R
+    (swap (1 -) append 1 (<=) __rel)
+    (#>)
+PUSH
+
+; ---------------------------------------------------------------------------
+; alldiff: forward checking plus a pigeonhole test
+
+;__pAll: alldiff propagator (H --)
+    (
+    dup (apply __dom len 1 =) filter (apply __dom 1 nth) map
+    dup unique len over len = not (__fail) when
+    (__F) set
+    dup () (apply __dom append) foldl unique len over len < (__fail) when
+    (apply (dup __dom len 1 >) (dup __dom ((__F) TOP in not) filter __narrow) (drop) ifte)
+    foreach
+    )
+    (__pAll)
+PUSH
+
+    (
+    __failed
+    (drop)
+    (__handles dup unit (__pAll) consr swap __post)
+    branch
+    )
+    (alldiff)
+PUSH
+
+; ---------------------------------------------------------------------------
+; search: first-fail labelling with binary branching (V = v, or V <> v)
+
+;__select: the open variable with the smallest domain (H -- h|())
+    (
+    (apply __dom len 1 >) filter
+    (dup () =)
+    ()
+    (unconsl apply (apply 2dup __dom len swap __dom len < (nip) (drop) branch) foldl)
+    ifte
+    )
+    (__select)
+PUSH
+
+;__search: run __hook on each solution reached; __Inconsistent if none (H --)
+    (
+    dup __select
+    (dup () =)
+    (2drop __hook)
+    (
+      dup __dom unconsl                                  ; H h rest (v)
+      (__trail) DEPTH (__m) PUSH
+      (dup 3 pick swap __narrow __propagate 3 pick __search 2drop 2drop (__m) POP drop)
+      (
+        (__Inconsistent) __iskind
+        (drop drop (__m) POP __undo __narrow __propagate __search)
+        ((__m) POP drop rethrow)
+        branch
+      )
+      try
+    )
+    ifte
+    )
+    (__search)
+PUSH
+
+;label ( L -- 0|1 ) search a solution for the variables of the list L, smallest domain first: leave 1 and bind every variable whose value is determined, or leave 0 if there is no solution
+    (
+    __failed
+    (drop 0)
+    (
+      __handles
+      (__trail) DEPTH (__lm) PUSH
+      () (__hook) PUSH
+      (dup __search drop (__lm) POP drop 1)
+      (
+        (__Inconsistent) __iskind
+        (2drop (__lm) POP __undo 0)
+        (nip (__lm) POP drop rethrow)
+        branch
+      )
+      try
+      (__hook) POP drop
+      dup (__bindfixed) when
+    )
+    branch
+    )
+    (label)
+PUSH
+
+;solutions ( L -- S ) every solution, as a list of the values of the variables of L in order (() if there is none); the problem is left as it was
+    (
+    __failed
+    (drop ())
+    (
+      __handles (__sH) set
+      () (__sols) set
+      (__trail) DEPTH (__lm) PUSH
+      (
+        (__sols) TOP (__sH) TOP (apply __dom 1 nth) map unit consr (__sols) set
+        __fail
+      ) (__hook) PUSH
+      ((__sH) TOP __search) ((__Inconsistent) __iskind (drop) (rethrow) branch) try
+      (__hook) POP drop
+      (__lm) POP __undo
+      (__sols) TOP
+    )
+    branch
+    )
+    (solutions)
+PUSH
+
+;problem ( S -- ) start the problem named by the string S, which every model needs: forget the variables, constraints and waiting goals of the previous problem and unbind the values the solver gave them
+    (
+    dup islist not (unit (Type-Error) throw) when
+    dup () = (unit (Domain-Error) throw) when
+    (__vars) SNAPSHOT
+    (apply dup __D DELETE dup __C DELETE __V ".waits" __aux DELETE) foreach
+    ((__binds) DEPTH 0 >) ((__binds) POP POP drop) loop
+    (__vars) CLEAR (__trail) CLEAR (__queue) CLEAR
+    0 (__failed) set
+    (__pname) set
+    )
+    (problem)
+PUSH

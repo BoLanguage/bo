@@ -1,0 +1,53 @@
+; sudoku.bo -- fill the grid so that every row, column and box holds 1..9
+
+"include/std.bo" require
+"include/constraint.bo" require
+
+;__cell: the selector of the variable Ck ( k -- (Ck) )
+    (numstr "C" swap append selector)
+    (__cell)
+PUSH
+
+;sudoku ( G -- L ) declare C1..C81 from the grid G (0 = empty) and post the
+; constraints; leaves the list of variables
+    (
+    (__g) set
+    1 81 : (apply __cell) map (__cs) set
+    1 81 :
+    (apply dup __cell swap (__g) TOP swap nth apply
+     dup 0 = (drop 1 9 :) (unit) branch setdomain)
+    foreach
+    0 8 :                                               ; rows
+    (apply 9 * (__b) set 1 9 : (apply __b + __cell) map alldiff) foreach
+    1 9 :                                               ; columns
+    (apply (__b) set 0 8 : (apply 9 * __b + __cell) map alldiff) foreach
+    (1 4 7 28 31 34 55 58 61)                           ; boxes
+    (apply (__b) set (0 1 2 9 10 11 18 19 20) (apply __b + __cell) map alldiff)
+    foreach
+    (__cs) TOP
+    )
+    (sudoku)
+PUSH
+
+;grid ( L -- ) print the values of the 81 variables
+    (
+    (apply unit) map
+    0 8 : (apply 9 * (__b) set 1 9 : (apply __b + over swap nth apply emit " " emits) foreach "" says) foreach
+    drop
+    )
+    (grid)
+PUSH
+
+"sudoku" problem
+    (
+    5 3 0  0 7 0  0 0 0
+    6 0 0  1 9 5  0 0 0
+    0 9 8  0 0 0  0 6 0
+    8 0 0  0 6 0  0 0 3
+    4 0 0  8 0 3  0 0 1
+    7 0 0  0 2 0  0 0 6
+    0 6 0  0 0 0  2 8 0
+    0 0 0  4 1 9  0 0 5
+    0 0 0  0 8 0  0 7 9
+  )
+  sudoku dup label (grid) ("no solution" says drop) branch
