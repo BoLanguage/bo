@@ -74,7 +74,7 @@
 
 ;----- Error
 
-;catch ( T H -- ... ) Run `T` and, on error, run `H` with the error on top; without an error `H` is not run.
+;catch ( T H -- ... ) Run `T` and, on error, run `H` with the error on top; without an error `H` is not run. `H` sees the stack as `T` left it when it failed; the library op `try` restores it first.
 (() CATCH) (catch) PUSH
 ;rethrow ( E -- ) Propagate existing error `E` without recording it again.
 (() RETHROW) (rethrow) PUSH

@@ -124,6 +124,7 @@ on the value's size, even though named-stack lookup uses a hash table.
 | `parallel` | primitive adapter | `( L Q -- R )` | Run quotation `Q` for each item of `L` in isolated workers and collect their final stacks in input order. |
 | `rec` | primitive adapter | `( -- )` | Run again the program of the innermost running `lambda`. |
 | `times` | derived | `( .. q n -- .. )` | run q n times (not at all if n is not positive); q sees the stack below its arguments |
+| `try` | derived | `( .. T H -- .. )` | run T; if it raises an error, put the default stack back as it was before T (with the values T took), push the error and run H; unlike catch, H never sees what T left half done. Only the default stack is restored: named stacks, output and other effects of T stay |
 | `unless` | derived | `( b q -- )` | run q unless b is true (positive) |
 | `when` | derived | `( b q -- )` | run q if b is true (positive) |
 
@@ -159,7 +160,7 @@ on the value's size, even though named-stack lookup uses a hash table.
 
 | Name | Type | Effect | Description |
 |---|---|---|---|
-| `catch` | primitive adapter | `( T H -- ... )` | Run `T` and, on error, run `H` with the error on top; without an error `H` is not run. |
+| `catch` | primitive adapter | `( T H -- ... )` | Run `T` and, on error, run `H` with the error on top; without an error `H` is not run. `H` sees the stack as `T` left it when it failed; the library op `try` restores it first. |
 | `rethrow` | primitive adapter | `( E -- )` | Propagate existing error `E` without recording it again. |
 | `throw` | primitive adapter | `( L K -- )` | Raise an error whose kind is the selector `K` (such as `(Type-Error)`) with data list `L`; any other `K` raises `Type-Error`. |
 
@@ -329,7 +330,9 @@ on the value's size, even though named-stack lookup uses a hash table.
 
 | Name | Type | Effect | Description |
 |---|---|---|---|
+| `numstr` | derived | `( x -- S )` | the number x written in decimal, as emit writes it: an integer exactly (beyond 2^53 it raises Domain-Error), any other number with up to 15 decimals (so strnum reads an integer back exactly) |
 | `strjoin` | derived | `( G sep -- S )` | the strings of the list G joined into one string, with the string sep between them |
+| `strnum` | derived | `( S -- n )` | the number written in the string S, in the syntax of number literals (such as 42, -3.5, 1e3), with optional whitespace around it; any other string raises Domain-Error |
 | `strsplit` | derived | `( S sep -- G )` | the strings between the occurrences of the string sep in the string S, empty ones included; with sep = () (the empty string), the runs of characters that are not spaces, tabs, newlines or other control characters |
 
 ### Value

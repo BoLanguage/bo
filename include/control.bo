@@ -11,6 +11,32 @@
     (dip)
 PUSH
 
+;try ( .. T H -- .. ) run T; if it raises an error, put the default stack back as it was before T (with the values T took), push the error and run H; unlike catch, H never sees what T left half done. Only the default stack is restored: named stacks, output and other effects of T stay
+
+    (
+    (__tryh) PUSH (__tryt) PUSH
+    () SNAPSHOT (__trys) PUSH
+    ((__tryt) TOP apply __tryok) (__tryfail) catch
+    )
+    (try)
+PUSH
+
+;__tryok: T succeeded, discard the saved state
+
+    ((__tryh) POP drop (__tryt) POP drop (__trys) POP drop)
+    (__tryok)
+PUSH
+
+;__tryfail: T failed with error E: restore the saved stack, then run H on E (E --)
+
+    (
+    (__trye) PUSH
+    () CLEAR (__trys) POP apply
+    (__tryt) POP drop (__trye) POP (__tryh) POP apply
+    )
+    (__tryfail)
+PUSH
+
 ;keep ( .. x q -- .. x ) run q on x, then put back a copy of x on top
 
     (over swap dip)

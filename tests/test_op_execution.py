@@ -513,6 +513,15 @@ class OpExecution(unittest.TestCase):
                          "empty fields are kept with a separator")
         self.assertEqual(run('("to" "be") ", " strjoin () "," strjoin ("x") "," strjoin', standard_library=True),
                          [from_str("to, be"), [], from_str("x")])
+        self.assertEqual(run("0 numstr -42 numstr 2.5 numstr -0.125 numstr 1 3 / numstr", standard_library=True),
+                         [from_str("0"), from_str("-42"), from_str("2.5"), from_str("-0.125"),
+                          from_str("0.333333333333333")], "numstr writes numbers as emit does")
+        self.assertEqual(run('" 42 " strnum "-3.5" strnum "1e3" strnum -7 numstr strnum', standard_library=True),
+                         [42, -3.5, 1000, -7])
+        for text in ('"abc"', '"1 2"', '"(1)"', '""', '"-"', '"5 ; x"'):
+            with self.subTest(text=text):
+                self.assertEqual(run(f"({text} strnum) (1 nth) catch", standard_library=True)[-1],
+                                 [[Op("Domain-Error")]])
         self.assertEqual(run("16 sqrt (-1 sqrt) () catch", standard_library=True)[0], 4)
 
     def test_table_and_showmatrix(self):
@@ -537,6 +546,17 @@ class OpExecution(unittest.TestCase):
         self.assertEqual(data[-1][0], [Op("Domain-Error")])
         for code in ("(5 () in) () catch", "((1 2) () in) () catch"):
             self.assertEqual(run(code, standard_library=True)[-1][0], [Op("Type-Error")])
+
+    def test_try_restores_the_default_stack(self):
+        self.assertEqual(run("10 20 (1 + 99 x) (1 nth) catch", standard_library=True)[:3], [10, 21, 99],
+                         "catch leaves what the failing program did")
+        self.assertEqual(run("10 20 (1 + 99 x) (1 nth) try", standard_library=True),
+                         [10, 20, [[Op("Existence-Error")]]], "try restores the values T took")
+        self.assertEqual(run("5 (6 +) (drop) try", standard_library=True), [11])
+        self.assertEqual(run("1 (2 (3 x) (drop 30) try 4 y) (drop 40) try", standard_library=True), [1, 40],
+                         "nested")
+        self.assertEqual(run("(7 (1 0 /) (rethrow) try) (1 nth) catch", standard_library=True)[-1],
+                         [[Op("Domain-Error")]], "a handler can rethrow the original error")
 
     def test_standard_library_output_never_executes_list_elements(self):
         out = io.StringIO()

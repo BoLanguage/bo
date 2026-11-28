@@ -73,7 +73,7 @@ a primitive's name. The inventory below is generated from
 
 | Name | Type | Effect | Stack | Description |
 |---|---|---|---|---|
-| `CATCH` | primitive | `D: (s --), S: (T H -- ...)` | `S` (named `s`) | On `S`, run `T` and, on error, run `H` with the error on top; without an error `H` is not run. |
+| `CATCH` | primitive | `D: (s --), S: (T H -- ...)` | `S` (named `s`) | On `S`, run `T` and, on error, run `H` with the error on top; without an error `H` is not run. `H` sees the stack as `T` left it when it failed; the library op `try` restores it first. |
 | `RETHROW` | primitive | `D: (s --), S: (E -- )` | `S` (named `s`) | On `S`, propagate existing error `E` without recording it again. |
 | `THROW` | primitive | `D: (s --), S: (L K -- )` | `S` (named `s`) | On `S`, raise an error whose kind is the selector `K` (such as `(Type-Error)`) with data list `L`; any other `K` raises `Type-Error`. |
 

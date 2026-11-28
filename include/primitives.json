@@ -478,7 +478,7 @@
       "type": "primitive",
       "effect": "D: (s --), S: (T H -- ...)",
       "stack": "`S` (named `s`)",
-      "description": "On `S`, run `T` and, on error, run `H` with the error on top; without an error `H` is not run."
+      "description": "On `S`, run `T` and, on error, run `H` with the error on top; without an error `H` is not run. `H` sees the stack as `T` left it when it failed; the library op `try` restores it first."
     },
     {
       "name": "CALL",

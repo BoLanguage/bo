@@ -102,6 +102,13 @@ class PrivateOps(unittest.TestCase):
         self.assertTrue(machine.execute("(code) TOP unconsl drop name (__w) name ="))
         self.assertEqual(machine.data, [1])
 
+    def test_a_private_error_kind_is_caught_as_itself(self):
+        machine = machine_with({"main.bo": """
+(() (__Kind) throw) (1 nth (__Kind) unit =) try
+(() (__Kind) throw) (1 nth ((Kind)) =) try
+"""})
+        self.assertEqual(machine.data, [1, 0])
+
     def test_loading_a_file_again_replaces_its_private_ops(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "lib.bo"

@@ -1,6 +1,7 @@
 "stack.bo" require
 "logic.bo" require
 "list.bo" require
+"math.bo" require
 
 ;__strsplitacc: split the rest S of a string at each occurrence of P (G C S P -- G')
 
@@ -40,4 +41,114 @@ PUSH
     ifte
     )
     (strjoin)
+PUSH
+
+;__numd: the decimal digits of the non-negative integer n (n -- S)
+
+    (
+        (dup 10 <)
+        (48 + unit)
+        (dup 10 // swap over 10 * - swap __numd swap 48 + unit append)
+    ifte
+    )
+    (__numd)
+PUSH
+
+;__numdk: n in exactly k digits, padded with zeros (n k -- S)
+
+    (
+        (dup 0 =)
+        (2drop null)
+        (1 - swap dup 10 // swap over 10 * - -rot swap __numdk swap 48 + unit append)
+    ifte
+    )
+    (__numdk)
+PUSH
+
+;__numtrimz: drop the trailing zeros of the fraction f written on k digits (f k -- f' k')
+
+    (
+        (dup 1 >)
+        (
+            (over 10 mod 0 =)
+            (1 - swap 10 // swap __numtrimz)
+            ()
+        ifte
+        )
+        ()
+    ifte
+    )
+    (__numtrimz)
+PUSH
+
+;__numi: the integer n in decimal; above 2^53 it is no longer exact, so it raises Domain-Error (n -- S)
+
+    (
+        (dup abs 9007199254740992 >)
+        (unit (Domain-Error) throw)
+        (
+            (dup 0 <)
+            (neg __numd "-" swap append)
+            (__numd)
+        ifte
+        )
+    ifte
+    )
+    (__numi)
+PUSH
+
+;__numf: x with up to 15 decimals, exactly rounded (x -- S)
+
+    (
+    ratio
+        (over 0 <)
+        (swap neg swap "-")
+        (null)
+    ifte
+    -rot
+    dup 2 * -rot swap 2000000000000000 * + swap //
+    dup 1000000000000000 // tuck 1000000000000000 * -
+    -rot __numd append "." append
+    swap 15 __numtrimz __numdk append
+    )
+    (__numf)
+PUSH
+
+;numstr ( x -- S ) the number x written in decimal, as emit writes it: an integer exactly (beyond 2^53 it raises Domain-Error), any other number with up to 15 decimals (so strnum reads an integer back exactly)
+
+    (
+        (dup type 0 =)
+        (
+            (dup ratio nip 1 =)
+            (__numi)
+            (__numf)
+        ifte
+        )
+        (unit (Type-Error) throw)
+    ifte
+    )
+    (numstr)
+PUSH
+
+;__numchars: whether S holds only characters of number literals and whitespace (S -- S 0|1)
+
+    (dup (apply dup 32 > swap unit "0123456789+-.eE" in not and) filter null =)
+    (__numchars)
+PUSH
+
+;strnum ( S -- n ) the number written in the string S, in the syntax of number literals (such as 42, -3.5, 1e3), with optional whitespace around it; any other string raises Domain-Error
+
+    (
+        (__numchars)
+        (
+        dup parse
+            ((dup len 1 =) (dup unittype 0 =) (0) ifte)
+            (nip apply)
+            (drop unit (Domain-Error) throw)
+        ifte
+        )
+        (unit (Domain-Error) throw)
+    ifte
+    )
+    (strnum)
 PUSH

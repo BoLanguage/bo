@@ -140,6 +140,14 @@ An error is a list `(KIND WHERE DATA SOURCE LINE)`. `KIND` and `WHERE` are selec
 (1 0 /) (unconsl apply name emits) catch   ; prints Domain-Error
 ```
 
+`catch` runs its handler on the stack as the failing program left it, which may include values it pushed or changed before the error. `try` (in `include/control.bo`) runs the handler on the default stack as it was before the program, with the error on top, so the handler can fall back on the same inputs; named stacks and other effects are not undone:
+
+```bo
+10 20 (1 + 99 x) (drop) catch   ; leaves 10 21 99
+10 20 (1 + 99 x) (drop) try     ; leaves 10 20
+"12x" (strnum) (2drop 0) try    ; leaves 0: the handler gets "12x" and the error
+```
+
 `throw` raises `Type-Error` unless the kind is a unit containing an op. See [errors](errors.md) for the kinds the kernel raises.
 
 ## Library

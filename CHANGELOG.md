@@ -20,8 +20,16 @@ for their banner and `--version`.
     `((1 1) (2) (1))`.
   - `circshift ( T n axis -- T' )` rotates an array along one zero-based axis, toward the start
     for a positive `n` as `rotate` does for lists (MATLAB's `circshift` goes the other way).
+  - `numstr ( x -- S )` writes a number into a string as `emit` would print it, and
+    `strnum ( S -- n )` reads a number literal back (`Domain-Error` for any other string).
+  - `try ( .. T H -- .. )` is `catch` with a clean slate: if `T` fails, the default stack is
+    put back as it was before `T` (with the values `T` took) and `H` runs with the error on
+    top. `catch` still leaves `H` the stack as `T` left it, which is now documented.
 - `rle.bo` and `life.bo` use the new ops: run-length encoding is `group` followed by a `map`,
   and the Game of Life works on a rank-two array with `circshift` and broadcasting.
+- Fixed: in the Python runtime, `throw` with a private op as its kind (`(__Kind) throw` in a
+  file) raised an error whose kind was the plain op of the same name, so the file could not
+  catch it by comparing kinds; the C runtime already kept the private op.
 - Fixed: `foreach`, `map`, `foldl`, `foldr`, `unfoldl` and `unfoldr` reported a
   value that is not a list as a `Stack-Error` from their own cleanup instead of the `Type-Error`
   it is, leaving part of their private state behind.

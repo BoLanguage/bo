@@ -346,7 +346,7 @@ class Machine:
 
     def _fail(self, error):
         error_list = [
-            [Op(error.kind)],
+            [error.kind if isinstance(error.kind, Op) else Op(error.kind)],
             [Op(error.where or "EXECUTE")],
             list(error.data),
             from_str(self.source),
@@ -1535,7 +1535,7 @@ class Machine:
         if not isinstance(data, list):
             raise BoError("Type-Error", [data])
         selector_to_name(kind)
-        raise BoError(kind[0].name, data, "THROW")
+        raise BoError(kind[0], data, "THROW")  # the op itself: a private kind keeps its owner
 
     def n_exit(self, status):
         if not is_int(status):
